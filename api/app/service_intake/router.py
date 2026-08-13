@@ -10,6 +10,7 @@ from app.service_intake.schemas import ComplaintCreate, ComplaintPatch, ServiceE
 from app.service_intake.service import (
     create_service_event_for_scope,
     get_service_event_for_scope,
+    open_service_event_for_scope,
     serialize_service_event,
     update_complaint_for_scope,
 )
@@ -91,3 +92,23 @@ def update_complaint(
         raise HTTPException(status_code=404, detail="Service event not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/service-events/{event_id}/open", response_model=ServiceEventRead)
+def open_service_event(
+    event_id: UUID,
+    tenant_id: UUID = Depends(get_tenant_id),
+    db: Session = Depends(get_db),
+) -> ServiceEventRead:
+    try:
+        with db.begin():
+            event = open_service_event_for_scope(
+                db,
+                tenant_id=tenant_id,
+                event_id=event_id,
+            )
+            return ServiceEventRead.model_validate(serialize_service_event(event))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Service event not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

@@ -38,6 +38,34 @@ def get_latest_complaint_for_event(session: Session, event_id: uuid.UUID) -> Com
     ).scalars().first()
 
 
+def open_service_event_for_tenant(session: Session, *, tenant_id: uuid.UUID, event_id: uuid.UUID) -> ServiceEvent:
+    event = session.execute(
+        select(ServiceEvent)
+        .with_for_update()
+        .where(
+            ServiceEvent.tenant_id == tenant_id,
+            ServiceEvent.id == event_id,
+        )
+    ).scalar_one_or_none()
+    if event is None:
+        raise LookupError("Service event not found")
+
+    if event.state == ServiceEventState.OPEN:
+        raise ValueError("Service event is already OPEN")
+    if event.state != ServiceEventState.DRAFT:
+        raise ValueError("Service event is not in DRAFT state")
+
+    latest_complaint = get_latest_complaint_for_event(session, event.id)
+    if latest_complaint is None:
+        raise ValueError("Service event has no complaint")
+
+    event.state = ServiceEventState.OPEN
+    event.opened_at = datetime.now(timezone.utc)
+    event.revision += 1
+    session.flush()
+    return event
+
+
 def create_service_event_for_tenant(
     session: Session,
     *,

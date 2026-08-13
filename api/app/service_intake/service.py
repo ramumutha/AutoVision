@@ -10,6 +10,7 @@ from app.service_intake.repository import (
     get_latest_complaint_for_event,
     get_service_event_for_tenant,
     get_vehicle_for_tenant,
+    open_service_event_for_tenant,
     update_complaint_for_tenant,
 )
 
@@ -78,12 +79,16 @@ def update_complaint_for_scope(
     )
 
 
-def serialize_service_event(event: ServiceEvent) -> dict:
-    complaint = (
-        sorted(event.complaints, key=lambda item: item.revision, reverse=True)[0]
-        if event.complaints
-        else get_latest_complaint_for_event(event.session, event.id) if hasattr(event, "session") else None
+def open_service_event_for_scope(session: Session, *, tenant_id: uuid.UUID, event_id: uuid.UUID) -> ServiceEvent:
+    return open_service_event_for_tenant(
+        session,
+        tenant_id=tenant_id,
+        event_id=event_id,
     )
+
+
+def serialize_service_event(event: ServiceEvent) -> dict:
+    complaint = max(event.complaints, key=lambda item: item.revision) if event.complaints else None
     return {
         "id": event.id,
         "vehicleId": event.vehicle_id,

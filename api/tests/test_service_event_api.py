@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.core.models import Tenant
 from app.main import app
-from app.service_intake.models import Complaint, ServiceEvent
+from app.service_intake.models import Complaint, ServiceEvent, ServiceEventState
 from app.vehicle.models import Vehicle
 from scripts.seed_demo import reset_demo_data, seed_demo_data
 
@@ -373,5 +373,174 @@ def test_patch_complaint_wrong_tenant_returns_404(seeded_demo_tenant: str) -> No
     try:
         session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant.slug))
         session.commit()
+    finally:
+        session.close()
+
+
+def test_open_service_event_successful_transition(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "portal",
+            "originalComplaint": "Warning light is on.",
+            "structuredSummary": "Engine warning light on.",
+        },
+    )
+    event_id = create_response.json()["id"]
+    before_revision = create_response.json()["revision"]
+    before_complaint_revision = create_response.json()["complaint"]["revision"]
+
+    response = client.post(f"/v1/service-events/{event_id}/open", headers={"X-Tenant-ID": seeded_demo_tenant})
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["state"] == "OPEN"
+    assert payload["revision"] == before_revision + 1
+    assert payload["openedAt"] is not None
+    assert payload["complaint"]["revision"] == before_complaint_revision
+    assert payload["complaint"]["originalText"] == "Warning light is on."
+
+    session = SessionLocal()
+    try:
+        event = session.execute(select(ServiceEvent).where(ServiceEvent.id == uuid.UUID(event_id))).scalar_one()
+        complaint = session.execute(select(Complaint).where(Complaint.event_id == event.id).order_by(Complaint.revision.desc())).scalars().first()
+        assert event.state == ServiceEventState.OPEN
+        assert event.revision == before_revision + 1
+        assert event.opened_at is not None
+        assert complaint is not None
+        assert complaint.revision == before_complaint_revision
+    finally:
+        session.close()
+
+
+def test_open_service_event_rejects_second_open_and_preserves_history(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "phone",
+            "originalComplaint": "Battery warning is flashing.",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    first_open = client.post(f"/v1/service-events/{event_id}/open", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert first_open.status_code == 200, first_open.text
+
+    second_open = client.post(f"/v1/service-events/{event_id}/open", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert second_open.status_code == 409, second_open.text
+
+    session = SessionLocal()
+    try:
+        event = session.execute(select(ServiceEvent).where(ServiceEvent.id == uuid.UUID(event_id))).scalar_one()
+        complaint_count = session.execute(select(Complaint).where(Complaint.event_id == event.id)).scalars().all()
+        assert event.state == ServiceEventState.OPEN
+        assert event.revision == 2
+        assert event.opened_at is not None
+        assert len(complaint_count) == 1
+    finally:
+        session.close()
+
+
+def test_open_service_event_wrong_tenant_and_unknown_event_return_404(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Eclipse")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "email",
+            "originalComplaint": "Vehicle shakes at idle.",
+        },
+    )
+    event_id = event_response.json()["id"]
+
+    other_tenant = Tenant(slug=f"open-other-{uuid.uuid4()}", name="Open Other Tenant")
+    session = SessionLocal()
+    try:
+        session.add(other_tenant)
+        session.commit()
+        other_tenant_id = str(other_tenant.id)
+    finally:
+        session.close()
+
+    wrong_tenant_response = client.post(f"/v1/service-events/{event_id}/open", headers={"X-Tenant-ID": other_tenant_id})
+    assert wrong_tenant_response.status_code == 404, wrong_tenant_response.text
+
+    unknown_response = client.post(f"/v1/service-events/{uuid.uuid4()}/open", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert unknown_response.status_code == 404, unknown_response.text
+
+    session = SessionLocal()
+    try:
+        session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant.slug))
+        session.commit()
+    finally:
+        session.close()
+
+
+def test_open_service_event_requires_complaint_and_keeps_draft_on_failure(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Cargo Max")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    event = ServiceEvent(
+        tenant_id=uuid.UUID(seeded_demo_tenant),
+        vehicle_id=vehicle.id,
+        source="manual",
+        state=ServiceEventState.DRAFT,
+        revision=1,
+        opened_at=None,
+    )
+    session = SessionLocal()
+    try:
+        session.add(event)
+        session.commit()
+        event_id = str(event.id)
+    finally:
+        session.close()
+
+    response = client.post(f"/v1/service-events/{event_id}/open", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert response.status_code == 409, response.text
+
+    session = SessionLocal()
+    try:
+        stored_event = session.execute(select(ServiceEvent).where(ServiceEvent.id == uuid.UUID(event_id))).scalar_one()
+        assert stored_event.state == ServiceEventState.DRAFT
+        assert stored_event.revision == 1
+        assert stored_event.opened_at is None
     finally:
         session.close()
