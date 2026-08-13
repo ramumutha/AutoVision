@@ -47,6 +47,7 @@ class UserRef(Base):
     tenant: Mapped[Tenant] = relationship(back_populates="users")
     role_assignments: Mapped[list["RoleAssignment"]] = relationship(back_populates="user_ref")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="user_ref")
+    service_event_assignments: Mapped[list["ServiceEventAssignment"]] = relationship(back_populates="user_ref")
 
 
 class RoleAssignment(Base):

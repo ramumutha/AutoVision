@@ -39,6 +39,8 @@ class Tenant(Base):
     vehicle_identifiers: Mapped[list["VehicleIdentifier"]] = relationship(back_populates="tenant")
     usage_snapshots: Mapped[list["UsageSnapshot"]] = relationship(back_populates="tenant")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="tenant")
+    service_events: Mapped[list["ServiceEvent"]] = relationship(back_populates="tenant")
+    service_event_assignments: Mapped[list["ServiceEventAssignment"]] = relationship(back_populates="tenant")
 
 
 __all__ = ["Tenant"]
