@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.service_intake.models import Complaint, ServiceEvent
 from app.service_intake.repository import (
     create_service_event_for_tenant,
+    get_latest_complaint_for_event,
     get_service_event_for_tenant,
     get_vehicle_for_tenant,
+    update_complaint_for_tenant,
 )
 
 
@@ -55,8 +57,33 @@ def get_service_event_for_scope(session: Session, tenant_id: uuid.UUID, event_id
     return get_service_event_for_tenant(session, tenant_id, event_id)
 
 
+def update_complaint_for_scope(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    original_complaint: str | None = None,
+    structured_summary: str | None = None,
+    language: str | None = None,
+    captured_by: str | None = None,
+) -> ServiceEvent:
+    return update_complaint_for_tenant(
+        session,
+        tenant_id=tenant_id,
+        event_id=event_id,
+        original_complaint=original_complaint,
+        structured_summary=structured_summary,
+        language=language,
+        captured_by=captured_by,
+    )
+
+
 def serialize_service_event(event: ServiceEvent) -> dict:
-    complaint = event.complaints[0] if event.complaints else None
+    complaint = (
+        sorted(event.complaints, key=lambda item: item.revision, reverse=True)[0]
+        if event.complaints
+        else get_latest_complaint_for_event(event.session, event.id) if hasattr(event, "session") else None
+    )
     return {
         "id": event.id,
         "vehicleId": event.vehicle_id,

@@ -30,6 +30,14 @@ def get_service_event_for_tenant(session: Session, tenant_id: uuid.UUID, event_i
     ).scalar_one_or_none()
 
 
+def get_latest_complaint_for_event(session: Session, event_id: uuid.UUID) -> Complaint | None:
+    return session.execute(
+        select(Complaint)
+        .where(Complaint.event_id == event_id)
+        .order_by(Complaint.revision.desc())
+    ).scalars().first()
+
+
 def create_service_event_for_tenant(
     session: Session,
     *,
@@ -62,5 +70,50 @@ def create_service_event_for_tenant(
         revision=1,
     )
     session.add(complaint)
+    session.flush()
+    return event
+
+
+def update_complaint_for_tenant(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    original_complaint: str | None = None,
+    structured_summary: str | None = None,
+    language: str | None = None,
+    captured_by: str | None = None,
+) -> ServiceEvent:
+    event = session.execute(
+        select(ServiceEvent).where(
+            ServiceEvent.tenant_id == tenant_id,
+            ServiceEvent.id == event_id,
+        )
+    ).scalar_one_or_none()
+    if event is None:
+        raise LookupError("Service event not found")
+
+    if event.state != ServiceEventState.DRAFT:
+        raise ValueError("Service event is not in DRAFT state")
+
+    previous_complaint = get_latest_complaint_for_event(session, event.id)
+    if previous_complaint is None:
+        raise LookupError("Complaint not found")
+
+    next_original = previous_complaint.original_text if original_complaint is None else original_complaint
+    next_structured = previous_complaint.structured_summary if structured_summary is None else structured_summary
+    next_language = previous_complaint.language if language is None else language
+    next_captured_by = previous_complaint.captured_by if captured_by is None else captured_by
+
+    new_complaint = Complaint(
+        event=event,
+        original_text=next_original,
+        structured_summary=next_structured,
+        language=next_language,
+        captured_by=next_captured_by,
+        captured_at=datetime.now(timezone.utc),
+        revision=previous_complaint.revision + 1,
+    )
+    session.add(new_complaint)
     session.flush()
     return event

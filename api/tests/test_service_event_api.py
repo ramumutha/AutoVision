@@ -193,3 +193,185 @@ def test_get_service_event_wrong_tenant_returns_404(seeded_demo_tenant: str) -> 
         session.commit()
     finally:
         session.close()
+
+
+def test_patch_complaint_creates_revision_2_and_preserves_history(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "phone",
+            "originalComplaint": "  Warning light after startup  ",
+            "structuredSummary": "Warning light during startup",
+            "language": "en-US",
+            "capturedBy": "advisor-42",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/v1/service-events/{event_id}/complaint",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "structuredSummary": "Warning light during startup after engine crank",
+            "language": "en-GB",
+            "capturedBy": "advisor-99",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["state"] == "DRAFT"
+    assert payload["complaint"]["revision"] == 2
+    assert payload["complaint"]["originalText"] == "  Warning light after startup  "
+    assert payload["complaint"]["structuredSummary"] == "Warning light during startup after engine crank"
+    assert payload["complaint"]["language"] == "en-GB"
+    assert payload["complaint"]["capturedBy"] == "advisor-99"
+
+    session = SessionLocal()
+    try:
+        event = session.execute(select(ServiceEvent).where(ServiceEvent.id == uuid.UUID(event_id))).scalar_one()
+        complaints = session.execute(select(Complaint).where(Complaint.event_id == event.id).order_by(Complaint.revision)).scalars().all()
+        assert len(complaints) == 2
+        assert complaints[0].revision == 1
+        assert complaints[1].revision == 2
+        assert complaints[0].original_text == "  Warning light after startup  "
+        assert complaints[1].original_text == "  Warning light after startup  "
+        assert complaints[1].structured_summary == "Warning light during startup after engine crank"
+    finally:
+        session.close()
+
+
+def test_patch_complaint_with_new_original_text_preserves_exact_value(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "email",
+            "originalComplaint": "Customer says CEL on.",
+            "structuredSummary": "Check engine light is on.",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/v1/service-events/{event_id}/complaint",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "originalComplaint": "   Customer says CEL on.   ",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["complaint"]["originalText"] == "   Customer says CEL on.   "
+    assert payload["complaint"]["structuredSummary"] == "Check engine light is on."
+
+
+def test_patch_complaint_rejects_empty_payload_and_non_draft_state(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "portal",
+            "originalComplaint": "Red warning.",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    empty_response = client.patch(
+        f"/v1/service-events/{event_id}/complaint",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={},
+    )
+    assert empty_response.status_code == 400, empty_response.text
+
+    session = SessionLocal()
+    try:
+        event = session.execute(select(ServiceEvent).where(ServiceEvent.id == uuid.UUID(event_id))).scalar_one()
+        event.state = __import__("app.service_intake.models", fromlist=["ServiceEventState"]).ServiceEventState.OPEN
+        session.commit()
+    finally:
+        session.close()
+
+    non_draft_response = client.patch(
+        f"/v1/service-events/{event_id}/complaint",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"structuredSummary": "Updated summary"},
+    )
+    assert non_draft_response.status_code == 400, non_draft_response.text
+
+
+def test_patch_complaint_wrong_tenant_returns_404(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    create_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "portal",
+            "originalComplaint": "Noise in cabin.",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    other_tenant = Tenant(slug=f"complaint-other-{uuid.uuid4()}", name="Complaint Other Tenant")
+    session = SessionLocal()
+    try:
+        session.add(other_tenant)
+        session.commit()
+        other_tenant_id = str(other_tenant.id)
+    finally:
+        session.close()
+
+    response = client.patch(
+        f"/v1/service-events/{event_id}/complaint",
+        headers={"X-Tenant-ID": other_tenant_id},
+        json={"structuredSummary": "Noise in cabin summary"},
+    )
+    assert response.status_code == 404, response.text
+
+    session = SessionLocal()
+    try:
+        session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant.slug))
+        session.commit()
+    finally:
+        session.close()

@@ -17,6 +17,15 @@ class ComplaintCreate(BaseModel):
     capturedBy: str | None = Field(default=None, max_length=120)
 
 
+class ComplaintPatch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    originalComplaint: str | None = None
+    structuredSummary: str | None = None
+    language: str | None = Field(default=None, max_length=20)
+    capturedBy: str | None = Field(default=None, max_length=120)
+
+
 class ComplaintRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

@@ -6,8 +6,13 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.service_intake.schemas import ComplaintCreate, ServiceEventRead
-from app.service_intake.service import create_service_event_for_scope, get_service_event_for_scope, serialize_service_event
+from app.service_intake.schemas import ComplaintCreate, ComplaintPatch, ServiceEventRead
+from app.service_intake.service import (
+    create_service_event_for_scope,
+    get_service_event_for_scope,
+    serialize_service_event,
+    update_complaint_for_scope,
+)
 
 router = APIRouter(prefix="/v1", tags=["service-intake"])
 
@@ -57,3 +62,32 @@ def get_service_event(
     if event is None:
         raise HTTPException(status_code=404, detail="Service event not found")
     return ServiceEventRead.model_validate(serialize_service_event(event))
+
+
+@router.patch("/service-events/{event_id}/complaint", response_model=ServiceEventRead)
+def update_complaint(
+    event_id: UUID,
+    payload: ComplaintPatch,
+    tenant_id: UUID = Depends(get_tenant_id),
+    db: Session = Depends(get_db),
+) -> ServiceEventRead:
+    updates = payload.model_dump(exclude_unset=True)
+    if not any(value is not None for value in updates.values()):
+        raise HTTPException(status_code=400, detail="No complaint fields supplied")
+
+    try:
+        with db.begin():
+            event = update_complaint_for_scope(
+                db,
+                tenant_id=tenant_id,
+                event_id=event_id,
+                original_complaint=payload.originalComplaint,
+                structured_summary=payload.structuredSummary,
+                language=payload.language,
+                captured_by=payload.capturedBy,
+            )
+            return ServiceEventRead.model_validate(serialize_service_event(event))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Service event not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
