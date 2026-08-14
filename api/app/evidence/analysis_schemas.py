@@ -48,7 +48,7 @@ class AnalysisWorkItem(BaseModel):
 
 
 class EvidenceAnalysisInput(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     evidence_id: UUID
     evidence_type: EvidenceType
@@ -62,7 +62,7 @@ class EvidenceAnalysisInput(BaseModel):
 
 
 class FindingAnalysisRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     schema_version: str
     service_event_id: UUID
@@ -70,26 +70,30 @@ class FindingAnalysisRequest(BaseModel):
 
 
 class ProviderUsage(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     input_tokens: int | None = None
     output_tokens: int | None = None
 
 
 class AnalysisObservation(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     finding_code: str
     title: str
     description: str
     component: str | None = None
     location: str | None = None
-    confidence: float | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     evidence_sufficiency: EvidenceSufficiency
+    supporting_evidence_ids: tuple[UUID, ...] = Field(
+        default_factory=tuple,
+        alias="supportingEvidenceIds",
+    )
 
 
 class FindingAnalysisResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     schema_version: str
     provider: str

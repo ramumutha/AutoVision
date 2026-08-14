@@ -37,6 +37,7 @@ class FakeFindingProvider:
                 "location": None,
                 "confidence": 0.5,
                 "evidence_sufficiency": EvidenceSufficiency.SUFFICIENT,
+                "supporting_evidence_ids": (item.evidence_id,),
             }
             for item in request.evidence
         )

@@ -133,7 +133,7 @@ def _load_run(run_id: str) -> AnalysisRun:
         session.close()
 
 
-def test_worker_success_records_metadata_and_does_not_create_findings(worker_context: dict[str, object]) -> None:
+def test_worker_success_records_metadata_and_persists_findings(worker_context: dict[str, object]) -> None:
     evidence_id = _create_ready_evidence(worker_context)
     run_id, work_item = _create_run(worker_context)
     provider = CountingProvider()
@@ -158,7 +158,8 @@ def test_worker_success_records_metadata_and_does_not_create_findings(worker_con
 
     session = SessionLocal()
     try:
-        assert session.execute(select(Finding)).scalars().all() == []
+        findings = session.execute(select(Finding).where(Finding.analysis_run_id == uuid.UUID(run_id))).scalars().all()
+        assert len(findings) == 1
         evidence = session.execute(select(Evidence).where(Evidence.id == uuid.UUID(evidence_id))).scalar_one()
         asset = session.execute(select(EvidenceAsset).where(EvidenceAsset.evidence_id == evidence.id)).scalar_one()
         assert evidence.status == EvidenceStatus.READY
