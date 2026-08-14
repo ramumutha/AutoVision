@@ -47,6 +47,9 @@ class Tenant(Base):
     findings: Mapped[list["Finding"]] = relationship(back_populates="tenant")
     finding_evidence: Mapped[list["FindingEvidence"]] = relationship(back_populates="tenant")
     finding_reviews: Mapped[list["FindingReview"]] = relationship(back_populates="tenant")
+    prediction_runs: Mapped[list["PredictionRun"]] = relationship(back_populates="tenant")
+    prediction_assessments: Mapped[list["PredictionAssessment"]] = relationship(back_populates="tenant")
+    prediction_factors: Mapped[list["PredictionFactor"]] = relationship(back_populates="tenant")
 
 
 __all__ = ["Tenant"]

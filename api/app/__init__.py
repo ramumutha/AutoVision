@@ -15,6 +15,17 @@ from app.evidence.models import (
     FindingReviewStatus,
 )
 from app.identity.models import RoleAssignment, UserRef
+from app.prediction.models import (
+    PredictionAssessment,
+    PredictionFactor,
+    PredictionFactorType,
+    PredictionHorizonType,
+    PredictionInputQuality,
+    PredictionRun,
+    PredictionRunStatus,
+    PredictionSeverity,
+    PredictionUrgency,
+)
 from app.service_intake.models import Complaint, ServiceEvent, ServiceEventAssignment, ServiceEventContext
 from app.vehicle.models import AuditEvent, UsageSnapshot, Vehicle, VehicleIdentifier
 
@@ -43,4 +54,13 @@ __all__ = [
     "FindingReview",
     "FindingReviewStatus",
     "FindingReviewDecision",
+    "PredictionRun",
+    "PredictionRunStatus",
+    "PredictionInputQuality",
+    "PredictionAssessment",
+    "PredictionSeverity",
+    "PredictionUrgency",
+    "PredictionHorizonType",
+    "PredictionFactor",
+    "PredictionFactorType",
 ]

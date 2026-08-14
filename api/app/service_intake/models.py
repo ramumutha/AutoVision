@@ -71,6 +71,7 @@ class ServiceEvent(Base):
     evidence: Mapped[list["Evidence"]] = relationship(back_populates="event")
     analysis_runs: Mapped[list["AnalysisRun"]] = relationship(back_populates="event")
     findings: Mapped[list["Finding"]] = relationship(back_populates="event")
+    prediction_runs: Mapped[list["PredictionRun"]] = relationship(back_populates="service_event")
 
 
 class Complaint(Base):

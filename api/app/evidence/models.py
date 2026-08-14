@@ -237,6 +237,7 @@ class AnalysisRun(Base):
     tenant: Mapped[Tenant] = relationship(back_populates="analysis_runs")
     event: Mapped["ServiceEvent"] = relationship(back_populates="analysis_runs")
     findings: Mapped[list["Finding"]] = relationship(back_populates="analysis_run")
+    prediction_runs: Mapped[list["PredictionRun"]] = relationship(back_populates="analysis_run")
     retry_of: Mapped["AnalysisRun | None"] = relationship(back_populates="retries", remote_side="AnalysisRun.id")
     retries: Mapped[list["AnalysisRun"]] = relationship(back_populates="retry_of", remote_side="AnalysisRun.retry_of_analysis_run_id")
 

@@ -76,6 +76,7 @@ class Vehicle(Base):
     usage_snapshots: Mapped[list["UsageSnapshot"]] = relationship(back_populates="vehicle")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="vehicle")
     service_events: Mapped[list["ServiceEvent"]] = relationship(back_populates="vehicle")
+    prediction_runs: Mapped[list["PredictionRun"]] = relationship(back_populates="vehicle")
 
 
 class VehicleIdentifier(Base):
