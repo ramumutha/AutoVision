@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.evidence.models import CaptureSource, Evidence, EvidenceStatus, EvidenceType
+from app.evidence.models import CaptureSource, Evidence, EvidenceAsset, EvidenceStatus, EvidenceType
 from app.service_intake.models import ServiceEvent
 
 
@@ -77,3 +77,44 @@ def get_evidence_for_tenant_service_event(
             Evidence.id == evidence_id,
         )
     ).scalar_one_or_none()
+
+
+def create_evidence_asset_for_tenant(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    evidence_id: uuid.UUID,
+    storage_provider: str,
+    storage_key: str,
+    file_name: str,
+    media_type: str,
+    file_size_bytes: int,
+    checksum_sha256: str,
+) -> EvidenceAsset:
+    asset = EvidenceAsset(
+        tenant_id=tenant_id,
+        evidence_id=evidence_id,
+        storage_provider=storage_provider,
+        storage_key=storage_key,
+        file_name=file_name,
+        media_type=media_type,
+        file_size_bytes=file_size_bytes,
+        checksum_sha256=checksum_sha256,
+    )
+    session.add(asset)
+    session.flush()
+    return asset
+
+
+def get_evidence_asset_for_tenant(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    evidence_id: uuid.UUID,
+) -> EvidenceAsset | None:
+    return session.execute(
+        select(EvidenceAsset).where(
+            EvidenceAsset.tenant_id == tenant_id,
+            EvidenceAsset.evidence_id == evidence_id,
+        ).order_by(EvidenceAsset.created_at.desc(), EvidenceAsset.id.desc())
+    ).scalars().first()

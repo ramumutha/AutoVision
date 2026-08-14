@@ -14,6 +14,9 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     TEST_DATABASE_URL: str | None = None
+    EVIDENCE_STORAGE_PROVIDER: str = "local"
+    EVIDENCE_LOCAL_STORAGE_ROOT: Path = Path("./var/evidence")
+    EVIDENCE_MAX_FILE_SIZE_BYTES: int = 25 * 1024 * 1024
 
 
 settings = Settings()
