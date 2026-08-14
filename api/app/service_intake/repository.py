@@ -6,7 +6,14 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.service_intake.models import Complaint, ServiceEvent, ServiceEventState
+from app.identity.models import UserRef
+from app.service_intake.models import (
+    Complaint,
+    ServiceEvent,
+    ServiceEventAssignment,
+    ServiceEventContext,
+    ServiceEventState,
+)
 from app.vehicle.models import Vehicle
 
 
@@ -22,7 +29,11 @@ def get_vehicle_for_tenant(session: Session, tenant_id: uuid.UUID, vehicle_id: u
 def get_service_event_for_tenant(session: Session, tenant_id: uuid.UUID, event_id: uuid.UUID) -> ServiceEvent | None:
     return session.execute(
         select(ServiceEvent)
-        .options(selectinload(ServiceEvent.complaints))
+        .options(
+            selectinload(ServiceEvent.complaints),
+            selectinload(ServiceEvent.assignments),
+            selectinload(ServiceEvent.contexts),
+        )
         .where(
             ServiceEvent.tenant_id == tenant_id,
             ServiceEvent.id == event_id,
@@ -100,6 +111,75 @@ def create_service_event_for_tenant(
     session.add(complaint)
     session.flush()
     return event
+
+
+def create_service_event_assignment_for_tenant(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    role_code: str,
+    user_ref_id: uuid.UUID | None = None,
+) -> ServiceEventAssignment:
+    event = session.execute(
+        select(ServiceEvent).where(
+            ServiceEvent.tenant_id == tenant_id,
+            ServiceEvent.id == event_id,
+        )
+    ).scalar_one_or_none()
+    if event is None:
+        raise LookupError("Service event not found")
+
+    if user_ref_id is not None:
+        user_ref = session.execute(
+            select(UserRef).where(
+                UserRef.id == user_ref_id,
+                UserRef.tenant_id == tenant_id,
+            )
+        ).scalar_one_or_none()
+        if user_ref is None:
+            raise LookupError("User not found")
+
+    assignment = ServiceEventAssignment(
+        event_id=event.id,
+        tenant_id=tenant_id,
+        role_code=role_code,
+        user_ref_id=user_ref_id,
+        assigned_at=datetime.now(timezone.utc),
+    )
+    session.add(assignment)
+    session.flush()
+    return assignment
+
+
+def create_service_event_context_for_tenant(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    context_type: str,
+    source_ref: str | None = None,
+    snapshot_json: dict | None = None,
+) -> ServiceEventContext:
+    event = session.execute(
+        select(ServiceEvent).where(
+            ServiceEvent.tenant_id == tenant_id,
+            ServiceEvent.id == event_id,
+        )
+    ).scalar_one_or_none()
+    if event is None:
+        raise LookupError("Service event not found")
+
+    context = ServiceEventContext(
+        event_id=event.id,
+        context_type=context_type,
+        source_ref=source_ref,
+        snapshot_json=snapshot_json or {},
+        captured_at=datetime.now(timezone.utc),
+    )
+    session.add(context)
+    session.flush()
+    return context
 
 
 def update_complaint_for_tenant(

@@ -6,8 +6,18 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.service_intake.schemas import ComplaintCreate, ComplaintPatch, ServiceEventRead
+from app.service_intake.schemas import (
+    ComplaintCreate,
+    ComplaintPatch,
+    ServiceEventAssignmentCreate,
+    ServiceEventAssignmentRead,
+    ServiceEventContextCreate,
+    ServiceEventContextRead,
+    ServiceEventRead,
+)
 from app.service_intake.service import (
+    create_service_event_assignment_for_scope,
+    create_service_event_context_for_scope,
     create_service_event_for_scope,
     get_service_event_for_scope,
     open_service_event_for_scope,
@@ -92,6 +102,62 @@ def update_complaint(
         raise HTTPException(status_code=404, detail="Service event not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/service-events/{event_id}/assignments", response_model=ServiceEventAssignmentRead, status_code=201)
+def create_assignment(
+    event_id: UUID,
+    payload: ServiceEventAssignmentCreate,
+    tenant_id: UUID = Depends(get_tenant_id),
+    db: Session = Depends(get_db),
+) -> ServiceEventAssignmentRead:
+    try:
+        with db.begin():
+            assignment = create_service_event_assignment_for_scope(
+                db,
+                tenant_id=tenant_id,
+                event_id=event_id,
+                role_code=payload.roleCode,
+                user_ref_id=payload.userRef,
+            )
+            return ServiceEventAssignmentRead.model_validate({
+                "id": assignment.id,
+                "eventId": assignment.event_id,
+                "roleCode": assignment.role_code,
+                "userRef": str(assignment.user_ref_id) if assignment.user_ref_id else None,
+                "assignedAt": assignment.assigned_at,
+            })
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Service event not found") from exc
+
+
+@router.post("/service-events/{event_id}/contexts", response_model=ServiceEventContextRead, status_code=201)
+def create_context(
+    event_id: UUID,
+    payload: ServiceEventContextCreate,
+    tenant_id: UUID = Depends(get_tenant_id),
+    db: Session = Depends(get_db),
+) -> ServiceEventContextRead:
+    try:
+        with db.begin():
+            context = create_service_event_context_for_scope(
+                db,
+                tenant_id=tenant_id,
+                event_id=event_id,
+                context_type=payload.contextType,
+                source_ref=payload.sourceRef,
+                snapshot_json=payload.snapshotJson,
+            )
+            return ServiceEventContextRead.model_validate({
+                "id": context.id,
+                "eventId": context.event_id,
+                "contextType": context.context_type,
+                "sourceRef": context.source_ref,
+                "snapshotJson": context.snapshot_json,
+                "capturedAt": context.captured_at,
+            })
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Service event not found") from exc
 
 
 @router.post("/service-events/{event_id}/open", response_model=ServiceEventRead)

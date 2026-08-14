@@ -38,6 +38,42 @@ class ComplaintRead(BaseModel):
     revision: int
 
 
+class ServiceEventAssignmentCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    roleCode: str = Field(min_length=1, max_length=80)
+    userRef: UUID | None = None
+
+
+class ServiceEventAssignmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: UUID
+    eventId: UUID
+    roleCode: str
+    userRef: UUID | None = None
+    assignedAt: datetime
+
+
+class ServiceEventContextCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    contextType: str = Field(min_length=1, max_length=80)
+    sourceRef: str | None = Field(default=None, max_length=255)
+    snapshotJson: dict = Field(default_factory=dict)
+
+
+class ServiceEventContextRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: UUID
+    eventId: UUID
+    contextType: str
+    sourceRef: str | None = None
+    snapshotJson: dict
+    capturedAt: datetime
+
+
 class ServiceEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -49,4 +85,6 @@ class ServiceEventRead(BaseModel):
     openedAt: datetime | None = None
     createdAt: datetime
     updatedAt: datetime
-    complaint: ComplaintRead
+    complaint: ComplaintRead | None = None
+    assignments: list[ServiceEventAssignmentRead] = []
+    contexts: list[ServiceEventContextRead] = []

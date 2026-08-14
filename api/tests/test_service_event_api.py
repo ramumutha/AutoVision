@@ -6,8 +6,15 @@ from sqlalchemy import select
 
 from app.core.database import SessionLocal
 from app.core.models import Tenant
+from app.identity.models import UserRef
 from app.main import app
-from app.service_intake.models import Complaint, ServiceEvent, ServiceEventState
+from app.service_intake.models import (
+    Complaint,
+    ServiceEvent,
+    ServiceEventAssignment,
+    ServiceEventContext,
+    ServiceEventState,
+)
 from app.vehicle.models import Vehicle
 from scripts.seed_demo import reset_demo_data, seed_demo_data
 
@@ -372,6 +379,247 @@ def test_patch_complaint_wrong_tenant_returns_404(seeded_demo_tenant: str) -> No
     session = SessionLocal()
     try:
         session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant.slug))
+        session.commit()
+    finally:
+        session.close()
+
+
+def test_create_service_event_assignment_success(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "service-desk",
+            "originalComplaint": "Warning light is on.",
+        },
+    )
+    event_id = event_response.json()["id"]
+
+    response = client.post(
+        f"/v1/service-events/{event_id}/assignments",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"roleCode": "TECHNICIAN"},
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["eventId"] == event_id
+    assert payload["roleCode"] == "TECHNICIAN"
+    assert payload["userRef"] is None
+    assert payload["assignedAt"] is not None
+
+    session = SessionLocal()
+    try:
+        assignment = session.execute(select(ServiceEventAssignment).where(ServiceEventAssignment.event_id == uuid.UUID(event_id))).scalar_one()
+        assert assignment.role_code == "TECHNICIAN"
+        assert assignment.tenant_id == uuid.UUID(seeded_demo_tenant)
+        assert assignment.user_ref_id is None
+    finally:
+        session.close()
+
+
+def test_create_service_event_assignment_with_user_ref_and_get_event_returns_assignment(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Cargo Max")
+        ).scalar_one()
+        user = session.execute(select(UserRef).where(UserRef.tenant_id == tenant.id, UserRef.external_user_id == "tech-01")).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "phone",
+            "originalComplaint": "Cabin noise.",
+        },
+    )
+    event_id = event_response.json()["id"]
+
+    response = client.post(
+        f"/v1/service-events/{event_id}/assignments",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"roleCode": "SERVICE_ADVISOR", "userRef": str(user.id)},
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["roleCode"] == "SERVICE_ADVISOR"
+    assert payload["userRef"] == str(user.id)
+
+    get_response = client.get(f"/v1/service-events/{event_id}", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert get_response.status_code == 200, get_response.text
+    assignment_payload = get_response.json()["assignments"][0]
+    assert assignment_payload["roleCode"] == "SERVICE_ADVISOR"
+    assert assignment_payload["userRef"] == str(user.id)
+
+
+def test_create_service_event_assignment_wrong_tenant_and_cross_tenant_user_ref_return_404(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Eclipse")
+        ).scalar_one()
+        tenant_user = session.execute(select(UserRef).where(UserRef.tenant_id == tenant.id, UserRef.external_user_id == "svc-advisor-01")).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "email",
+            "originalComplaint": "Vehicle shakes.",
+        },
+    )
+    event_id = event_response.json()["id"]
+
+    other_tenant_slug = f"assign-other-{uuid.uuid4()}"
+    other_tenant = Tenant(slug=other_tenant_slug, name="Assignment Other Tenant")
+    session = SessionLocal()
+    try:
+        session.add(other_tenant)
+        session.commit()
+        other_tenant_id = str(other_tenant.id)
+
+        other_user = UserRef(tenant_id=other_tenant.id, external_user_id="other-user-1", display_name="Other User", is_active=True)
+        session.add(other_user)
+        session.commit()
+        other_user_id = str(other_user.id)
+    finally:
+        session.close()
+
+    wrong_event_response = client.post(
+        f"/v1/service-events/{event_id}/assignments",
+        headers={"X-Tenant-ID": other_tenant_id},
+        json={"roleCode": "TECHNICIAN"},
+    )
+    assert wrong_event_response.status_code == 404, wrong_event_response.text
+
+    cross_user_response = client.post(
+        f"/v1/service-events/{event_id}/assignments",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"roleCode": "TECHNICIAN", "userRef": other_user_id},
+    )
+    assert cross_user_response.status_code == 404, cross_user_response.text
+
+    session = SessionLocal()
+    try:
+        session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant_slug))
+        session.commit()
+    finally:
+        session.close()
+
+
+def test_create_service_event_context_success_and_round_trip_and_get_event_returns_context(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Eclipse")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "portal",
+            "originalComplaint": "Battery warning is on.",
+            "structuredSummary": "Battery warning.",
+        },
+    )
+    event_id = event_response.json()["id"]
+    snapshot = {"vehicle": {"odometerKm": 12345}, "signals": ["battery", "warning"], "meta": {"source": "dashboard"}}
+
+    response = client.post(
+        f"/v1/service-events/{event_id}/contexts",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"contextType": "DIAGNOSTIC_SNAPSHOT", "sourceRef": "dashboard-1", "snapshotJson": snapshot},
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["eventId"] == event_id
+    assert payload["contextType"] == "DIAGNOSTIC_SNAPSHOT"
+    assert payload["sourceRef"] == "dashboard-1"
+    assert payload["snapshotJson"] == snapshot
+    assert payload["capturedAt"] is not None
+
+    session = SessionLocal()
+    try:
+        context = session.execute(select(ServiceEventContext).where(ServiceEventContext.event_id == uuid.UUID(event_id))).scalar_one()
+        assert context.context_type == "DIAGNOSTIC_SNAPSHOT"
+        assert context.snapshot_json == snapshot
+        assert context.source_ref == "dashboard-1"
+    finally:
+        session.close()
+
+    get_response = client.get(f"/v1/service-events/{event_id}", headers={"X-Tenant-ID": seeded_demo_tenant})
+    assert get_response.status_code == 200, get_response.text
+    assert get_response.json()["contexts"][0]["contextType"] == "DIAGNOSTIC_SNAPSHOT"
+    assert get_response.json()["contexts"][0]["snapshotJson"] == snapshot
+
+
+def test_create_service_event_context_wrong_tenant_returns_404(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+    finally:
+        session.close()
+
+    event_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": str(vehicle.id),
+            "source": "portal",
+            "originalComplaint": "Airbag warning.",
+        },
+    )
+    event_id = event_response.json()["id"]
+
+    other_tenant_slug = f"context-other-{uuid.uuid4()}"
+    other_tenant = Tenant(slug=other_tenant_slug, name="Context Other Tenant")
+    session = SessionLocal()
+    try:
+        session.add(other_tenant)
+        session.commit()
+        other_tenant_id = str(other_tenant.id)
+    finally:
+        session.close()
+
+    response = client.post(
+        f"/v1/service-events/{event_id}/contexts",
+        headers={"X-Tenant-ID": other_tenant_id},
+        json={"contextType": "DIAGNOSTIC_SNAPSHOT", "snapshotJson": {"k": "v"}},
+    )
+    assert response.status_code == 404, response.text
+
+    session = SessionLocal()
+    try:
+        session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant_slug))
         session.commit()
     finally:
         session.close()

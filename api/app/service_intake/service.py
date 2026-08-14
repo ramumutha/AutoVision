@@ -4,8 +4,10 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from app.service_intake.models import Complaint, ServiceEvent
+from app.service_intake.models import Complaint, ServiceEvent, ServiceEventAssignment, ServiceEventContext
 from app.service_intake.repository import (
+    create_service_event_assignment_for_tenant,
+    create_service_event_context_for_tenant,
     create_service_event_for_tenant,
     get_latest_complaint_for_event,
     get_service_event_for_tenant,
@@ -87,8 +89,67 @@ def open_service_event_for_scope(session: Session, *, tenant_id: uuid.UUID, even
     )
 
 
+def create_service_event_assignment_for_scope(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    role_code: str,
+    user_ref_id: uuid.UUID | None = None,
+) -> ServiceEventAssignment:
+    return create_service_event_assignment_for_tenant(
+        session,
+        tenant_id=tenant_id,
+        event_id=event_id,
+        role_code=role_code,
+        user_ref_id=user_ref_id,
+    )
+
+
+def create_service_event_context_for_scope(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    event_id: uuid.UUID,
+    context_type: str,
+    source_ref: str | None = None,
+    snapshot_json: dict | None = None,
+) -> ServiceEventContext:
+    return create_service_event_context_for_tenant(
+        session,
+        tenant_id=tenant_id,
+        event_id=event_id,
+        context_type=context_type,
+        source_ref=source_ref,
+        snapshot_json=snapshot_json,
+    )
+
+
+def _serialize_assignment(assignment: ServiceEventAssignment) -> dict:
+    return {
+        "id": assignment.id,
+        "eventId": assignment.event_id,
+        "roleCode": assignment.role_code,
+        "userRef": str(assignment.user_ref_id) if assignment.user_ref_id else None,
+        "assignedAt": assignment.assigned_at,
+    }
+
+
+def _serialize_context(context: ServiceEventContext) -> dict:
+    return {
+        "id": context.id,
+        "eventId": context.event_id,
+        "contextType": context.context_type,
+        "sourceRef": context.source_ref,
+        "snapshotJson": context.snapshot_json,
+        "capturedAt": context.captured_at,
+    }
+
+
 def serialize_service_event(event: ServiceEvent) -> dict:
     complaint = max(event.complaints, key=lambda item: item.revision) if event.complaints else None
+    assignments = sorted(event.assignments, key=lambda item: item.assigned_at) if event.assignments else []
+    contexts = sorted(event.contexts, key=lambda item: item.captured_at) if event.contexts else []
     return {
         "id": event.id,
         "vehicleId": event.vehicle_id,
@@ -99,4 +160,6 @@ def serialize_service_event(event: ServiceEvent) -> dict:
         "createdAt": event.created_at,
         "updatedAt": event.updated_at,
         "complaint": _serialize_complaint(complaint) if complaint else None,
+        "assignments": [_serialize_assignment(item) for item in assignments],
+        "contexts": [_serialize_context(item) for item in contexts],
     }
