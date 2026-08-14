@@ -8,6 +8,14 @@ from alembic import context
 
 from app.core.database import Base
 from app.core.models import Tenant
+from app.evidence.models import (
+    AnalysisRun,
+    Evidence,
+    EvidenceAsset,
+    Finding,
+    FindingEvidence,
+    FindingReview,
+)
 from app.identity.models import RoleAssignment, UserRef
 from app.service_intake.models import Complaint, ServiceEvent, ServiceEventAssignment, ServiceEventContext
 from app.vehicle.models import (

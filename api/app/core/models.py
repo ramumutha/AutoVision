@@ -41,6 +41,12 @@ class Tenant(Base):
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="tenant")
     service_events: Mapped[list["ServiceEvent"]] = relationship(back_populates="tenant")
     service_event_assignments: Mapped[list["ServiceEventAssignment"]] = relationship(back_populates="tenant")
+    evidence: Mapped[list["Evidence"]] = relationship(back_populates="tenant")
+    evidence_assets: Mapped[list["EvidenceAsset"]] = relationship(back_populates="tenant")
+    analysis_runs: Mapped[list["AnalysisRun"]] = relationship(back_populates="tenant")
+    findings: Mapped[list["Finding"]] = relationship(back_populates="tenant")
+    finding_evidence: Mapped[list["FindingEvidence"]] = relationship(back_populates="tenant")
+    finding_reviews: Mapped[list["FindingReview"]] = relationship(back_populates="tenant")
 
 
 __all__ = ["Tenant"]
