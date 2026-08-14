@@ -3,6 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.evidence.analysis_dispatch import InProcessAnalysisDispatcher
+from app.evidence.analysis_router import router as analysis_router
 from app.evidence.router import router as evidence_router
 from app.service_intake.router import router as service_event_router
 from app.vehicle.router import router as vehicle_router
@@ -16,6 +18,7 @@ allowed_origins = [
 
 
 app = FastAPI(title="AutoVision API")
+app.state.analysis_dispatcher = InProcessAnalysisDispatcher()
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +31,7 @@ app.add_middleware(
 app.include_router(vehicle_router)
 app.include_router(service_event_router)
 app.include_router(evidence_router)
+app.include_router(analysis_router)
 
 
 @app.get("/health")
