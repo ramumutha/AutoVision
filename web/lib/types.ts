@@ -34,3 +34,46 @@ export type VehicleListFilters = {
   powertrain?: string;
   isActive?: boolean;
 };
+
+export type Complaint = {
+  id: string;
+  originalText: string;
+  structuredSummary?: string | null;
+  language?: string | null;
+  capturedBy?: string | null;
+  capturedAt: string;
+  revision: number;
+};
+
+export type ServiceEventAssignment = {
+  id: string;
+  eventId: string;
+  roleCode: string;
+  userRef?: string | null;
+  assignedAt: string;
+};
+
+export type ServiceEventContext = {
+  id: string;
+  eventId: string;
+  contextType: string;
+  sourceRef?: string | null;
+  snapshotJson: Record<string, unknown>;
+  capturedAt: string;
+};
+
+export type ServiceEventState = "DRAFT" | "OPEN";
+
+export type ServiceEvent = {
+  id: string;
+  vehicleId: string;
+  source: string;
+  state: ServiceEventState;
+  revision: number;
+  openedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  complaint?: Complaint | null;
+  assignments: ServiceEventAssignment[];
+  contexts: ServiceEventContext[];
+};

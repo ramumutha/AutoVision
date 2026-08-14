@@ -1,4 +1,9 @@
-import type { Vehicle } from "./types";
+import type {
+  ServiceEvent,
+  ServiceEventAssignment,
+  ServiceEventContext,
+  Vehicle,
+} from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -64,6 +69,142 @@ export async function fetchVehicleById(vehicleId: string): Promise<Vehicle> {
   }
 
   return (await response.json()) as Vehicle;
+}
+
+export async function createServiceEvent(payload: {
+  vehicleId: string;
+  source: string;
+  originalComplaint: string;
+  structuredSummary?: string;
+  language?: string;
+  capturedBy?: string;
+}): Promise<ServiceEvent> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getTenantHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `Failed to create service event (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEvent;
+}
+
+export async function fetchServiceEventsForVehicle(vehicleId: string): Promise<ServiceEvent[]> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events?vehicleId=${encodeURIComponent(vehicleId)}`, {
+    method: "GET",
+    headers: {
+      ...getTenantHeaders(),
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load service events (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEvent[];
+}
+
+export async function getServiceEvent(eventId: string): Promise<ServiceEvent> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events/${eventId}`, {
+    method: "GET",
+    headers: {
+      ...getTenantHeaders(),
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load service event (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEvent;
+}
+
+export async function reviseComplaint(
+  eventId: string,
+  payload: { originalComplaint?: string; structuredSummary?: string; language?: string; capturedBy?: string }
+): Promise<ServiceEvent> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events/${eventId}/complaint`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getTenantHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to revise complaint (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEvent;
+}
+
+export async function createServiceEventAssignment(
+  eventId: string,
+  payload: { roleCode: string; userRef?: string }
+): Promise<ServiceEventAssignment> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events/${eventId}/assignments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getTenantHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to create assignment (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEventAssignment;
+}
+
+export async function createServiceEventContext(
+  eventId: string,
+  payload: { contextType: string; sourceRef?: string; snapshotJson: Record<string, unknown> }
+): Promise<ServiceEventContext> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events/${eventId}/contexts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getTenantHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to capture context (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEventContext;
+}
+
+export async function openServiceEvent(eventId: string): Promise<ServiceEvent> {
+  const response = await fetch(`${API_BASE_URL}/v1/service-events/${eventId}/open`, {
+    method: "POST",
+    headers: {
+      ...getTenantHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to open service event (${response.status})`);
+  }
+
+  return (await response.json()) as ServiceEvent;
 }
 
 export { API_BASE_URL, DEMO_TENANT_ID };
