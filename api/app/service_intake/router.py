@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -20,6 +20,7 @@ from app.service_intake.service import (
     create_service_event_context_for_scope,
     create_service_event_for_scope,
     get_service_event_for_scope,
+    list_service_events_for_scope,
     open_service_event_for_scope,
     serialize_service_event,
     update_complaint_for_scope,
@@ -61,6 +62,20 @@ def create_service_event(
             return ServiceEventRead.model_validate(serialize_service_event(event))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="Vehicle not found") from exc
+
+
+@router.get("/service-events", response_model=list[ServiceEventRead])
+def list_service_events(
+    vehicle_id: UUID = Query(..., alias="vehicleId"),
+    tenant_id: UUID = Depends(get_tenant_id),
+    db: Session = Depends(get_db),
+) -> list[ServiceEventRead]:
+    try:
+        events = list_service_events_for_scope(db, tenant_id, vehicle_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Vehicle not found") from exc
+
+    return [ServiceEventRead.model_validate(serialize_service_event(event)) for event in events]
 
 
 @router.get("/service-events/{event_id}", response_model=ServiceEventRead)

@@ -41,6 +41,30 @@ def get_service_event_for_tenant(session: Session, tenant_id: uuid.UUID, event_i
     ).scalar_one_or_none()
 
 
+def list_service_events_for_tenant(
+    session: Session,
+    tenant_id: uuid.UUID,
+    vehicle_id: uuid.UUID,
+) -> list[ServiceEvent]:
+    vehicle = get_vehicle_for_tenant(session, tenant_id, vehicle_id)
+    if vehicle is None:
+        raise LookupError("Vehicle not found")
+
+    return session.execute(
+        select(ServiceEvent)
+        .options(
+            selectinload(ServiceEvent.complaints),
+            selectinload(ServiceEvent.assignments),
+            selectinload(ServiceEvent.contexts),
+        )
+        .where(
+            ServiceEvent.tenant_id == tenant_id,
+            ServiceEvent.vehicle_id == vehicle_id,
+        )
+        .order_by(ServiceEvent.created_at.desc())
+    ).scalars().all()
+
+
 def get_latest_complaint_for_event(session: Session, event_id: uuid.UUID) -> Complaint | None:
     return session.execute(
         select(Complaint)

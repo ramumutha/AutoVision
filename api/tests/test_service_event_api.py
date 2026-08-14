@@ -124,6 +124,158 @@ def test_create_service_event_wrong_tenant_vehicle_returns_404(seeded_demo_tenan
         session.close()
 
 
+def test_list_service_events_for_vehicle_returns_draft_and_open_events_newest_first(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+        other_vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Cargo Max")
+        ).scalar_one()
+        vehicle_id = str(vehicle.id)
+        other_vehicle_id = str(other_vehicle.id)
+    finally:
+        session.close()
+
+    first_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": vehicle_id,
+            "source": "chat",
+            "originalComplaint": "First complaint",
+            "structuredSummary": "First summary",
+        },
+    )
+    first_event_id = first_response.json()["id"]
+
+    patched_response = client.patch(
+        f"/v1/service-events/{first_event_id}/complaint",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={"structuredSummary": "First summary revised"},
+    )
+    assert patched_response.status_code == 200, patched_response.text
+
+    second_response = client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": vehicle_id,
+            "source": "phone",
+            "originalComplaint": "Second complaint",
+            "structuredSummary": "Second summary",
+        },
+    )
+    second_event_id = second_response.json()["id"]
+
+    open_response = client.post(
+        f"/v1/service-events/{second_event_id}/open",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+    )
+    assert open_response.status_code == 200, open_response.text
+
+    client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": other_vehicle_id,
+            "source": "service-desk",
+            "originalComplaint": "Other vehicle complaint",
+        },
+    )
+
+    response = client.get("/v1/service-events", headers={"X-Tenant-ID": seeded_demo_tenant}, params={"vehicleId": vehicle_id})
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert len(payload) == 2
+    assert payload[0]["id"] == second_event_id
+    assert payload[0]["state"] == "OPEN"
+    assert payload[0]["complaint"]["revision"] == 1
+    assert payload[1]["id"] == first_event_id
+    assert payload[1]["state"] == "DRAFT"
+    assert payload[1]["complaint"]["revision"] == 2
+    assert payload[1]["complaint"]["structuredSummary"] == "First summary revised"
+
+
+def test_list_service_events_excludes_other_vehicle_and_wrong_tenant_returns_404(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "City Compact")
+        ).scalar_one()
+        other_vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Eclipse")
+        ).scalar_one()
+        vehicle_id = str(vehicle.id)
+        other_vehicle_id = str(other_vehicle.id)
+    finally:
+        session.close()
+
+    client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": vehicle_id,
+            "source": "phone",
+            "originalComplaint": "Vehicle A complaint",
+        },
+    )
+    client.post(
+        "/v1/service-events",
+        headers={"X-Tenant-ID": seeded_demo_tenant},
+        json={
+            "vehicleId": other_vehicle_id,
+            "source": "phone",
+            "originalComplaint": "Vehicle B complaint",
+        },
+    )
+
+    list_response = client.get("/v1/service-events", headers={"X-Tenant-ID": seeded_demo_tenant}, params={"vehicleId": vehicle_id})
+    assert list_response.status_code == 200, list_response.text
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["vehicleId"] == vehicle_id
+
+    other_tenant = Tenant(slug=f"other-service-list-{uuid.uuid4()}", name="Other Service List Tenant")
+    session = SessionLocal()
+    try:
+        session.add(other_tenant)
+        session.commit()
+        other_tenant_id = str(other_tenant.id)
+    finally:
+        session.close()
+
+    wrong_tenant_response = client.get("/v1/service-events", headers={"X-Tenant-ID": other_tenant_id}, params={"vehicleId": vehicle_id})
+    assert wrong_tenant_response.status_code == 404, wrong_tenant_response.text
+
+    session = SessionLocal()
+    try:
+        session.execute(Tenant.__table__.delete().where(Tenant.slug == other_tenant.slug))
+        session.commit()
+    finally:
+        session.close()
+
+
+def test_list_service_events_empty_for_vehicle_without_events(seeded_demo_tenant: str) -> None:
+    session = SessionLocal()
+    try:
+        tenant = session.execute(select(Tenant).where(Tenant.slug == "autovision-demo-org")).scalar_one()
+        vehicle = session.execute(
+            select(Vehicle).where(Vehicle.tenant_id == tenant.id, Vehicle.model_name == "Eclipse")
+        ).scalar_one()
+        vehicle_id = str(vehicle.id)
+    finally:
+        session.close()
+
+    response = client.get("/v1/service-events", headers={"X-Tenant-ID": seeded_demo_tenant}, params={"vehicleId": vehicle_id})
+
+    assert response.status_code == 200, response.text
+    assert response.json() == []
+
+
 def test_get_service_event_by_id_returns_created_event(seeded_demo_tenant: str) -> None:
     session = SessionLocal()
     try:

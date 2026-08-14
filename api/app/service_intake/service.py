@@ -12,6 +12,7 @@ from app.service_intake.repository import (
     get_latest_complaint_for_event,
     get_service_event_for_tenant,
     get_vehicle_for_tenant,
+    list_service_events_for_tenant,
     open_service_event_for_tenant,
     update_complaint_for_tenant,
 )
@@ -58,6 +59,10 @@ def create_service_event_for_scope(
 
 def get_service_event_for_scope(session: Session, tenant_id: uuid.UUID, event_id: uuid.UUID) -> ServiceEvent | None:
     return get_service_event_for_tenant(session, tenant_id, event_id)
+
+
+def list_service_events_for_scope(session: Session, tenant_id: uuid.UUID, vehicle_id: uuid.UUID) -> list[ServiceEvent]:
+    return list_service_events_for_tenant(session, tenant_id, vehicle_id)
 
 
 def update_complaint_for_scope(

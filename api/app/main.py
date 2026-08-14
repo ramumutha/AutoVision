@@ -19,7 +19,7 @@ app = FastAPI(title="AutoVision API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["X-Tenant-ID", "Content-Type"],
     allow_credentials=False,
 )
