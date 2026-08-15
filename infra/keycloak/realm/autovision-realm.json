@@ -1,0 +1,17 @@
+{
+  "realm": "autovision",
+  "enabled": true,
+  "displayName": "AutoVision",
+  "clients": [
+    {
+      "clientId": "autovision-platform",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${AUTOVISION_PLATFORM_CLIENT_SECRET}"
+    }
+  ]
+}
