@@ -40,6 +40,18 @@ from app.prediction.deterministic_provider import DeterministicPredictionProvide
 from app.prediction.semantic_validation import PredictionSemanticValidationError, PredictionSemanticValidator
 from app.prediction.worker_schemas import PredictionWorkItem
 from app.prediction.worker import PredictionExecutionFailure, PredictionWorker
+from app.prediction.dispatch import (
+    InProcessPredictionDispatcher,
+    PredictionDispatchError,
+    PredictionDispatcher,
+    build_prediction_work_item,
+)
+from app.prediction.api_schemas import (
+    PredictionAssessmentRead,
+    PredictionFactorRead,
+    PredictionRunCreateRequest,
+    PredictionRunRead,
+)
 from app.prediction.repository import (
     add_prediction_assessment,
     add_prediction_factor,
@@ -48,6 +60,29 @@ from app.prediction.repository import (
     has_prediction_assessments,
     list_prediction_assessments_for_run,
     persist_prediction_response,
+    create_prediction_run,
+    get_prediction_run_by_idempotency_key,
+    get_prediction_run_for_api,
+)
+from app.prediction.service import (
+    PredictionRunRequestResult,
+    build_prediction_request_fingerprint,
+    dispatch_prediction_run,
+    request_prediction_run,
+)
+from app.prediction.router import router as prediction_router
+from app.prediction.security import (
+    PredictionAuthenticationError,
+    PredictionAuthorizationError,
+    require_prediction_read_access,
+    require_prediction_request_access,
+)
+from app.prediction.audit import (
+    PREDICTION_RUN_REPLAYED_ACTION,
+    PREDICTION_RUN_REPLAYED_EVENT_TYPE,
+    PREDICTION_RUN_REQUESTED_ACTION,
+    PREDICTION_RUN_REQUESTED_EVENT_TYPE,
+    record_prediction_audit_event,
 )
 
 from app.prediction.models import (
@@ -113,6 +148,31 @@ __all__ = [
     "persist_prediction_response",
     "has_prediction_assessments",
     "list_prediction_assessments_for_run",
+    "PredictionRunCreateRequest",
+    "PredictionRunRead",
+    "PredictionAssessmentRead",
+    "PredictionFactorRead",
+    "create_prediction_run",
+    "get_prediction_run_by_idempotency_key",
+    "get_prediction_run_for_api",
+    "PredictionRunRequestResult",
+    "build_prediction_request_fingerprint",
+    "request_prediction_run",
+    "dispatch_prediction_run",
+    "prediction_router",
+    "PredictionAuthenticationError",
+    "PredictionAuthorizationError",
+    "require_prediction_request_access",
+    "require_prediction_read_access",
+    "PREDICTION_RUN_REQUESTED_EVENT_TYPE",
+    "PREDICTION_RUN_REQUESTED_ACTION",
+    "PREDICTION_RUN_REPLAYED_EVENT_TYPE",
+    "PREDICTION_RUN_REPLAYED_ACTION",
+    "record_prediction_audit_event",
+    "PredictionDispatchError",
+    "PredictionDispatcher",
+    "InProcessPredictionDispatcher",
+    "build_prediction_work_item",
     "PredictionExecutionFailure",
     "PredictionWorker",
 ]

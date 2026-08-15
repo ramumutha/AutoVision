@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.prediction.models import PredictionAssessment, PredictionFactor, PredictionRun
+from app.prediction.models import (
+    PredictionAssessment,
+    PredictionFactor,
+    PredictionRun,
+    PredictionRunStatus,
+)
 from app.prediction.provider_schemas import (
     PredictionAssessmentCandidate,
     PredictionFactorCandidate,
@@ -51,6 +57,68 @@ def get_prediction_run_for_work_item(
     if for_update:
         statement = statement.with_for_update()
     return session.execute(statement).scalar_one_or_none()
+
+
+def create_prediction_run(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    vehicle_id: UUID,
+    requested_at: datetime,
+    service_event_id: UUID | None = None,
+    analysis_run_id: UUID | None = None,
+    requested_by_user_ref_id: UUID | None = None,
+    idempotency_key: str | None = None,
+    request_fingerprint: str | None = None,
+    correlation_id: str | None = None,
+) -> PredictionRun:
+    prediction_run = PredictionRun(
+        tenant_id=tenant_id,
+        vehicle_id=vehicle_id,
+        service_event_id=service_event_id,
+        analysis_run_id=analysis_run_id,
+        status=PredictionRunStatus.QUEUED,
+        requested_by_user_ref_id=requested_by_user_ref_id,
+        requested_at=requested_at,
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
+        correlation_id=correlation_id,
+    )
+    session.add(prediction_run)
+    session.flush()
+    return prediction_run
+
+
+def get_prediction_run_by_idempotency_key(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    idempotency_key: str,
+) -> PredictionRun | None:
+    return session.execute(
+        select(PredictionRun).where(
+            PredictionRun.tenant_id == tenant_id,
+            PredictionRun.idempotency_key == idempotency_key,
+        )
+    ).scalar_one_or_none()
+
+
+def get_prediction_run_for_api(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    prediction_run_id: UUID,
+) -> PredictionRun | None:
+    return session.execute(
+        select(PredictionRun)
+        .options(
+            selectinload(PredictionRun.assessments).selectinload(PredictionAssessment.factors),
+        )
+        .where(
+            PredictionRun.tenant_id == tenant_id,
+            PredictionRun.id == prediction_run_id,
+        )
+    ).scalar_one_or_none()
 
 
 def add_prediction_assessment(

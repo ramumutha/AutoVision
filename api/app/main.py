@@ -9,6 +9,8 @@ from app.evidence.finding_router import router as finding_router
 from app.evidence.router import router as evidence_router
 from app.service_intake.router import router as service_event_router
 from app.vehicle.router import router as vehicle_router
+from app.prediction.dispatch import InProcessPredictionDispatcher
+from app.prediction.router import router as prediction_router
 
 
 allowed_origins = [
@@ -20,12 +22,13 @@ allowed_origins = [
 
 app = FastAPI(title="AutoVision API")
 app.state.analysis_dispatcher = InProcessAnalysisDispatcher()
+app.state.prediction_dispatcher = InProcessPredictionDispatcher()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["X-Tenant-ID", "Content-Type"],
+    allow_headers=["X-Tenant-ID", "X-User-ID", "Idempotency-Key", "X-Correlation-ID", "Content-Type"],
     allow_credentials=False,
 )
 
@@ -34,6 +37,7 @@ app.include_router(service_event_router)
 app.include_router(evidence_router)
 app.include_router(analysis_router)
 app.include_router(finding_router)
+app.include_router(prediction_router)
 
 
 @app.get("/health")
