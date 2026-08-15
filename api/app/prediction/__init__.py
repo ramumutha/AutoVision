@@ -38,6 +38,18 @@ from app.prediction.deterministic_rules import (
 )
 from app.prediction.deterministic_provider import DeterministicPredictionProvider
 from app.prediction.semantic_validation import PredictionSemanticValidationError, PredictionSemanticValidator
+from app.prediction.worker_schemas import PredictionWorkItem
+from app.prediction.worker import PredictionExecutionFailure, PredictionWorker
+from app.prediction.repository import (
+    add_prediction_assessment,
+    add_prediction_factor,
+    get_prediction_run_for_scope,
+    get_prediction_run_for_work_item,
+    has_prediction_assessments,
+    list_prediction_assessments_for_run,
+    persist_prediction_response,
+)
+
 from app.prediction.models import (
     PredictionAssessment,
     PredictionFactor,
@@ -91,4 +103,16 @@ __all__ = [
     "DeterministicPredictionProvider",
     "PredictionSemanticValidationError",
     "PredictionSemanticValidator",
+    "PredictionWorkItem",
+    "PredictionExecutionFailure",
+    "PredictionWorker",
+    "get_prediction_run_for_scope",
+    "get_prediction_run_for_work_item",
+    "add_prediction_assessment",
+    "add_prediction_factor",
+    "persist_prediction_response",
+    "has_prediction_assessments",
+    "list_prediction_assessments_for_run",
+    "PredictionExecutionFailure",
+    "PredictionWorker",
 ]
