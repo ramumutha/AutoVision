@@ -1,0 +1,2 @@
+-- Sprint 4 platform schema initialization.
+-- Business tables are introduced in subsequent controlled migrations.
