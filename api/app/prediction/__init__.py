@@ -8,6 +8,36 @@ from app.prediction.input_schemas import (
     PredictionVehicleContext,
 )
 from app.prediction.input_builder import PredictionInputBuilder
+from app.prediction.provider_schemas import (
+    PredictionAssessmentCandidate,
+    PredictionFactorCandidate,
+    PredictionProviderUsage,
+    PredictionRequest,
+    PredictionResponse,
+)
+from app.prediction.provider import (
+    PredictionProvider,
+    PredictionProviderConfigurationError,
+    PredictionProviderError,
+    PredictionProviderExecutionError,
+    StubPredictionProvider,
+)
+from app.prediction.rules import (
+    PredictionRule,
+    PredictionRuleConfigurationError,
+    PredictionRuleError,
+    PredictionRuleEvaluation,
+    PredictionRuleExecutionError,
+    PredictionRuleRegistry,
+)
+from app.prediction.deterministic_rules import (
+    PowertrainContextRule,
+    ReviewedFindingAttentionRule,
+    UsageServiceAttentionRule,
+    default_deterministic_rules,
+)
+from app.prediction.deterministic_provider import DeterministicPredictionProvider
+from app.prediction.semantic_validation import PredictionSemanticValidationError, PredictionSemanticValidator
 from app.prediction.models import (
     PredictionAssessment,
     PredictionFactor,
@@ -38,4 +68,27 @@ __all__ = [
     "PredictionInputQualityContext",
     "CanonicalPredictionContext",
     "PredictionInputBuilder",
+    "PredictionRequest",
+    "PredictionFactorCandidate",
+    "PredictionAssessmentCandidate",
+    "PredictionProviderUsage",
+    "PredictionResponse",
+    "PredictionProvider",
+    "PredictionProviderError",
+    "PredictionProviderExecutionError",
+    "PredictionProviderConfigurationError",
+    "StubPredictionProvider",
+    "PredictionRule",
+    "PredictionRuleError",
+    "PredictionRuleConfigurationError",
+    "PredictionRuleExecutionError",
+    "PredictionRuleEvaluation",
+    "PredictionRuleRegistry",
+    "ReviewedFindingAttentionRule",
+    "UsageServiceAttentionRule",
+    "PowertrainContextRule",
+    "default_deterministic_rules",
+    "DeterministicPredictionProvider",
+    "PredictionSemanticValidationError",
+    "PredictionSemanticValidator",
 ]
