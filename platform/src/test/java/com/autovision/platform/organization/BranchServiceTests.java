@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
 import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
@@ -99,6 +101,16 @@ class BranchServiceTests {
                         branchId,
                         tenantId
                 );
+
+        verify(authorizationService)
+                .requirePermission(
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.BRANCH_READ,
+                                AuthorizationResourceType.BRANCH,
+                                branchId
+                        )
+                );
     }
 
     @Test
@@ -149,8 +161,12 @@ class BranchServiceTests {
         doThrow(new AccessDeniedException("Access is denied"))
                 .when(authorizationService)
                 .requirePermission(
-                        context,
-                        OrganizationPermissions.BRANCH_READ
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.BRANCH_READ,
+                                AuthorizationResourceType.BRANCH,
+                                branchId
+                        )
                 );
 
         assertThrows(

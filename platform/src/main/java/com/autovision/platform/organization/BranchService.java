@@ -3,6 +3,8 @@ package com.autovision.platform.organization;
 import java.util.List;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
 import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
@@ -48,8 +50,12 @@ public class BranchService {
             UUID branchId
     ) {
         authorizationService.requirePermission(
-                tenantContext,
-                OrganizationPermissions.BRANCH_READ
+                new AuthorizationRequest(
+                        tenantContext,
+                        OrganizationPermissions.BRANCH_READ,
+                        AuthorizationResourceType.BRANCH,
+                        branchId
+                )
         );
 
         Branch branch = branchRepository

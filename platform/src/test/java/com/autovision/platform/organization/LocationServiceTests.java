@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
 import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
@@ -100,6 +102,16 @@ class LocationServiceTests {
                         locationId,
                         tenantId
                 );
+
+        verify(authorizationService)
+                .requirePermission(
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.LOCATION_READ,
+                                AuthorizationResourceType.LOCATION,
+                                locationId
+                        )
+                );
     }
 
     @Test
@@ -150,8 +162,12 @@ class LocationServiceTests {
         doThrow(new AccessDeniedException("Access is denied"))
                 .when(authorizationService)
                 .requirePermission(
-                        context,
-                        OrganizationPermissions.LOCATION_READ
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.LOCATION_READ,
+                                AuthorizationResourceType.LOCATION,
+                                locationId
+                        )
                 );
 
         assertThrows(
