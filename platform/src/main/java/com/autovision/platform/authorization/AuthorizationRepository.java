@@ -80,10 +80,11 @@ public class AuthorizationRepository {
     }
 
     /**
-     * Resolves active LOCAL permission-bearing scoped assignments (S4.7.7.3B):
-     * TENANT, DEALER_GROUP, DEALER, BRANCH, LOCATION only. SYSTEM and
-     * TENANT_GROUP assignments are never returned; containment against the
-     * requested resource is evaluated separately by AuthorizationScopeEvaluator.
+     * Resolves active permission-bearing scoped assignments. Local scopes
+     * remain tenant-bound. TENANT_GROUP grants are returned only when the
+     * authenticated principal's tenant is a member of the active tenant group
+     * and the assigned role is owned by that same tenant group. SYSTEM remains
+     * unsupported.
      */
     public List<AuthorizationGrant> findActivePermissionGrants(
             UUID userRefId,
@@ -93,6 +94,7 @@ public class AuthorizationRepository {
         return jdbcClient.sql("""
                 SELECT DISTINCT
                        sra.scope_type,
+                       sra.tenant_group_id,
                        sra.tenant_id,
                        sra.dealer_group_id,
                        sra.dealer_id,
@@ -106,11 +108,28 @@ public class AuthorizationRepository {
                  WHERE p.user_ref_id = :userRefId
                    AND p.tenant_id = :authenticatedTenantId
                    AND p.status = 'ACTIVE'
-                   AND sra.scope_type IN ('TENANT', 'DEALER_GROUP', 'DEALER', 'BRANCH', 'LOCATION')
+                   AND sra.scope_type IN ('TENANT_GROUP', 'TENANT', 'DEALER_GROUP', 'DEALER', 'BRANCH', 'LOCATION')
                    AND sra.is_active = TRUE
                    AND (sra.valid_from IS NULL OR sra.valid_from <= CURRENT_TIMESTAMP)
                    AND (sra.valid_until IS NULL OR sra.valid_until > CURRENT_TIMESTAMP)
                    AND r.is_active = TRUE
+                   AND (
+                        (
+                            sra.scope_type = 'TENANT_GROUP'
+                            AND r.tenant_group_id = sra.tenant_group_id
+                            AND r.tenant_id IS NULL
+                            AND EXISTS (
+                                SELECT 1
+                                  FROM platform.tenant_groups tg
+                                  JOIN platform.tenant_group_memberships tgm
+                                    ON tgm.tenant_group_id = tg.id
+                                 WHERE tg.id = sra.tenant_group_id
+                                   AND tg.status = 'ACTIVE'
+                                   AND tgm.tenant_id = :authenticatedTenantId
+                            )
+                        )
+                        OR sra.scope_type IN ('TENANT', 'DEALER_GROUP', 'DEALER', 'BRANCH', 'LOCATION')
+                   )
                    AND (
                         EXISTS (
                             SELECT 1
@@ -149,14 +168,12 @@ public class AuthorizationRepository {
                 AuthorizationScopeType.valueOf(rs.getString("scope_type"));
 
         UUID scopeId = switch (scopeType) {
+            case TENANT_GROUP -> rs.getObject("tenant_group_id", UUID.class);
             case TENANT -> rs.getObject("tenant_id", UUID.class);
             case DEALER_GROUP -> rs.getObject("dealer_group_id", UUID.class);
             case DEALER -> rs.getObject("dealer_id", UUID.class);
             case BRANCH -> rs.getObject("branch_id", UUID.class);
             case LOCATION -> rs.getObject("location_id", UUID.class);
-            case TENANT_GROUP -> throw new IllegalStateException(
-                    "TENANT_GROUP assignments must not be resolved as local grants"
-            );
         };
 
         return new AuthorizationGrant(scopeType, scopeId);

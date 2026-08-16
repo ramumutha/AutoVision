@@ -418,38 +418,70 @@ class AuthorizationScopeEvaluatorTests {
     }
 
     @Test
-    void tenantGroupGrantDeniesAnyLocalResource() {
+    void tenantGroupGrantAllowsMemberTenant() {
+        UUID tenantGroupId = UUID.randomUUID();
+
         AuthorizationGrant grant = new AuthorizationGrant(
                 AuthorizationScopeType.TENANT_GROUP,
-                UUID.randomUUID()
+                tenantGroupId
         );
 
-        assertFalse(evaluator.contains(
+        when(scopeRepository.tenantBelongsToActiveTenantGroup(
+                tenantB,
+                tenantGroupId
+        )).thenReturn(true);
+
+        assertTrue(evaluator.contains(
                 grant,
                 tenantA,
                 AuthorizationResourceType.TENANT,
-                tenantA
+                tenantB
         ));
+    }
 
-        assertFalse(evaluator.contains(
+    @Test
+    void tenantGroupGrantAllowsDealerInMemberTenant() {
+        UUID tenantGroupId = UUID.randomUUID();
+        UUID dealerId = UUID.randomUUID();
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId
+        );
+
+        when(scopeRepository.dealerBelongsToActiveTenantGroup(
+                dealerId,
+                tenantGroupId
+        )).thenReturn(true);
+
+        assertTrue(evaluator.contains(
                 grant,
                 tenantA,
                 AuthorizationResourceType.DEALER,
-                UUID.randomUUID()
+                dealerId
         ));
+    }
 
-        assertFalse(evaluator.contains(
-                grant,
-                tenantA,
-                AuthorizationResourceType.BRANCH,
-                UUID.randomUUID()
-        ));
+    @Test
+    void tenantGroupGrantDeniesResourceOutsideGroup() {
+        UUID tenantGroupId = UUID.randomUUID();
+        UUID locationId = UUID.randomUUID();
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId
+        );
+
+        when(scopeRepository.locationBelongsToActiveTenantGroup(
+                locationId,
+                tenantGroupId
+        )).thenReturn(false);
 
         assertFalse(evaluator.contains(
                 grant,
                 tenantA,
                 AuthorizationResourceType.LOCATION,
-                UUID.randomUUID()
+                locationId
         ));
     }
 

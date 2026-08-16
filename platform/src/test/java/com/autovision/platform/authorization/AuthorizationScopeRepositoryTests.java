@@ -35,6 +35,21 @@ class AuthorizationScopeRepositoryTests {
     @BeforeEach
     void createSchema() {
         exec("""
+                CREATE TABLE IF NOT EXISTS platform.tenant_groups (
+                    id UUID PRIMARY KEY,
+                    status VARCHAR(32) NOT NULL
+                )
+                """);
+
+        exec("""
+                CREATE TABLE IF NOT EXISTS platform.tenant_group_memberships (
+                    id UUID PRIMARY KEY,
+                    tenant_group_id UUID NOT NULL,
+                    tenant_id UUID NOT NULL
+                )
+                """);
+
+        exec("""
                 CREATE TABLE IF NOT EXISTS platform.dealer_group_memberships (
                     id UUID PRIMARY KEY,
                     tenant_id UUID NOT NULL,
@@ -47,9 +62,59 @@ class AuthorizationScopeRepositoryTests {
     @AfterEach
     void clearTables() {
         exec("DELETE FROM platform.dealer_group_memberships");
+        exec("DELETE FROM platform.tenant_group_memberships");
+        exec("DELETE FROM platform.tenant_groups");
         exec("DELETE FROM platform.branches");
         exec("DELETE FROM platform.locations");
         exec("DELETE FROM platform.dealers");
+    }
+
+    @Test
+    void activeTenantGroupContainsMemberTenantAndItsResources() {
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+        insertTenantGroupMembership(tenantGroupId, otherTenantId);
+
+        UUID dealerId = insertDealer(otherTenantId, null);
+        UUID locationId = insertLocation(otherTenantId);
+        UUID branchId = insertBranch(otherTenantId, dealerId, locationId);
+
+        assertTrue(repository.tenantBelongsToActiveTenantGroup(
+                otherTenantId, tenantGroupId
+        ));
+        assertTrue(repository.dealerBelongsToActiveTenantGroup(
+                dealerId, tenantGroupId
+        ));
+        assertTrue(repository.branchBelongsToActiveTenantGroup(
+                branchId, tenantGroupId
+        ));
+        assertTrue(repository.locationBelongsToActiveTenantGroup(
+                locationId, tenantGroupId
+        ));
+    }
+
+    @Test
+    void tenantGroupDoesNotContainNonMemberTenantResources() {
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+        insertTenantGroupMembership(tenantGroupId, tenantId);
+
+        UUID dealerId = insertDealer(otherTenantId, null);
+
+        assertFalse(repository.tenantBelongsToActiveTenantGroup(
+                otherTenantId, tenantGroupId
+        ));
+        assertFalse(repository.dealerBelongsToActiveTenantGroup(
+                dealerId, tenantGroupId
+        ));
+    }
+
+    @Test
+    void inactiveTenantGroupDoesNotAuthorizeMemberTenant() {
+        UUID tenantGroupId = insertTenantGroup("INACTIVE");
+        insertTenantGroupMembership(tenantGroupId, otherTenantId);
+
+        assertFalse(repository.tenantBelongsToActiveTenantGroup(
+                otherTenantId, tenantGroupId
+        ));
     }
 
     @Test
@@ -417,6 +482,35 @@ class AuthorizationScopeRepositoryTests {
                 .param("tenantId", membershipTenantId)
                 .param("dealerGroupId", dealerGroupId)
                 .param("dealerId", dealerId)
+                .update();
+    }
+
+    private UUID insertTenantGroup(String status) {
+        UUID id = UUID.randomUUID();
+
+        jdbcClient.sql("""
+                INSERT INTO platform.tenant_groups (id, status)
+                VALUES (:id, :status)
+                """)
+                .param("id", id)
+                .param("status", status)
+                .update();
+
+        return id;
+    }
+
+    private void insertTenantGroupMembership(
+            UUID tenantGroupId,
+            UUID memberTenantId
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO platform.tenant_group_memberships
+                    (id, tenant_group_id, tenant_id)
+                VALUES (:id, :tenantGroupId, :tenantId)
+                """)
+                .param("id", UUID.randomUUID())
+                .param("tenantGroupId", tenantGroupId)
+                .param("tenantId", memberTenantId)
                 .update();
     }
 

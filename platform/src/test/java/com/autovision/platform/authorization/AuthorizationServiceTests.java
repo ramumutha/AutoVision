@@ -284,4 +284,45 @@ class AuthorizationServiceTests {
                 () -> service.requirePermission(request)
         );
     }
+
+    @Test
+    void resourceAwareHasPermissionAllowsTenantGroupGrantWhenContainmentMatches() {
+        UUID tenantGroupId = UUID.randomUUID();
+        UUID dealerId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                dealerId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                dealerId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+
+        verify(scopeEvaluator).contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                dealerId
+        );
+    }
+
 }

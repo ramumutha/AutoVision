@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 /**
  * Evaluates whether an AuthorizationGrant contains a requested resource.
  * Knows nothing about permission codes, roles, permission sets, or JWTs -
- * scope containment only. TENANT_GROUP and unsupported combinations deny.
+ * scope containment only. TENANT_GROUP containment is based on active
+ * persisted tenant-group membership; unsupported combinations deny.
  */
 @Component
 public class AuthorizationScopeEvaluator {
@@ -56,8 +57,36 @@ public class AuthorizationScopeEvaluator {
                     resourceType,
                     resourceId
             );
-            // Cross-tenant scope evaluation is explicitly deferred.
-            case TENANT_GROUP -> false;
+            case TENANT_GROUP -> containsFromTenantGroup(
+                    grant.scopeId(),
+                    resourceType,
+                    resourceId
+            );
+        };
+    }
+
+    private boolean containsFromTenantGroup(
+            UUID tenantGroupId,
+            AuthorizationResourceType resourceType,
+            UUID resourceId
+    ) {
+        return switch (resourceType) {
+            case TENANT -> scopeRepository.tenantBelongsToActiveTenantGroup(
+                    resourceId,
+                    tenantGroupId
+            );
+            case DEALER -> scopeRepository.dealerBelongsToActiveTenantGroup(
+                    resourceId,
+                    tenantGroupId
+            );
+            case BRANCH -> scopeRepository.branchBelongsToActiveTenantGroup(
+                    resourceId,
+                    tenantGroupId
+            );
+            case LOCATION -> scopeRepository.locationBelongsToActiveTenantGroup(
+                    resourceId,
+                    tenantGroupId
+            );
         };
     }
 

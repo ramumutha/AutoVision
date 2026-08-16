@@ -19,6 +19,97 @@ public class AuthorizationScopeRepository {
         this.jdbcClient = jdbcClient;
     }
 
+
+    public boolean tenantBelongsToActiveTenantGroup(
+            UUID tenantId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.tenant_groups tg
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_group_id = tg.id
+                 WHERE tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                   AND m.tenant_id = :tenantId
+                """)
+                .param("tenantGroupId", tenantGroupId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean dealerBelongsToActiveTenantGroup(
+            UUID dealerId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.dealers d
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = d.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE d.id = :dealerId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("dealerId", dealerId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean branchBelongsToActiveTenantGroup(
+            UUID branchId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.branches b
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = b.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE b.id = :branchId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("branchId", branchId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean locationBelongsToActiveTenantGroup(
+            UUID locationId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.locations l
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = l.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE l.id = :locationId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("locationId", locationId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
     public boolean dealerBelongsToTenant(UUID dealerId, UUID tenantId) {
         return exists("""
                 SELECT COUNT(*)

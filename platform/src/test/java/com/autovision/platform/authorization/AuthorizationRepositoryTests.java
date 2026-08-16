@@ -49,8 +49,25 @@ class AuthorizationRepositoryTests {
                 """);
 
         exec("""
+                CREATE TABLE IF NOT EXISTS platform.tenant_groups (
+                    id UUID PRIMARY KEY,
+                    status VARCHAR(32) NOT NULL
+                )
+                """);
+
+        exec("""
+                CREATE TABLE IF NOT EXISTS platform.tenant_group_memberships (
+                    id UUID PRIMARY KEY,
+                    tenant_group_id UUID NOT NULL,
+                    tenant_id UUID NOT NULL
+                )
+                """);
+
+        exec("""
                 CREATE TABLE IF NOT EXISTS platform.roles (
                     id UUID PRIMARY KEY,
+                    tenant_group_id UUID,
+                    tenant_id UUID,
                     is_active BOOLEAN NOT NULL
                 )
                 """);
@@ -97,6 +114,7 @@ class AuthorizationRepositoryTests {
                     principal_id UUID NOT NULL,
                     role_id UUID NOT NULL,
                     scope_type VARCHAR(32) NOT NULL,
+                    tenant_group_id UUID,
                     tenant_id UUID,
                     dealer_group_id UUID,
                     dealer_id UUID,
@@ -112,6 +130,8 @@ class AuthorizationRepositoryTests {
     @AfterEach
     void clearTables() {
         exec("DELETE FROM platform.scoped_role_assignments");
+        exec("DELETE FROM platform.tenant_group_memberships");
+        exec("DELETE FROM platform.tenant_groups");
         exec("DELETE FROM platform.role_permission_sets");
         exec("DELETE FROM platform.role_permissions");
         exec("DELETE FROM platform.permission_set_permissions");
@@ -672,23 +692,79 @@ class AuthorizationRepositoryTests {
     }
 
     @Test
-    void grantResolutionExcludesTenantGroupAssignments() {
+    void grantResolutionReturnsTenantGroupGrantForMemberTenantAndGroupOwnedRole() {
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+        insertTenantGroupMembership(tenantGroupId, tenantId);
+
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertTenantGroupRole(tenantGroupId, true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT_GROUP,
+                        tenantGroupId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionDeniesTenantGroupGrantWhenPrincipalTenantIsNotMember() {
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertTenantGroupRole(tenantGroupId, true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId, roleId, AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId, true, null, null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionDeniesTenantGroupGrantWhenGroupInactive() {
+        UUID tenantGroupId = insertTenantGroup("INACTIVE");
+        insertTenantGroupMembership(tenantGroupId, tenantId);
+
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertTenantGroupRole(tenantGroupId, true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId, roleId, AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId, true, null, null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionDeniesTenantGroupGrantForTenantOwnedRole() {
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+        insertTenantGroupMembership(tenantGroupId, tenantId);
+
         UUID principalId = insertPrincipal(tenantId, "ACTIVE");
         UUID roleId = insertRole(true);
         UUID permissionId = insertPermission(PERMISSION_CODE, true);
         insertRolePermission(roleId, permissionId);
-
-        jdbcClient.sql("""
-                INSERT INTO platform.scoped_role_assignments
-                    (id, principal_id, role_id, scope_type,
-                     is_active, valid_from, valid_until)
-                VALUES (:id, :principalId, :roleId, 'TENANT_GROUP',
-                        TRUE, NULL, NULL)
-                """)
-                .param("id", UUID.randomUUID())
-                .param("principalId", principalId)
-                .param("roleId", roleId)
-                .update();
+        insertScopedAssignment(
+                principalId, roleId, AuthorizationScopeType.TENANT_GROUP,
+                tenantGroupId, true, null, null
+        );
 
         assertEquals(List.of(), evaluateGrants());
     }
@@ -762,10 +838,59 @@ class AuthorizationRepositoryTests {
         UUID id = UUID.randomUUID();
 
         jdbcClient.sql("""
-                INSERT INTO platform.roles (id, is_active)
-                VALUES (:id, :isActive)
+                INSERT INTO platform.roles (id, tenant_id, is_active)
+                VALUES (:id, :tenantId, :isActive)
                 """)
                 .param("id", id)
+                .param("tenantId", tenantId)
+                .param("isActive", isActive)
+                .update();
+
+        return id;
+    }
+
+    private UUID insertTenantGroup(String status) {
+        UUID id = UUID.randomUUID();
+
+        jdbcClient.sql("""
+                INSERT INTO platform.tenant_groups (id, status)
+                VALUES (:id, :status)
+                """)
+                .param("id", id)
+                .param("status", status)
+                .update();
+
+        return id;
+    }
+
+    private void insertTenantGroupMembership(
+            UUID tenantGroupId,
+            UUID memberTenantId
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO platform.tenant_group_memberships
+                    (id, tenant_group_id, tenant_id)
+                VALUES (:id, :tenantGroupId, :tenantId)
+                """)
+                .param("id", UUID.randomUUID())
+                .param("tenantGroupId", tenantGroupId)
+                .param("tenantId", memberTenantId)
+                .update();
+    }
+
+    private UUID insertTenantGroupRole(
+            UUID tenantGroupId,
+            boolean isActive
+    ) {
+        UUID id = UUID.randomUUID();
+
+        jdbcClient.sql("""
+                INSERT INTO platform.roles
+                    (id, tenant_group_id, tenant_id, is_active)
+                VALUES (:id, :tenantGroupId, NULL, :isActive)
+                """)
+                .param("id", id)
+                .param("tenantGroupId", tenantGroupId)
                 .param("isActive", isActive)
                 .update();
 
@@ -876,6 +1001,8 @@ class AuthorizationRepositoryTests {
     ) {
         UUID id = UUID.randomUUID();
 
+        UUID tenantGroupId =
+                scopeType == AuthorizationScopeType.TENANT_GROUP ? scopeId : null;
         UUID assignmentTenantId =
                 scopeType == AuthorizationScopeType.TENANT ? scopeId : null;
         UUID dealerGroupId =
@@ -889,17 +1016,18 @@ class AuthorizationRepositoryTests {
 
         jdbcClient.sql("""
                 INSERT INTO platform.scoped_role_assignments
-                    (id, principal_id, role_id, scope_type, tenant_id,
-                     dealer_group_id, dealer_id, branch_id, location_id,
+                    (id, principal_id, role_id, scope_type, tenant_group_id,
+                     tenant_id, dealer_group_id, dealer_id, branch_id, location_id,
                      is_active, valid_from, valid_until)
-                VALUES (:id, :principalId, :roleId, :scopeType, :tenantId,
-                        :dealerGroupId, :dealerId, :branchId, :locationId,
+                VALUES (:id, :principalId, :roleId, :scopeType, :tenantGroupId,
+                        :tenantId, :dealerGroupId, :dealerId, :branchId, :locationId,
                         :isActive, :validFrom, :validUntil)
                 """)
                 .param("id", id)
                 .param("principalId", principalId)
                 .param("roleId", roleId)
                 .param("scopeType", scopeType.name())
+                .param("tenantGroupId", tenantGroupId)
                 .param("tenantId", assignmentTenantId)
                 .param("dealerGroupId", dealerGroupId)
                 .param("dealerId", dealerId)

@@ -60,10 +60,9 @@ public class AuthorizationService {
     }
 
     /**
-     * Resource-aware authorization (S4.7.7.3B): resolves active LOCAL grants
-     * (TENANT/DEALER_GROUP/DEALER/BRANCH/LOCATION) and allows only when at
-     * least one grant contains the requested resource. TENANT_GROUP and SYSTEM
-     * scope evaluation remain deferred and always deny.
+     * Resource-aware authorization resolves active local and TENANT_GROUP
+     * grants and allows only when at least one grant contains the requested
+     * resource. SYSTEM scope remains unsupported and deny-by-default.
      */
     public boolean hasPermission(AuthorizationRequest request) {
         List<AuthorizationGrant> grants =
