@@ -3,6 +3,8 @@ package com.autovision.platform.organization;
 import java.util.List;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationService;
+import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.springframework.stereotype.Service;
@@ -16,14 +18,24 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class BranchService {
 
     private final BranchRepository branchRepository;
+    private final AuthorizationService authorizationService;
 
-    public BranchService(BranchRepository branchRepository) {
+    public BranchService(
+            BranchRepository branchRepository,
+            AuthorizationService authorizationService
+    ) {
         this.branchRepository = branchRepository;
+        this.authorizationService = authorizationService;
     }
 
     public List<BranchResponse> findAll(
             AuthenticatedTenantContext tenantContext
     ) {
+        authorizationService.requirePermission(
+                tenantContext,
+                OrganizationPermissions.BRANCH_READ
+        );
+
         return branchRepository
                 .findAllByTenantId(tenantContext.tenantId())
                 .stream()
@@ -35,6 +47,11 @@ public class BranchService {
             AuthenticatedTenantContext tenantContext,
             UUID branchId
     ) {
+        authorizationService.requirePermission(
+                tenantContext,
+                OrganizationPermissions.BRANCH_READ
+        );
+
         Branch branch = branchRepository
                 .findByIdAndTenantId(
                         branchId,

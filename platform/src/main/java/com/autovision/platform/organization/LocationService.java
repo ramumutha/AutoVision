@@ -3,6 +3,8 @@ package com.autovision.platform.organization;
 import java.util.List;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationService;
+import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.springframework.stereotype.Service;
@@ -16,14 +18,24 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class LocationService {
 
     private final LocationRepository locationRepository;
+    private final AuthorizationService authorizationService;
 
-    public LocationService(LocationRepository locationRepository) {
+    public LocationService(
+            LocationRepository locationRepository,
+            AuthorizationService authorizationService
+    ) {
         this.locationRepository = locationRepository;
+        this.authorizationService = authorizationService;
     }
 
     public List<LocationResponse> findAll(
             AuthenticatedTenantContext tenantContext
     ) {
+        authorizationService.requirePermission(
+                tenantContext,
+                OrganizationPermissions.LOCATION_READ
+        );
+
         return locationRepository
                 .findAllByTenantId(tenantContext.tenantId())
                 .stream()
@@ -35,6 +47,11 @@ public class LocationService {
             AuthenticatedTenantContext tenantContext,
             UUID locationId
     ) {
+        authorizationService.requirePermission(
+                tenantContext,
+                OrganizationPermissions.LOCATION_READ
+        );
+
         Location location = locationRepository
                 .findByIdAndTenantId(
                         locationId,

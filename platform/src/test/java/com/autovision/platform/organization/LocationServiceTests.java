@@ -7,15 +7,20 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationService;
+import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class LocationServiceTests {
@@ -23,8 +28,11 @@ class LocationServiceTests {
     private final LocationRepository repository =
             mock(LocationRepository.class);
 
+    private final AuthorizationService authorizationService =
+            mock(AuthorizationService.class);
+
     private final LocationService service =
-            new LocationService(repository);
+            new LocationService(repository, authorizationService);
 
     private final UUID tenantId =
             UUID.fromString(
@@ -116,6 +124,42 @@ class LocationServiceTests {
                 404,
                 exception.getStatusCode().value()
         );
+    }
+
+    @Test
+    void deniesFindAllWhenPermissionMissing() {
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(
+                        context,
+                        OrganizationPermissions.LOCATION_READ
+                );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findAll(context)
+        );
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void deniesFindByIdWhenPermissionMissing() {
+        UUID locationId = UUID.randomUUID();
+
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(
+                        context,
+                        OrganizationPermissions.LOCATION_READ
+                );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findById(context, locationId)
+        );
+
+        verifyNoInteractions(repository);
     }
 
     private Location location(
