@@ -1,5 +1,6 @@
 package com.autovision.platform.authorization;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -74,5 +75,18 @@ public class AuthorizationRepository {
                 .single();
 
         return matchCount != null && matchCount > 0;
+    }
+
+    /**
+     * Future contract for hierarchical scope evaluation (S4.7.7.3B).
+     * Deliberately returns no grants until real containment SQL is added;
+     * hasActiveTenantPermission(...) remains the authoritative runtime check.
+     */
+    public List<AuthorizationGrant> findActivePermissionGrants(
+            UUID userRefId,
+            UUID authenticatedTenantId,
+            String permissionCode
+    ) {
+        return List.of();
     }
 }

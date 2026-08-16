@@ -53,4 +53,27 @@ public class AuthorizationService {
             throw new AccessDeniedException("Access is denied");
         }
     }
+
+    /**
+     * Resource-aware authorization contract foundation (S4.7.7.3A).
+     * Hierarchical scope containment (TENANT_GROUP/DEALER_GROUP/DEALER/BRANCH/
+     * LOCATION) is not implemented yet, so this deliberately denies by default
+     * until real scope evaluation is introduced in a later controlled slice.
+     */
+    public boolean hasPermission(AuthorizationRequest request) {
+        log.info(
+                "authorization decision permission={} tenantId={} resourceType={} decision=DENY",
+                request.permissionCode(),
+                request.context().tenantId(),
+                request.resourceType()
+        );
+
+        return false;
+    }
+
+    public void requirePermission(AuthorizationRequest request) {
+        if (!hasPermission(request)) {
+            throw new AccessDeniedException("Access is denied");
+        }
+    }
 }

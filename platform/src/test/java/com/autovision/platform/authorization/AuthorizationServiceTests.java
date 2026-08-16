@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AuthorizationServiceTests {
@@ -48,6 +50,12 @@ class AuthorizationServiceTests {
                         context,
                         "ORGANIZATION.DEALER.READ"
                 )
+        );
+
+        verify(repository).hasActiveTenantPermission(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
         );
     }
 
@@ -96,5 +104,36 @@ class AuthorizationServiceTests {
                 context,
                 "ORGANIZATION.DEALER.READ"
         );
+    }
+
+    @Test
+    void resourceAwareHasPermissionDeniesByDefault() {
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                UUID.randomUUID()
+        );
+
+        assertFalse(service.hasPermission(request));
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void resourceAwareRequirePermissionThrowsByDefault() {
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.BRANCH.READ",
+                AuthorizationResourceType.BRANCH,
+                UUID.randomUUID()
+        );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.requirePermission(request)
+        );
+
+        verifyNoInteractions(repository);
     }
 }
