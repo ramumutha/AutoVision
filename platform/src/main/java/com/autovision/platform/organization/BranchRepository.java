@@ -1,5 +1,6 @@
 package com.autovision.platform.organization;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,13 @@ public interface BranchRepository extends JpaRepository<Branch, UUID> {
     List<Branch> findAllByTenantId(UUID tenantId);
 
     List<Branch> findAllByTenantIdAndDealerId(UUID tenantId, UUID dealerId);
+
+    List<Branch> findAllByTenantIdAndDealerIdIn(
+            UUID tenantId,
+            Collection<UUID> dealerIds
+    );
+
+    List<Branch> findAllByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);
 
     Optional<Branch> findByIdAndTenantId(UUID id, UUID tenantId);
 

@@ -6,8 +6,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationGrant;
+import com.autovision.platform.authorization.AuthorizationRepository;
 import com.autovision.platform.authorization.AuthorizationRequest;
 import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationScopeRepository;
+import com.autovision.platform.authorization.AuthorizationScopeType;
 import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
@@ -18,8 +22,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -32,8 +38,19 @@ class BranchServiceTests {
     private final AuthorizationService authorizationService =
             mock(AuthorizationService.class);
 
+    private final AuthorizationRepository authorizationRepository =
+            mock(AuthorizationRepository.class);
+
+    private final AuthorizationScopeRepository authorizationScopeRepository =
+            mock(AuthorizationScopeRepository.class);
+
     private final BranchService service =
-            new BranchService(repository, authorizationService);
+            new BranchService(
+                    repository,
+                    authorizationService,
+                    authorizationRepository,
+                    authorizationScopeRepository
+            );
 
     private final UUID tenantId =
             UUID.fromString(
@@ -50,7 +67,7 @@ class BranchServiceTests {
             );
 
     @Test
-    void listsOnlyAuthenticatedTenantBranches() throws Exception {
+    void tenantGrantListsAllTenantBranches() throws Exception {
         Branch branch = branch(
                 UUID.randomUUID(),
                 tenantId,
@@ -58,6 +75,14 @@ class BranchServiceTests {
                 "B001",
                 "Demo Branch"
         );
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(AuthorizationScopeType.TENANT, tenantId)
+        ));
 
         when(repository.findAllByTenantId(tenantId))
                 .thenReturn(List.of(branch));
@@ -70,6 +95,172 @@ class BranchServiceTests {
 
         verify(repository)
                 .findAllByTenantId(tenantId);
+    }
+
+    @Test
+    void dealerGrantListsOnlyThatDealersBranches() throws Exception {
+        UUID dealerId = UUID.randomUUID();
+
+        Branch branch = branch(
+                UUID.randomUUID(),
+                tenantId,
+                dealerId,
+                "B002",
+                "Dealer Branch"
+        );
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(AuthorizationScopeType.DEALER, dealerId)
+        ));
+
+        when(repository.findAllByTenantIdAndDealerId(tenantId, dealerId))
+                .thenReturn(List.of(branch));
+
+        List<BranchResponse> result =
+                service.findAll(context);
+
+        assertEquals(1, result.size());
+        assertEquals(dealerId, result.getFirst().dealerId());
+
+        verify(repository, never()).findAllByTenantId(tenantId);
+    }
+
+    @Test
+    void dealerGroupGrantListsMemberDealerBranches() throws Exception {
+        UUID dealerGroupId = UUID.randomUUID();
+        UUID memberDealerId = UUID.randomUUID();
+
+        Branch branch = branch(
+                UUID.randomUUID(),
+                tenantId,
+                memberDealerId,
+                "B003",
+                "Group Branch"
+        );
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(
+                        AuthorizationScopeType.DEALER_GROUP,
+                        dealerGroupId
+                )
+        ));
+
+        when(authorizationScopeRepository.findDealerIdsInGroup(
+                dealerGroupId,
+                tenantId
+        )).thenReturn(List.of(memberDealerId));
+
+        when(repository.findAllByTenantIdAndDealerIdIn(
+                tenantId,
+                List.of(memberDealerId)
+        )).thenReturn(List.of(branch));
+
+        List<BranchResponse> result =
+                service.findAll(context);
+
+        assertEquals(1, result.size());
+        assertEquals(memberDealerId, result.getFirst().dealerId());
+    }
+
+    @Test
+    void combinesAndDeduplicatesMultipleGrants() throws Exception {
+        UUID branchId = UUID.randomUUID();
+        UUID dealerId = UUID.randomUUID();
+
+        Branch branch = branch(
+                branchId,
+                tenantId,
+                dealerId,
+                "B004",
+                "Shared Branch"
+        );
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(AuthorizationScopeType.BRANCH, branchId),
+                new AuthorizationGrant(AuthorizationScopeType.DEALER, dealerId)
+        ));
+
+        when(repository.findByIdAndTenantId(branchId, tenantId))
+                .thenReturn(Optional.of(branch));
+
+        when(repository.findAllByTenantIdAndDealerId(tenantId, dealerId))
+                .thenReturn(List.of(branch));
+
+        List<BranchResponse> result =
+                service.findAll(context);
+
+        assertEquals(1, result.size());
+        assertEquals(branchId, result.getFirst().id());
+    }
+
+    @Test
+    void unsupportedNarrowerScopeReturnsEmptyCollection() {
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(
+                        AuthorizationScopeType.LOCATION,
+                        UUID.randomUUID()
+                )
+        ));
+
+        List<BranchResponse> result = service.findAll(context);
+
+        assertTrue(result.isEmpty());
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void deniesFindAllWhenNoPermissionBearingGrants() {
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of());
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findAll(context)
+        );
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void tenantGrantForAnotherTenantGrantsNoAccess() {
+        UUID otherTenantId = UUID.randomUUID();
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.BRANCH_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        otherTenantId
+                )
+        ));
+
+        List<BranchResponse> result = service.findAll(context);
+
+        assertTrue(result.isEmpty());
+
+        verifyNoInteractions(repository);
     }
 
     @Test
@@ -135,23 +326,6 @@ class BranchServiceTests {
                 404,
                 exception.getStatusCode().value()
         );
-    }
-
-    @Test
-    void deniesFindAllWhenPermissionMissing() {
-        doThrow(new AccessDeniedException("Access is denied"))
-                .when(authorizationService)
-                .requirePermission(
-                        context,
-                        OrganizationPermissions.BRANCH_READ
-                );
-
-        assertThrows(
-                AccessDeniedException.class,
-                () -> service.findAll(context)
-        );
-
-        verifyNoInteractions(repository);
     }
 
     @Test

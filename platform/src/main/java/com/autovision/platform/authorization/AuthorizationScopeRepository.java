@@ -1,5 +1,6 @@
 package com.autovision.platform.authorization;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -73,6 +74,26 @@ public class AuthorizationScopeRepository {
                 .single();
 
         return matchCount != null && matchCount > 0;
+    }
+
+    /**
+     * Member dealer IDs for a group, used by collection-scoped findAll
+     * filtering (S4.7.7.3D). Membership is always tenant-scoped.
+     */
+    public List<UUID> findDealerIdsInGroup(
+            UUID dealerGroupId,
+            UUID tenantId
+    ) {
+        return jdbcClient.sql("""
+                SELECT DISTINCT dealer_id
+                  FROM platform.dealer_group_memberships
+                 WHERE dealer_group_id = :dealerGroupId
+                   AND tenant_id = :tenantId
+                """)
+                .param("dealerGroupId", dealerGroupId)
+                .param("tenantId", tenantId)
+                .query(UUID.class)
+                .list();
     }
 
     public boolean branchBelongsToDealer(
