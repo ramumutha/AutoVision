@@ -180,11 +180,11 @@ class AuthorizationScopeRepositoryTests {
     }
 
     @Test
-    void locationBelongsToDealerViaPrimaryLocation() {
+    void primaryLocationReferenceDoesNotEstablishDealerAuthorizationContainment() {
         UUID locationId = insertLocation(tenantId);
         UUID dealerId = insertDealer(tenantId, locationId);
 
-        assertTrue(
+        assertFalse(
                 repository.locationBelongsToDealer(
                         locationId,
                         dealerId,
@@ -293,6 +293,27 @@ class AuthorizationScopeRepositoryTests {
         insertDealerGroupMembership(tenantId, dealerGroupId, dealerId);
 
         assertTrue(
+                repository.locationBelongsToDealerGroup(
+                        locationId,
+                        dealerGroupId,
+                        tenantId
+                )
+        );
+    }
+
+    @Test
+    void primaryLocationReferenceDoesNotEstablishDealerGroupAuthorizationContainment() {
+        UUID locationId = insertLocation(tenantId);
+        UUID dealerId = insertDealer(tenantId, locationId);
+        UUID dealerGroupId = UUID.randomUUID();
+
+        insertDealerGroupMembership(
+                tenantId,
+                dealerGroupId,
+                dealerId
+        );
+
+        assertFalse(
                 repository.locationBelongsToDealerGroup(
                         locationId,
                         dealerGroupId,

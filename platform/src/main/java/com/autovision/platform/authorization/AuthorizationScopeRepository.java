@@ -118,8 +118,9 @@ public class AuthorizationScopeRepository {
     }
 
     /**
-     * A location belongs to a dealer either via a branch of that dealer
-     * situated at the location, or as the dealer's primary location.
+     * A location belongs to a dealer only through an operational branch
+     * relationship. The dealer primary-location reference is a business
+     * attribute and does not establish authorization containment.
      */
     public boolean locationBelongsToDealer(
             UUID locationId,
@@ -132,23 +133,14 @@ public class AuthorizationScopeRepository {
                  WHERE location_id = :locationId
                    AND dealer_id = :dealerId
                    AND tenant_id = :tenantId
-                UNION ALL
-                SELECT COUNT(*)
-                  FROM platform.dealers
-                 WHERE id = :dealerId
-                   AND primary_location_id = :locationId
-                   AND tenant_id = :tenantId
                 """)
                 .param("locationId", locationId)
                 .param("dealerId", dealerId)
                 .param("tenantId", tenantId)
                 .query(Integer.class)
-                .list()
-                .stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+                .single();
 
-        return matchCount > 0;
+        return matchCount != null && matchCount > 0;
     }
 
     public boolean locationBelongsToBranch(
@@ -197,8 +189,9 @@ public class AuthorizationScopeRepository {
     }
 
     /**
-     * A location belongs to a dealer group either via a branch of a member
-     * dealer situated at the location, or as a member dealer's primary location.
+     * A location belongs to a dealer group only through a branch of a
+     * member dealer. The dealer primary-location reference does not establish
+     * authorization containment.
      */
     public boolean locationBelongsToDealerGroup(
             UUID locationId,
@@ -214,26 +207,14 @@ public class AuthorizationScopeRepository {
                  WHERE b.location_id = :locationId
                    AND m.dealer_group_id = :dealerGroupId
                    AND b.tenant_id = :tenantId
-                UNION ALL
-                SELECT COUNT(*)
-                  FROM platform.dealers d
-                  JOIN platform.dealer_group_memberships m
-                    ON m.dealer_id = d.id
-                   AND m.tenant_id = d.tenant_id
-                 WHERE d.primary_location_id = :locationId
-                   AND m.dealer_group_id = :dealerGroupId
-                   AND d.tenant_id = :tenantId
                 """)
                 .param("locationId", locationId)
                 .param("dealerGroupId", dealerGroupId)
                 .param("tenantId", tenantId)
                 .query(Integer.class)
-                .list()
-                .stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+                .single();
 
-        return matchCount > 0;
+        return matchCount != null && matchCount > 0;
     }
 
     private boolean exists(
