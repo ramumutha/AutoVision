@@ -70,4 +70,68 @@ public class Location {
 
     protected Location() {
     }
+
+    public UUID getId() {
+    return id;
+}
+
+public UUID getTenantId() {
+    return tenantId;
+}
+
+public String getCode() {
+    return code;
+}
+
+public String getName() {
+    return name;
+}
+
+public String getAddressLine1() {
+    return addressLine1;
+}
+
+public String getAddressLine2() {
+    return addressLine2;
+}
+
+public String getCity() {
+    return city;
+}
+
+public String getStateProvince() {
+    return stateProvince;
+}
+
+public String getPostalCode() {
+    return postalCode;
+}
+
+public String getCountryCode() {
+    return countryCode;
+}
+
+public String getTimezone() {
+    return timezone;
+}
+
+public BigDecimal getLatitude() {
+    return latitude;
+}
+
+public BigDecimal getLongitude() {
+    return longitude;
+}
+
+public OrganizationStatus getStatus() {
+    return status;
+}
+
+public OffsetDateTime getCreatedAt() {
+    return createdAt;
+}
+
+public OffsetDateTime getUpdatedAt() {
+    return updatedAt;
+}
 }
