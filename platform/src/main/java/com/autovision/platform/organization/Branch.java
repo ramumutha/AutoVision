@@ -48,4 +48,40 @@ public class Branch {
 
     protected Branch() {
     }
+
+    public UUID getId() {
+    return id;
+}
+
+public UUID getTenantId() {
+    return tenantId;
+}
+
+public UUID getDealerId() {
+    return dealerId;
+}
+
+public UUID getLocationId() {
+    return locationId;
+}
+
+public String getCode() {
+    return code;
+}
+
+public String getName() {
+    return name;
+}
+
+public OrganizationStatus getStatus() {
+    return status;
+}
+
+public OffsetDateTime getCreatedAt() {
+    return createdAt;
+}
+
+public OffsetDateTime getUpdatedAt() {
+    return updatedAt;
+}
 }
