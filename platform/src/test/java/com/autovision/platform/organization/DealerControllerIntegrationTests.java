@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -63,6 +64,32 @@ class DealerControllerIntegrationTests {
         .andExpect(
                 status().isUnauthorized()
         );
+    }
+
+    @Test
+    void dealerListRejectsAuthenticatedRequestWithoutPermission()
+            throws Exception {
+
+        when(
+                tenantContextResolver.resolve(any())
+        ).thenReturn(context);
+
+        when(
+                dealerService.findAll(context)
+        ).thenThrow(
+                new AccessDeniedException("Access is denied")
+        );
+
+        mockMvc.perform(
+                get("/api/v1/dealers")
+                        .with(jwt().jwt(token -> token
+                                .subject("test-subject")
+                                .claim(
+                                        "autovision_user_ref_id",
+                                        userRefId.toString()
+                                )))
+        )
+        .andExpect(status().isForbidden());
     }
 
     @Test

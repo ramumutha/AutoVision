@@ -6,15 +6,20 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.autovision.platform.authorization.AuthorizationService;
+import com.autovision.platform.authorization.OrganizationPermissions;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DealerServiceTests {
@@ -22,8 +27,11 @@ class DealerServiceTests {
     private final DealerRepository repository =
             mock(DealerRepository.class);
 
+    private final AuthorizationService authorizationService =
+            mock(AuthorizationService.class);
+
     private final DealerService service =
-            new DealerService(repository);
+            new DealerService(repository, authorizationService);
 
     private final UUID tenantId =
             UUID.fromString(
@@ -113,6 +121,42 @@ class DealerServiceTests {
                 404,
                 exception.getStatusCode().value()
         );
+    }
+
+    @Test
+    void deniesFindAllWhenPermissionMissing() {
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(
+                        context,
+                        OrganizationPermissions.DEALER_READ
+                );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findAll(context)
+        );
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void deniesFindByIdWhenPermissionMissing() {
+        UUID dealerId = UUID.randomUUID();
+
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(
+                        context,
+                        OrganizationPermissions.DEALER_READ
+                );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findById(context, dealerId)
+        );
+
+        verifyNoInteractions(repository);
     }
 
     private Dealer dealer(
