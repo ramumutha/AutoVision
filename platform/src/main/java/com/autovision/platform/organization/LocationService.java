@@ -150,6 +150,7 @@ public class LocationService {
     private LocationResponse toResponse(Location location) {
         return new LocationResponse(
                 location.getId(),
+                location.getTenantId(),
                 location.getCode(),
                 location.getName(),
                 location.getAddressLine1(),

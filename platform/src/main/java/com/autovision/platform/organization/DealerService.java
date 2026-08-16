@@ -136,6 +136,7 @@ public class DealerService {
     private DealerResponse toResponse(Dealer dealer) {
         return new DealerResponse(
                 dealer.getId(),
+                dealer.getTenantId(),
                 dealer.getCode(),
                 dealer.getName(),
                 dealer.getLegalName(),

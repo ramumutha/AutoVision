@@ -108,6 +108,7 @@ class DealerControllerIntegrationTests {
                 List.of(
                         new DealerResponse(
                                 dealerId,
+                                tenantId,
                                 "D001",
                                 "Demo Dealer",
                                 "Demo Dealer Legal",
@@ -132,6 +133,10 @@ class DealerControllerIntegrationTests {
         .andExpect(
                 jsonPath("$[0].id")
                         .value(dealerId.toString())
+        )
+        .andExpect(
+                jsonPath("$[0].tenantId")
+                        .value(tenantId.toString())
         )
         .andExpect(
                 jsonPath("$[0].code")
@@ -161,6 +166,7 @@ class DealerControllerIntegrationTests {
         ).thenReturn(
                 new DealerResponse(
                         dealerId,
+                        tenantId,
                         "D001",
                         "Demo Dealer",
                         null,
@@ -184,6 +190,10 @@ class DealerControllerIntegrationTests {
         .andExpect(
                 jsonPath("$.id")
                         .value(dealerId.toString())
+        )
+        .andExpect(
+                jsonPath("$.tenantId")
+                        .value(tenantId.toString())
         )
         .andExpect(
                 jsonPath("$.code")

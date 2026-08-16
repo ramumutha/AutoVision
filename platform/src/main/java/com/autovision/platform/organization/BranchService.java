@@ -143,6 +143,7 @@ public class BranchService {
     private BranchResponse toResponse(Branch branch) {
         return new BranchResponse(
                 branch.getId(),
+                branch.getTenantId(),
                 branch.getDealerId(),
                 branch.getLocationId(),
                 branch.getCode(),

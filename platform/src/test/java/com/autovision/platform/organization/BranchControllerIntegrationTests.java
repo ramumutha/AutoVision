@@ -110,6 +110,7 @@ class BranchControllerIntegrationTests {
                 List.of(
                         new BranchResponse(
                                 branchId,
+                                tenantId,
                                 dealerId,
                                 locationId,
                                 "B001",
@@ -134,6 +135,10 @@ class BranchControllerIntegrationTests {
         .andExpect(
                 jsonPath("$[0].id")
                         .value(branchId.toString())
+        )
+        .andExpect(
+                jsonPath("$[0].tenantId")
+                        .value(tenantId.toString())
         )
         .andExpect(
                 jsonPath("$[0].dealerId")
@@ -172,6 +177,7 @@ class BranchControllerIntegrationTests {
         ).thenReturn(
                 new BranchResponse(
                         branchId,
+                        tenantId,
                         dealerId,
                         null,
                         "B001",
@@ -195,6 +201,10 @@ class BranchControllerIntegrationTests {
         .andExpect(
                 jsonPath("$.id")
                         .value(branchId.toString())
+        )
+        .andExpect(
+                jsonPath("$.tenantId")
+                        .value(tenantId.toString())
         )
         .andExpect(
                 jsonPath("$.dealerId")

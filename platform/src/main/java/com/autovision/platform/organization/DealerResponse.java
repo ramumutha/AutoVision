@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record DealerResponse(
         UUID id,
+        UUID tenantId,
         String code,
         String name,
         String legalName,

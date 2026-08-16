@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record BranchResponse(
         UUID id,
+        UUID tenantId,
         UUID dealerId,
         UUID locationId,
         String code,

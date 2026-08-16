@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record LocationResponse(
         UUID id,
+        UUID tenantId,
         String code,
         String name,
         String addressLine1,

@@ -130,6 +130,10 @@ class LocationControllerIntegrationTests {
                         .value(locationId.toString())
         )
         .andExpect(
+                jsonPath("$[0].tenantId")
+                        .value(tenantId.toString())
+        )
+        .andExpect(
                 jsonPath("$[0].code")
                         .value("L001")
         )
@@ -188,6 +192,10 @@ class LocationControllerIntegrationTests {
                         .value(locationId.toString())
         )
         .andExpect(
+                jsonPath("$.tenantId")
+                        .value(tenantId.toString())
+        )
+        .andExpect(
                 jsonPath("$.code")
                         .value("L001")
         )
@@ -204,6 +212,7 @@ class LocationControllerIntegrationTests {
     ) {
         return new LocationResponse(
                 id,
+                tenantId,
                 code,
                 name,
                 "100 Demo Road",
