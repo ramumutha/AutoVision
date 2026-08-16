@@ -321,7 +321,7 @@ class LocationServiceTests {
                 List.of(dealerId)
         )).thenReturn(List.of(location));
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 locationId,
                 tenantId
         )).thenReturn(Optional.of(location));
@@ -413,7 +413,7 @@ class LocationServiceTests {
                 "Demo Location"
         );
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 locationId,
                 tenantId
         )).thenReturn(Optional.of(location));
@@ -430,7 +430,7 @@ class LocationServiceTests {
         );
 
         verify(repository)
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         locationId,
                         tenantId
                 );
@@ -447,11 +447,52 @@ class LocationServiceTests {
     }
 
     @Test
+    void findsLocationInAuthorizedTenantGroupMemberTenant()
+            throws Exception {
+
+        UUID otherTenantId = UUID.randomUUID();
+        UUID locationId = UUID.randomUUID();
+
+        Location location = location(
+                locationId,
+                otherTenantId,
+                "L-XTENANT",
+                "Cross Tenant Location"
+        );
+
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
+                locationId,
+                tenantId
+        )).thenReturn(Optional.of(location));
+
+        LocationResponse result =
+                service.findById(context, locationId);
+
+        assertEquals(locationId, result.id());
+
+        verify(authorizationService)
+                .requirePermission(
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.LOCATION_READ,
+                                AuthorizationResourceType.LOCATION,
+                                locationId
+                        )
+                );
+
+        verify(repository)
+                .findByIdWithinAuthorizedTenantBoundary(
+                        locationId,
+                        tenantId
+                );
+    }
+
+    @Test
     void returnsNotFoundForLocationOutsideTenant() {
 
         UUID locationId = UUID.randomUUID();
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 locationId,
                 tenantId
         )).thenReturn(Optional.empty());

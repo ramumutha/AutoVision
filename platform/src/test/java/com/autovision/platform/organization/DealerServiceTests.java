@@ -194,7 +194,7 @@ class DealerServiceTests {
                 )
         ));
 
-        when(repository.findByIdAndTenantId(sharedDealerId, tenantId))
+        when(repository.findByIdWithinAuthorizedTenantBoundary(sharedDealerId, tenantId))
                 .thenReturn(Optional.of(dealer));
 
         when(authorizationScopeRepository.findDealerIdsInGroup(
@@ -285,7 +285,7 @@ class DealerServiceTests {
                 "Demo Dealer"
         );
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 dealerId,
                 tenantId
         )).thenReturn(Optional.of(dealer));
@@ -296,7 +296,7 @@ class DealerServiceTests {
         assertEquals(dealerId, result.id());
 
         verify(repository)
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         dealerId,
                         tenantId
                 );
@@ -313,10 +313,51 @@ class DealerServiceTests {
     }
 
     @Test
+    void findsDealerInAuthorizedTenantGroupMemberTenant()
+            throws Exception {
+
+        UUID otherTenantId = UUID.randomUUID();
+        UUID dealerId = UUID.randomUUID();
+
+        Dealer dealer = dealer(
+                dealerId,
+                otherTenantId,
+                "D-XTENANT",
+                "Cross Tenant Dealer"
+        );
+
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
+                dealerId,
+                tenantId
+        )).thenReturn(Optional.of(dealer));
+
+        DealerResponse result =
+                service.findById(context, dealerId);
+
+        assertEquals(dealerId, result.id());
+
+        verify(authorizationService)
+                .requirePermission(
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.DEALER_READ,
+                                AuthorizationResourceType.DEALER,
+                                dealerId
+                        )
+                );
+
+        verify(repository)
+                .findByIdWithinAuthorizedTenantBoundary(
+                        dealerId,
+                        tenantId
+                );
+    }
+
+    @Test
     void returnsNotFoundForDealerOutsideTenant() {
         UUID dealerId = UUID.randomUUID();
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 dealerId,
                 tenantId
         )).thenReturn(Optional.empty());

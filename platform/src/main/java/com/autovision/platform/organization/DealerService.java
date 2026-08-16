@@ -121,7 +121,7 @@ public class DealerService {
         );
 
         Dealer dealer = dealerRepository
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         dealerId,
                         tenantContext.tenantId()
                 )

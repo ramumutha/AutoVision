@@ -128,7 +128,7 @@ public class BranchService {
         );
 
         Branch branch = branchRepository
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         branchId,
                         tenantContext.tenantId()
                 )

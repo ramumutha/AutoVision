@@ -135,7 +135,7 @@ public class LocationService {
         );
 
         Location location = locationRepository
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         locationId,
                         tenantContext.tenantId()
                 )

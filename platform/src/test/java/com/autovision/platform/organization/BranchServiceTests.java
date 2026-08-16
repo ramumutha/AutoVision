@@ -192,7 +192,7 @@ class BranchServiceTests {
                 new AuthorizationGrant(AuthorizationScopeType.DEALER, dealerId)
         ));
 
-        when(repository.findByIdAndTenantId(branchId, tenantId))
+        when(repository.findByIdWithinAuthorizedTenantBoundary(branchId, tenantId))
                 .thenReturn(Optional.of(branch));
 
         when(repository.findAllByTenantIdAndDealerId(tenantId, dealerId))
@@ -277,7 +277,7 @@ class BranchServiceTests {
                 "Demo Branch"
         );
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 branchId,
                 tenantId
         )).thenReturn(Optional.of(branch));
@@ -288,7 +288,7 @@ class BranchServiceTests {
         assertEquals(branchId, result.id());
 
         verify(repository)
-                .findByIdAndTenantId(
+                .findByIdWithinAuthorizedTenantBoundary(
                         branchId,
                         tenantId
                 );
@@ -305,10 +305,52 @@ class BranchServiceTests {
     }
 
     @Test
+    void findsBranchInAuthorizedTenantGroupMemberTenant()
+            throws Exception {
+
+        UUID otherTenantId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        Branch branch = branch(
+                branchId,
+                otherTenantId,
+                UUID.randomUUID(),
+                "B-XTENANT",
+                "Cross Tenant Branch"
+        );
+
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
+                branchId,
+                tenantId
+        )).thenReturn(Optional.of(branch));
+
+        BranchResponse result =
+                service.findById(context, branchId);
+
+        assertEquals(branchId, result.id());
+
+        verify(authorizationService)
+                .requirePermission(
+                        new AuthorizationRequest(
+                                context,
+                                OrganizationPermissions.BRANCH_READ,
+                                AuthorizationResourceType.BRANCH,
+                                branchId
+                        )
+                );
+
+        verify(repository)
+                .findByIdWithinAuthorizedTenantBoundary(
+                        branchId,
+                        tenantId
+                );
+    }
+
+    @Test
     void returnsNotFoundForBranchOutsideTenant() {
         UUID branchId = UUID.randomUUID();
 
-        when(repository.findByIdAndTenantId(
+        when(repository.findByIdWithinAuthorizedTenantBoundary(
                 branchId,
                 tenantId
         )).thenReturn(Optional.empty());
