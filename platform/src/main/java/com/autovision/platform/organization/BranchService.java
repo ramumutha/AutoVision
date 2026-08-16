@@ -46,8 +46,8 @@ public class BranchService {
      * Returns only branches contained by the caller's active permission-bearing
      * grants (S4.7.7.3D): TENANT -> all tenant branches, DEALER_GROUP ->
      * branches of member dealers, DEALER -> branches of that dealer, BRANCH ->
-     * that exact branch. LOCATION/TENANT_GROUP grant no Branch collection
-     * access. Results from multiple grants are unioned and deduplicated;
+     * that exact branch. TENANT_GROUP -> resources across active member tenants. LOCATION grants
+     * no Branch collection access. Results from multiple grants are unioned and deduplicated;
      * tenant isolation is enforced by every repository call.
      */
     public List<BranchResponse> findAll(
@@ -105,8 +105,14 @@ public class BranchService {
                                 tenantContext.tenantId()
                         )
                         .ifPresent(branches::add);
-                case LOCATION, TENANT_GROUP -> {
-                    // These scopes grant no Branch collection access.
+                case TENANT_GROUP -> branches.addAll(
+                        branchRepository.findAllWithinActiveTenantGroup(
+                                grant.scopeId(),
+                                tenantContext.tenantId()
+                        )
+                );
+                case LOCATION -> {
+                    // This narrower scope grants no Branch collection access.
                 }
             }
         }

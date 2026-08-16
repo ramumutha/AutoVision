@@ -47,7 +47,7 @@ public class LocationService {
      * bearing grants (S4.7.7.3D): TENANT -> all tenant locations, DEALER_GROUP
      * -> locations of member dealers, DEALER -> locations of that dealer,
      * BRANCH -> locations under that branch, LOCATION -> that exact location.
-     * TENANT_GROUP grants no Location collection access. Results from
+     * TENANT_GROUP -> locations across active member tenants. Results from
      * multiple grants are unioned and deduplicated; tenant isolation is
      * enforced by every repository call.
      */
@@ -112,9 +112,12 @@ public class LocationService {
                                 tenantContext.tenantId()
                         )
                         .ifPresent(locations::add);
-                case TENANT_GROUP -> {
-                    // This scope grants no Location collection access.
-                }
+                case TENANT_GROUP -> locations.addAll(
+                        locationRepository.findAllWithinActiveTenantGroup(
+                                grant.scopeId(),
+                                tenantContext.tenantId()
+                        )
+                );
             }
         }
 

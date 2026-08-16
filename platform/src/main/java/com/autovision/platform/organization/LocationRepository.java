@@ -56,6 +56,33 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
             @Param("branchIds") Collection<UUID> branchIds
     );
 
+
+    /**
+     * Returns resources belonging to tenants in the specified ACTIVE tenant
+     * group. The authenticated tenant must itself be a member of that group.
+     * This is the defense-in-depth collection boundary for TENANT_GROUP grants.
+     */
+    @Query(value = """
+            SELECT DISTINCT l.*
+              FROM platform.locations l
+              JOIN platform.tenant_group_memberships target_m
+                ON target_m.tenant_id = l.tenant_id
+              JOIN platform.tenant_groups tg
+                ON tg.id = target_m.tenant_group_id
+               AND tg.status = 'ACTIVE'
+             WHERE tg.id = :tenantGroupId
+               AND EXISTS (
+                    SELECT 1
+                      FROM platform.tenant_group_memberships caller_m
+                     WHERE caller_m.tenant_group_id = tg.id
+                       AND caller_m.tenant_id = :authenticatedTenantId
+               )
+            """, nativeQuery = true)
+    List<Location> findAllWithinActiveTenantGroup(
+            @Param("tenantGroupId") UUID tenantGroupId,
+            @Param("authenticatedTenantId") UUID authenticatedTenantId
+    );
+
     Optional<Location> findByIdAndTenantId(UUID id, UUID tenantId);
 
     /**

@@ -15,6 +15,33 @@ public interface DealerRepository extends JpaRepository<Dealer, UUID> {
 
     List<Dealer> findAllByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);
 
+
+    /**
+     * Returns resources belonging to tenants in the specified ACTIVE tenant
+     * group. The authenticated tenant must itself be a member of that group.
+     * This is the defense-in-depth collection boundary for TENANT_GROUP grants.
+     */
+    @Query(value = """
+            SELECT DISTINCT d.*
+              FROM platform.dealers d
+              JOIN platform.tenant_group_memberships target_m
+                ON target_m.tenant_id = d.tenant_id
+              JOIN platform.tenant_groups tg
+                ON tg.id = target_m.tenant_group_id
+               AND tg.status = 'ACTIVE'
+             WHERE tg.id = :tenantGroupId
+               AND EXISTS (
+                    SELECT 1
+                      FROM platform.tenant_group_memberships caller_m
+                     WHERE caller_m.tenant_group_id = tg.id
+                       AND caller_m.tenant_id = :authenticatedTenantId
+               )
+            """, nativeQuery = true)
+    List<Dealer> findAllWithinActiveTenantGroup(
+            @Param("tenantGroupId") UUID tenantGroupId,
+            @Param("authenticatedTenantId") UUID authenticatedTenantId
+    );
+
     Optional<Dealer> findByIdAndTenantId(UUID id, UUID tenantId);
 
     /**

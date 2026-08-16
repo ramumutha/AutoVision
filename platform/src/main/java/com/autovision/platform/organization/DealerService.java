@@ -45,8 +45,8 @@ public class DealerService {
     /**
      * Returns only dealers contained by the caller's active permission-bearing
      * grants (S4.7.7.3D): TENANT -> all tenant dealers, DEALER_GROUP -> member
-     * dealers, DEALER -> that exact dealer. BRANCH/LOCATION/TENANT_GROUP grant
-     * no Dealer collection access. Results from multiple grants are unioned
+     * dealers, DEALER -> that exact dealer. TENANT_GROUP -> resources across active member tenants. BRANCH/LOCATION
+     * grant no Dealer collection access. Results from multiple grants are unioned
      * and deduplicated; tenant isolation is enforced by every repository call.
      */
     public List<DealerResponse> findAll(
@@ -98,8 +98,14 @@ public class DealerService {
                                 tenantContext.tenantId()
                         )
                         .ifPresent(dealers::add);
-                case BRANCH, LOCATION, TENANT_GROUP -> {
-                    // These scopes grant no Dealer collection access.
+                case TENANT_GROUP -> dealers.addAll(
+                        dealerRepository.findAllWithinActiveTenantGroup(
+                                grant.scopeId(),
+                                tenantContext.tenantId()
+                        )
+                );
+                case BRANCH, LOCATION -> {
+                    // These narrower scopes grant no Dealer collection access.
                 }
             }
         }

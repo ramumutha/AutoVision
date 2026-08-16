@@ -215,6 +215,48 @@ class DealerServiceTests {
     }
 
     @Test
+    void tenantGroupGrantListsResourcesAcrossMemberTenants() throws Exception {
+        UUID tenantGroupId = UUID.randomUUID();
+        UUID otherTenantId = UUID.randomUUID();
+        UUID resourceId = UUID.randomUUID();
+
+        Dealer resource = dealer(
+                resourceId,
+                otherTenantId,
+                "D-TG",
+                "Tenant Group Dealer"
+        );
+
+        when(authorizationRepository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                OrganizationPermissions.DEALER_READ
+        )).thenReturn(List.of(
+                new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT_GROUP,
+                        tenantGroupId
+                )
+        ));
+
+        when(repository.findAllWithinActiveTenantGroup(
+                tenantGroupId,
+                tenantId
+        )).thenReturn(List.of(resource));
+
+        List<DealerResponse> result =
+                service.findAll(context);
+
+        assertEquals(1, result.size());
+        assertEquals(resourceId, result.getFirst().id());
+        assertEquals(otherTenantId, result.getFirst().tenantId());
+
+        verify(repository).findAllWithinActiveTenantGroup(
+                tenantGroupId,
+                tenantId
+        );
+    }
+
+    @Test
     void unsupportedNarrowerScopeReturnsEmptyCollection() {
         when(authorizationRepository.findActivePermissionGrants(
                 context.userRefId(),
