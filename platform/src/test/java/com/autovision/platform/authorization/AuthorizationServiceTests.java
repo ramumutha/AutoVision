@@ -1,5 +1,6 @@
 package com.autovision.platform.authorization;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
@@ -10,9 +11,9 @@ import org.springframework.security.access.AccessDeniedException;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AuthorizationServiceTests {
@@ -20,8 +21,11 @@ class AuthorizationServiceTests {
     private final AuthorizationRepository repository =
             mock(AuthorizationRepository.class);
 
+    private final AuthorizationScopeEvaluator scopeEvaluator =
+            mock(AuthorizationScopeEvaluator.class);
+
     private final AuthorizationService service =
-            new AuthorizationService(repository);
+            new AuthorizationService(repository, scopeEvaluator);
 
     private final UUID tenantId =
             UUID.fromString(
@@ -107,7 +111,7 @@ class AuthorizationServiceTests {
     }
 
     @Test
-    void resourceAwareHasPermissionDeniesByDefault() {
+    void resourceAwareHasPermissionDeniesWhenNoGrants() {
         AuthorizationRequest request = new AuthorizationRequest(
                 context,
                 "ORGANIZATION.DEALER.READ",
@@ -115,13 +119,153 @@ class AuthorizationServiceTests {
                 UUID.randomUUID()
         );
 
-        assertFalse(service.hasPermission(request));
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of());
 
-        verifyNoInteractions(repository);
+        assertFalse(service.hasPermission(request));
     }
 
     @Test
-    void resourceAwareRequirePermissionThrowsByDefault() {
+    void resourceAwareHasPermissionDeniesWhenNoGrantContainsResource() {
+        UUID resourceId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                resourceId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                UUID.randomUUID()
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                resourceId
+        )).thenReturn(false);
+
+        assertFalse(service.hasPermission(request));
+    }
+
+    @Test
+    void resourceAwareHasPermissionAllowsWhenGrantContainsResource() {
+        UUID resourceId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                resourceId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                resourceId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                resourceId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+    }
+
+    @Test
+    void resourceAwareHasPermissionAllowsWhenAnyOfMultipleGrantsContainsResource() {
+        UUID resourceId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                resourceId
+        );
+
+        AuthorizationGrant nonContainingGrant = new AuthorizationGrant(
+                AuthorizationScopeType.BRANCH,
+                UUID.randomUUID()
+        );
+
+        AuthorizationGrant containingGrant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                resourceId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of(nonContainingGrant, containingGrant));
+
+        when(scopeEvaluator.contains(
+                nonContainingGrant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                resourceId
+        )).thenReturn(false);
+
+        when(scopeEvaluator.contains(
+                containingGrant,
+                tenantId,
+                AuthorizationResourceType.DEALER,
+                resourceId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+    }
+
+    @Test
+    void resourceAwareRequirePermissionSucceedsWhenGranted() {
+        UUID resourceId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "ORGANIZATION.DEALER.READ",
+                AuthorizationResourceType.DEALER,
+                resourceId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                resourceId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.DEALER.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(any(), any(), any(), any()))
+                .thenReturn(true);
+
+        service.requirePermission(request);
+    }
+
+    @Test
+    void resourceAwareRequirePermissionThrowsAccessDeniedWhenDenied() {
         AuthorizationRequest request = new AuthorizationRequest(
                 context,
                 "ORGANIZATION.BRANCH.READ",
@@ -129,11 +273,15 @@ class AuthorizationServiceTests {
                 UUID.randomUUID()
         );
 
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "ORGANIZATION.BRANCH.READ"
+        )).thenReturn(List.of());
+
         assertThrows(
                 AccessDeniedException.class,
                 () -> service.requirePermission(request)
         );
-
-        verifyNoInteractions(repository);
     }
 }

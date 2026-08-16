@@ -1,5 +1,7 @@
 package com.autovision.platform.authorization;
 
+import java.util.List;
+
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.slf4j.Logger;
@@ -18,11 +20,14 @@ public class AuthorizationService {
             LoggerFactory.getLogger(AuthorizationService.class);
 
     private final AuthorizationRepository authorizationRepository;
+    private final AuthorizationScopeEvaluator scopeEvaluator;
 
     public AuthorizationService(
-            AuthorizationRepository authorizationRepository
+            AuthorizationRepository authorizationRepository,
+            AuthorizationScopeEvaluator scopeEvaluator
     ) {
         this.authorizationRepository = authorizationRepository;
+        this.scopeEvaluator = scopeEvaluator;
     }
 
     public boolean hasPermission(
@@ -55,20 +60,38 @@ public class AuthorizationService {
     }
 
     /**
-     * Resource-aware authorization contract foundation (S4.7.7.3A).
-     * Hierarchical scope containment (TENANT_GROUP/DEALER_GROUP/DEALER/BRANCH/
-     * LOCATION) is not implemented yet, so this deliberately denies by default
-     * until real scope evaluation is introduced in a later controlled slice.
+     * Resource-aware authorization (S4.7.7.3B): resolves active LOCAL grants
+     * (TENANT/DEALER_GROUP/DEALER/BRANCH/LOCATION) and allows only when at
+     * least one grant contains the requested resource. TENANT_GROUP and SYSTEM
+     * scope evaluation remain deferred and always deny.
      */
     public boolean hasPermission(AuthorizationRequest request) {
-        log.info(
-                "authorization decision permission={} tenantId={} resourceType={} decision=DENY",
-                request.permissionCode(),
-                request.context().tenantId(),
-                request.resourceType()
+        List<AuthorizationGrant> grants =
+                authorizationRepository.findActivePermissionGrants(
+                        request.context().userRefId(),
+                        request.context().tenantId(),
+                        request.permissionCode()
+                );
+
+        boolean granted = grants.stream().anyMatch(grant ->
+                scopeEvaluator.contains(
+                        grant,
+                        request.context().tenantId(),
+                        request.resourceType(),
+                        request.resourceId()
+                )
         );
 
-        return false;
+        log.info(
+                "authorization decision permission={} tenantId={} resourceType={} resourceId={} decision={}",
+                request.permissionCode(),
+                request.context().tenantId(),
+                request.resourceType(),
+                request.resourceId(),
+                granted ? "ALLOW" : "DENY"
+        );
+
+        return granted;
     }
 
     public void requirePermission(AuthorizationRequest request) {

@@ -1,5 +1,7 @@
 package com.autovision.platform.authorization;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -78,15 +80,85 @@ public class AuthorizationRepository {
     }
 
     /**
-     * Future contract for hierarchical scope evaluation (S4.7.7.3B).
-     * Deliberately returns no grants until real containment SQL is added;
-     * hasActiveTenantPermission(...) remains the authoritative runtime check.
+     * Resolves active LOCAL permission-bearing scoped assignments (S4.7.7.3B):
+     * TENANT, DEALER_GROUP, DEALER, BRANCH, LOCATION only. SYSTEM and
+     * TENANT_GROUP assignments are never returned; containment against the
+     * requested resource is evaluated separately by AuthorizationScopeEvaluator.
      */
     public List<AuthorizationGrant> findActivePermissionGrants(
             UUID userRefId,
             UUID authenticatedTenantId,
             String permissionCode
     ) {
-        return List.of();
+        return jdbcClient.sql("""
+                SELECT DISTINCT
+                       sra.scope_type,
+                       sra.tenant_id,
+                       sra.dealer_group_id,
+                       sra.dealer_id,
+                       sra.branch_id,
+                       sra.location_id
+                  FROM platform.authorization_principals p
+                  JOIN platform.scoped_role_assignments sra
+                    ON sra.principal_id = p.id
+                  JOIN platform.roles r
+                    ON r.id = sra.role_id
+                 WHERE p.user_ref_id = :userRefId
+                   AND p.tenant_id = :authenticatedTenantId
+                   AND p.status = 'ACTIVE'
+                   AND sra.scope_type IN ('TENANT', 'DEALER_GROUP', 'DEALER', 'BRANCH', 'LOCATION')
+                   AND sra.is_active = TRUE
+                   AND (sra.valid_from IS NULL OR sra.valid_from <= CURRENT_TIMESTAMP)
+                   AND (sra.valid_until IS NULL OR sra.valid_until > CURRENT_TIMESTAMP)
+                   AND r.is_active = TRUE
+                   AND (
+                        EXISTS (
+                            SELECT 1
+                              FROM platform.role_permissions rp
+                              JOIN platform.permissions perm
+                                ON perm.id = rp.permission_id
+                             WHERE rp.role_id = r.id
+                               AND perm.code = :permissionCode
+                               AND perm.is_active = TRUE
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                              FROM platform.role_permission_sets rps
+                              JOIN platform.permission_sets ps
+                                ON ps.id = rps.permission_set_id
+                              JOIN platform.permission_set_permissions psp
+                                ON psp.permission_set_id = ps.id
+                              JOIN platform.permissions perm2
+                                ON perm2.id = psp.permission_id
+                             WHERE rps.role_id = r.id
+                               AND ps.is_active = TRUE
+                               AND perm2.code = :permissionCode
+                               AND perm2.is_active = TRUE
+                        )
+                   )
+                """)
+                .param("userRefId", userRefId)
+                .param("authenticatedTenantId", authenticatedTenantId)
+                .param("permissionCode", permissionCode)
+                .query(this::mapGrant)
+                .list();
+    }
+
+    private AuthorizationGrant mapGrant(ResultSet rs, int rowNum) throws SQLException {
+        AuthorizationScopeType scopeType =
+                AuthorizationScopeType.valueOf(rs.getString("scope_type"));
+
+        UUID scopeId = switch (scopeType) {
+            case TENANT -> rs.getObject("tenant_id", UUID.class);
+            case DEALER_GROUP -> rs.getObject("dealer_group_id", UUID.class);
+            case DEALER -> rs.getObject("dealer_id", UUID.class);
+            case BRANCH -> rs.getObject("branch_id", UUID.class);
+            case LOCATION -> rs.getObject("location_id", UUID.class);
+            case TENANT_GROUP -> throw new IllegalStateException(
+                    "TENANT_GROUP assignments must not be resolved as local grants"
+            );
+        };
+
+        return new AuthorizationGrant(scopeType, scopeId);
     }
 }

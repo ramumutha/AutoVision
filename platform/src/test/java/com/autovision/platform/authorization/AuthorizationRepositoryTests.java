@@ -1,6 +1,7 @@
 package com.autovision.platform.authorization;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -96,6 +98,10 @@ class AuthorizationRepositoryTests {
                     role_id UUID NOT NULL,
                     scope_type VARCHAR(32) NOT NULL,
                     tenant_id UUID,
+                    dealer_group_id UUID,
+                    dealer_id UUID,
+                    branch_id UUID,
+                    location_id UUID,
                     is_active BOOLEAN NOT NULL,
                     valid_from TIMESTAMP WITH TIME ZONE,
                     valid_until TIMESTAMP WITH TIME ZONE
@@ -330,7 +336,412 @@ class AuthorizationRepositoryTests {
         );
     }
 
+    private List<AuthorizationGrant> evaluateGrants() {
+        return evaluateGrants(PERMISSION_CODE);
+    }
+
+    private List<AuthorizationGrant> evaluateGrants(String permissionCode) {
+        return repository.findActivePermissionGrants(
+                userRefId,
+                tenantId,
+                permissionCode
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsTenantGrantForDirectRolePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        tenantId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsDealerGrantForDirectRolePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID dealerId = UUID.randomUUID();
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.DEALER,
+                dealerId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.DEALER,
+                        dealerId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsBranchGrantForActivePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID branchId = UUID.randomUUID();
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.BRANCH,
+                branchId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.BRANCH,
+                        branchId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsLocationGrantForActivePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID locationId = UUID.randomUUID();
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.LOCATION,
+                locationId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.LOCATION,
+                        locationId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsDealerGroupGrantForActivePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID dealerGroupId = UUID.randomUUID();
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.DEALER_GROUP,
+                dealerGroupId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.DEALER_GROUP,
+                        dealerGroupId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsGrantForPermissionThroughActivePermissionSet() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID permissionSetId = insertPermissionSet(true);
+        insertPermissionSetPermission(permissionSetId, permissionId);
+        insertRolePermissionSet(roleId, permissionSetId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        tenantId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForInactiveAssignment() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                false,
+                null,
+                null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForFutureValidFrom() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                OffsetDateTime.now().plusDays(1),
+                null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForExpiredValidUntil() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                OffsetDateTime.now().minusDays(1)
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForInactiveRole() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(false);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForInactivePermission() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, false);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoGrantForInactivePermissionSet() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        UUID permissionSetId = insertPermissionSet(false);
+        insertPermissionSetPermission(permissionSetId, permissionId);
+        insertRolePermissionSet(roleId, permissionSetId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionReturnsNoLocalGrantsForAnotherTenantsPrincipal() {
+        insertPrincipal(otherTenantId, "ACTIVE");
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionDoesNotLeakAnotherPrincipalsAssignment() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                roleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        UUID otherUserRefId = UUID.randomUUID();
+        UUID otherPrincipalId = insertPrincipal(
+                otherUserRefId,
+                tenantId,
+                "ACTIVE"
+        );
+        UUID otherRoleId = insertRole(true);
+        insertRolePermission(otherRoleId, permissionId);
+        UUID otherDealerId = UUID.randomUUID();
+        insertScopedAssignment(
+                otherPrincipalId,
+                otherRoleId,
+                AuthorizationScopeType.DEALER,
+                otherDealerId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        tenantId
+                )),
+                evaluateGrants()
+        );
+    }
+
+    @Test
+    void grantResolutionExcludesTenantGroupAssignments() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID roleId = insertRole(true);
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+        insertRolePermission(roleId, permissionId);
+
+        jdbcClient.sql("""
+                INSERT INTO platform.scoped_role_assignments
+                    (id, principal_id, role_id, scope_type,
+                     is_active, valid_from, valid_until)
+                VALUES (:id, :principalId, :roleId, 'TENANT_GROUP',
+                        TRUE, NULL, NULL)
+                """)
+                .param("id", UUID.randomUUID())
+                .param("principalId", principalId)
+                .param("roleId", roleId)
+                .update();
+
+        assertEquals(List.of(), evaluateGrants());
+    }
+
+    @Test
+    void grantResolutionDeduplicatesGrantsFromDifferentPermissionPaths() {
+        UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+        UUID permissionId = insertPermission(PERMISSION_CODE, true);
+
+        UUID directRoleId = insertRole(true);
+        insertRolePermission(directRoleId, permissionId);
+        insertScopedAssignment(
+                principalId,
+                directRoleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        UUID setRoleId = insertRole(true);
+        UUID permissionSetId = insertPermissionSet(true);
+        insertPermissionSetPermission(permissionSetId, permissionId);
+        insertRolePermissionSet(setRoleId, permissionSetId);
+        insertScopedAssignment(
+                principalId,
+                setRoleId,
+                AuthorizationScopeType.TENANT,
+                tenantId,
+                true,
+                null,
+                null
+        );
+
+        assertEquals(
+                List.of(new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        tenantId
+                )),
+                evaluateGrants()
+        );
+    }
+
     private UUID insertPrincipal(UUID principalTenantId, String status) {
+        return insertPrincipal(userRefId, principalTenantId, status);
+    }
+
+    private UUID insertPrincipal(
+            UUID principalUserRefId,
+            UUID principalTenantId,
+            String status
+    ) {
         UUID id = UUID.randomUUID();
 
         jdbcClient.sql("""
@@ -339,7 +750,7 @@ class AuthorizationRepositoryTests {
                 VALUES (:id, :userRefId, :tenantId, :status)
                 """)
                 .param("id", id)
-                .param("userRefId", userRefId)
+                .param("userRefId", principalUserRefId)
                 .param("tenantId", principalTenantId)
                 .param("status", status)
                 .update();
@@ -452,6 +863,54 @@ class AuthorizationRepositoryTests {
                 .param("validFrom", validFrom)
                 .param("validUntil", validUntil)
                 .update();
+    }
+
+    private UUID insertScopedAssignment(
+            UUID principalId,
+            UUID roleId,
+            AuthorizationScopeType scopeType,
+            UUID scopeId,
+            boolean isActive,
+            OffsetDateTime validFrom,
+            OffsetDateTime validUntil
+    ) {
+        UUID id = UUID.randomUUID();
+
+        UUID assignmentTenantId =
+                scopeType == AuthorizationScopeType.TENANT ? scopeId : null;
+        UUID dealerGroupId =
+                scopeType == AuthorizationScopeType.DEALER_GROUP ? scopeId : null;
+        UUID dealerId =
+                scopeType == AuthorizationScopeType.DEALER ? scopeId : null;
+        UUID branchId =
+                scopeType == AuthorizationScopeType.BRANCH ? scopeId : null;
+        UUID locationId =
+                scopeType == AuthorizationScopeType.LOCATION ? scopeId : null;
+
+        jdbcClient.sql("""
+                INSERT INTO platform.scoped_role_assignments
+                    (id, principal_id, role_id, scope_type, tenant_id,
+                     dealer_group_id, dealer_id, branch_id, location_id,
+                     is_active, valid_from, valid_until)
+                VALUES (:id, :principalId, :roleId, :scopeType, :tenantId,
+                        :dealerGroupId, :dealerId, :branchId, :locationId,
+                        :isActive, :validFrom, :validUntil)
+                """)
+                .param("id", id)
+                .param("principalId", principalId)
+                .param("roleId", roleId)
+                .param("scopeType", scopeType.name())
+                .param("tenantId", assignmentTenantId)
+                .param("dealerGroupId", dealerGroupId)
+                .param("dealerId", dealerId)
+                .param("branchId", branchId)
+                .param("locationId", locationId)
+                .param("isActive", isActive)
+                .param("validFrom", validFrom)
+                .param("validUntil", validUntil)
+                .update();
+
+        return id;
     }
 
     private void exec(String sql) {
