@@ -48,4 +48,40 @@ public class Dealer {
 
     protected Dealer() {
     }
+
+    public UUID getId() {
+    return id;
+}
+
+public UUID getTenantId() {
+    return tenantId;
+}
+
+public String getCode() {
+    return code;
+}
+
+public String getName() {
+    return name;
+}
+
+public String getLegalName() {
+    return legalName;
+}
+
+public UUID getPrimaryLocationId() {
+    return primaryLocationId;
+}
+
+public OrganizationStatus getStatus() {
+    return status;
+}
+
+public OffsetDateTime getCreatedAt() {
+    return createdAt;
+}
+
+public OffsetDateTime getUpdatedAt() {
+    return updatedAt;
+}
 }
