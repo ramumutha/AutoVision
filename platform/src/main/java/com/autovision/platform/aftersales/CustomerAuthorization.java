@@ -1,6 +1,5 @@
 package com.autovision.platform.aftersales;
 
-import tools.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +10,7 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import tools.jackson.databind.JsonNode;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -151,6 +151,87 @@ public class CustomerAuthorization {
         authorization.updatedAt = now;
 
         return authorization;
+    }
+
+    public void authorize(
+            String decisionChannel,
+            String decisionReference,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        decide(
+                CustomerAuthorizationStatus.AUTHORIZED,
+                decisionChannel,
+                decisionReference,
+                principalId,
+                now
+        );
+    }
+
+    public void decline(
+            String decisionChannel,
+            String decisionReference,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        decide(
+                CustomerAuthorizationStatus.DECLINED,
+                decisionChannel,
+                decisionReference,
+                principalId,
+                now
+        );
+    }
+
+    public void defer(
+            String decisionChannel,
+            String decisionReference,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        decide(
+                CustomerAuthorizationStatus.DEFERRED,
+                decisionChannel,
+                decisionReference,
+                principalId,
+                now
+        );
+    }
+
+    public void cancel(
+            String decisionChannel,
+            String decisionReference,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        decide(
+                CustomerAuthorizationStatus.CANCELLED,
+                decisionChannel,
+                decisionReference,
+                principalId,
+                now
+        );
+    }
+
+    private void decide(
+            CustomerAuthorizationStatus targetStatus,
+            String decisionChannel,
+            String decisionReference,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        if (authorizationStatus != CustomerAuthorizationStatus.REQUESTED) {
+            throw new IllegalStateException(
+                    "Customer authorization has already been decided"
+            );
+        }
+
+        authorizationStatus = targetStatus;
+        decidedAt = now;
+        this.decisionChannel = decisionChannel;
+        this.decisionReference = decisionReference;
+        updatedByPrincipalId = principalId;
+        updatedAt = now;
     }
 
     public UUID getId() {
