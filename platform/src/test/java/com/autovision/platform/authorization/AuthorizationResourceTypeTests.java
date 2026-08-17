@@ -13,7 +13,8 @@ class AuthorizationResourceTypeTests {
                         AuthorizationResourceType.TENANT,
                         AuthorizationResourceType.DEALER,
                         AuthorizationResourceType.BRANCH,
-                        AuthorizationResourceType.LOCATION
+                        AuthorizationResourceType.LOCATION,
+                AuthorizationResourceType.AFTERSALES_CASE
                 },
                 AuthorizationResourceType.values()
         );

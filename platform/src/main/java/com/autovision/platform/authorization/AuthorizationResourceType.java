@@ -8,5 +8,6 @@ public enum AuthorizationResourceType {
     TENANT,
     DEALER,
     BRANCH,
-    LOCATION
+    LOCATION,
+    AFTERSALES_CASE
 }

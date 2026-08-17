@@ -308,6 +308,109 @@ public class AuthorizationScopeRepository {
         return matchCount != null && matchCount > 0;
     }
 
+    public boolean afterSalesCaseBelongsToTenant(
+            UUID caseId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.aftersales_cases
+                 WHERE id = :caseId
+                   AND tenant_id = :tenantId
+                """,
+                "caseId", caseId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean afterSalesCaseBelongsToDealer(
+            UUID caseId,
+            UUID dealerId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.aftersales_cases
+                 WHERE id = :caseId
+                   AND dealer_id = :dealerId
+                   AND tenant_id = :tenantId
+                """)
+                .param("caseId", caseId)
+                .param("dealerId", dealerId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean afterSalesCaseBelongsToBranch(
+            UUID caseId,
+            UUID branchId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.aftersales_cases
+                 WHERE id = :caseId
+                   AND branch_id = :branchId
+                   AND tenant_id = :tenantId
+                """)
+                .param("caseId", caseId)
+                .param("branchId", branchId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean afterSalesCaseBelongsToDealerGroup(
+            UUID caseId,
+            UUID dealerGroupId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.aftersales_cases c
+                  JOIN platform.dealer_group_memberships m
+                    ON m.dealer_id = c.dealer_id
+                   AND m.tenant_id = c.tenant_id
+                 WHERE c.id = :caseId
+                   AND m.dealer_group_id = :dealerGroupId
+                   AND c.tenant_id = :tenantId
+                """)
+                .param("caseId", caseId)
+                .param("dealerGroupId", dealerGroupId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean afterSalesCaseBelongsToActiveTenantGroup(
+            UUID caseId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.aftersales_cases c
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = c.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE c.id = :caseId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("caseId", caseId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
     private boolean exists(
             String sql,
             String param1Name,

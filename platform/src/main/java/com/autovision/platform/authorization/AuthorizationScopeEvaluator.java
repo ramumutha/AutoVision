@@ -87,6 +87,11 @@ public class AuthorizationScopeEvaluator {
                     resourceId,
                     tenantGroupId
             );
+            case AFTERSALES_CASE ->
+                    scopeRepository.afterSalesCaseBelongsToActiveTenantGroup(
+                            resourceId,
+                            tenantGroupId
+                    );
         };
     }
 
@@ -109,6 +114,11 @@ public class AuthorizationScopeEvaluator {
                     resourceId,
                     grantTenantId
             );
+            case AFTERSALES_CASE ->
+                    scopeRepository.afterSalesCaseBelongsToTenant(
+                            resourceId,
+                            grantTenantId
+                    );
         };
     }
 
@@ -135,6 +145,12 @@ public class AuthorizationScopeEvaluator {
                     dealerGroupId,
                     authenticatedTenantId
             );
+            case AFTERSALES_CASE ->
+                    scopeRepository.afterSalesCaseBelongsToDealerGroup(
+                            resourceId,
+                            dealerGroupId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -161,6 +177,12 @@ public class AuthorizationScopeEvaluator {
                     grantDealerId,
                     authenticatedTenantId
             );
+            case AFTERSALES_CASE ->
+                    scopeRepository.afterSalesCaseBelongsToDealer(
+                            resourceId,
+                            grantDealerId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -183,6 +205,12 @@ public class AuthorizationScopeEvaluator {
                     grantBranchId,
                     authenticatedTenantId
             );
+            case AFTERSALES_CASE ->
+                    scopeRepository.afterSalesCaseBelongsToBranch(
+                            resourceId,
+                            grantBranchId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -201,6 +229,7 @@ public class AuthorizationScopeEvaluator {
                             resourceId,
                             authenticatedTenantId
                     );
+            case AFTERSALES_CASE -> false;
         };
     }
 }
