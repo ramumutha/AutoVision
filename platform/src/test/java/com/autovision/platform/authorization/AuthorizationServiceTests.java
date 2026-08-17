@@ -325,4 +325,200 @@ class AuthorizationServiceTests {
         );
     }
 
+
+    @Test
+    void customerAuthorizationReadAllowsContainingAfterSalesCaseGrant() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.READ",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.BRANCH,
+                UUID.randomUUID()
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+
+        verify(scopeEvaluator).contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+    }
+
+    @Test
+    void customerAuthorizationCreateAllowsContainingAfterSalesCaseGrant() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.CREATE",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                UUID.randomUUID()
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.CREATE"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+    }
+
+    @Test
+    void customerAuthorizationDecideAllowsContainingAfterSalesCaseGrant() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.DECIDE",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT,
+                tenantId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.DECIDE"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        )).thenReturn(true);
+
+        assertTrue(service.hasPermission(request));
+    }
+
+    @Test
+    void customerAuthorizationReadDeniesNonContainingGrant() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.READ",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.BRANCH,
+                UUID.randomUUID()
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.READ"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        )).thenReturn(false);
+
+        assertFalse(service.hasPermission(request));
+    }
+
+    @Test
+    void customerAuthorizationCreateDeniesWhenNoGrantsExist() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.CREATE",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.CREATE"
+        )).thenReturn(List.of());
+
+        assertFalse(service.hasPermission(request));
+
+        verify(repository).findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.CREATE"
+        );
+    }
+
+    @Test
+    void customerAuthorizationDecideRequirePermissionDeniesNonContainingGrant() {
+        UUID caseId = UUID.randomUUID();
+
+        AuthorizationRequest request = new AuthorizationRequest(
+                context,
+                "CUSTOMER_AUTHORIZATION.DECIDE",
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        );
+
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER,
+                UUID.randomUUID()
+        );
+
+        when(repository.findActivePermissionGrants(
+                context.userRefId(),
+                tenantId,
+                "CUSTOMER_AUTHORIZATION.DECIDE"
+        )).thenReturn(List.of(grant));
+
+        when(scopeEvaluator.contains(
+                grant,
+                tenantId,
+                AuthorizationResourceType.AFTERSALES_CASE,
+                caseId
+        )).thenReturn(false);
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.requirePermission(request)
+        );
+    }
 }
