@@ -138,6 +138,34 @@ public class ServiceOrderAccessService {
                 );
     }
 
+    public ServiceOrderAggregateView requireAggregate(
+            AuthenticatedTenantContext tenantContext,
+            UUID orderId
+    ) {
+        ServiceOrder order =
+                requireOrder(
+                        tenantContext,
+                        orderId
+                );
+
+        List<ServiceJob> jobs =
+                jobRepository
+                        .findAllByServiceOrderIdOrderByJobNumber(
+                                order.getId()
+                        );
+
+        List<ServiceLine> lines =
+                lineRepository
+                        .findAllByServiceOrderIdOrderByLineNumber(
+                                order.getId()
+                        );
+
+        return new ServiceOrderAggregateView(
+                order,
+                jobs,
+                lines
+        );
+    }
     private void requireTenantContext(
             AuthenticatedTenantContext tenantContext
     ) {
