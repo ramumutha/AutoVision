@@ -411,6 +411,109 @@ public class AuthorizationScopeRepository {
 
         return matchCount != null && matchCount > 0;
     }
+    public boolean serviceOrderBelongsToTenant(
+            UUID serviceOrderId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_orders
+                 WHERE id = :serviceOrderId
+                   AND tenant_id = :tenantId
+                """,
+                "serviceOrderId", serviceOrderId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceOrderBelongsToDealer(
+            UUID serviceOrderId,
+            UUID dealerId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.service_orders
+                 WHERE id = :serviceOrderId
+                   AND dealer_id = :dealerId
+                   AND tenant_id = :tenantId
+                """)
+                .param("serviceOrderId", serviceOrderId)
+                .param("dealerId", dealerId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean serviceOrderBelongsToBranch(
+            UUID serviceOrderId,
+            UUID branchId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.service_orders
+                 WHERE id = :serviceOrderId
+                   AND branch_id = :branchId
+                   AND tenant_id = :tenantId
+                """)
+                .param("serviceOrderId", serviceOrderId)
+                .param("branchId", branchId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean serviceOrderBelongsToDealerGroup(
+            UUID serviceOrderId,
+            UUID dealerGroupId,
+            UUID tenantId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.service_orders so
+                  JOIN platform.dealer_group_memberships m
+                    ON m.dealer_id = so.dealer_id
+                   AND m.tenant_id = so.tenant_id
+                 WHERE so.id = :serviceOrderId
+                   AND m.dealer_group_id = :dealerGroupId
+                   AND so.tenant_id = :tenantId
+                """)
+                .param("serviceOrderId", serviceOrderId)
+                .param("dealerGroupId", dealerGroupId)
+                .param("tenantId", tenantId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
+
+    public boolean serviceOrderBelongsToActiveTenantGroup(
+            UUID serviceOrderId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.service_orders so
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = so.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE so.id = :serviceOrderId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("serviceOrderId", serviceOrderId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
     private boolean exists(
             String sql,
             String param1Name,

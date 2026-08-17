@@ -9,5 +9,6 @@ public enum AuthorizationResourceType {
     DEALER,
     BRANCH,
     LOCATION,
-    AFTERSALES_CASE
+    AFTERSALES_CASE,
+    SERVICE_ORDER
 }
