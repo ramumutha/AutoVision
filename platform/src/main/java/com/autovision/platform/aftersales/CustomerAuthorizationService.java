@@ -4,6 +4,8 @@ import com.autovision.platform.authorization.AuthorizationRequest;
 import com.autovision.platform.authorization.AuthorizationResourceType;
 import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,6 +21,9 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 @Transactional(readOnly = true)
 public class CustomerAuthorizationService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(CustomerAuthorizationService.class);
 
     private final CustomerAuthorizationRepository repository;
     private final AfterSalesCaseRepository caseRepository;
@@ -134,7 +139,17 @@ public class CustomerAuthorizationService {
                         now
                 );
 
-        return repository.save(authorization);
+        CustomerAuthorization saved =
+                repository.save(authorization);
+
+        logLifecycleEvent(
+                "customer_authorization.requested",
+                saved,
+                tenantContext,
+                null
+        );
+
+        return saved;
     }
 
     @Transactional
@@ -358,6 +373,62 @@ public class CustomerAuthorizationService {
                     CONFLICT,
                     exception.getMessage(),
                     exception
+            );
+        }
+
+        logLifecycleEvent(
+                switch (targetStatus) {
+                    case AUTHORIZED ->
+                            "customer_authorization.authorized";
+                    case DECLINED ->
+                            "customer_authorization.declined";
+                    case DEFERRED ->
+                            "customer_authorization.deferred";
+                    case CANCELLED ->
+                            "customer_authorization.cancelled";
+                    case REQUESTED ->
+                            throw new IllegalArgumentException(
+                                    "REQUESTED is not a decision state"
+                            );
+                },
+                authorization,
+                tenantContext,
+                decisionChannel
+        );
+    }
+
+    private void logLifecycleEvent(
+            String event,
+            CustomerAuthorization authorization,
+            AuthenticatedTenantContext tenantContext,
+            String decisionChannel
+    ) {
+        if (decisionChannel == null) {
+            log.info(
+                    "customer authorization lifecycle event={} tenantId={} dealerId={} branchId={} caseId={} authorizationId={} authorizationNumber={} principalId={} status={}",
+                    event,
+                    authorization.getTenantId(),
+                    authorization.getDealerId(),
+                    authorization.getBranchId(),
+                    authorization.getAftersalesCaseId(),
+                    authorization.getId(),
+                    authorization.getAuthorizationNumber(),
+                    tenantContext.userRefId(),
+                    authorization.getAuthorizationStatus()
+            );
+        } else {
+            log.info(
+                    "customer authorization lifecycle event={} tenantId={} dealerId={} branchId={} caseId={} authorizationId={} authorizationNumber={} principalId={} status={} decisionChannel={}",
+                    event,
+                    authorization.getTenantId(),
+                    authorization.getDealerId(),
+                    authorization.getBranchId(),
+                    authorization.getAftersalesCaseId(),
+                    authorization.getId(),
+                    authorization.getAuthorizationNumber(),
+                    tenantContext.userRefId(),
+                    authorization.getAuthorizationStatus(),
+                    decisionChannel
             );
         }
     }

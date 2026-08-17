@@ -762,6 +762,104 @@ class CustomerAuthorizationServiceTests {
                         caseId
                 );
     }
+    @Test
+    void requestRemainsSuccessfulWithLifecycleObservabilityEnabled()
+            throws Exception {
+
+        UUID caseId = UUID.randomUUID();
+
+        when(caseRepository.findByIdAndTenantId(
+                caseId,
+                tenantId
+        )).thenReturn(Optional.of(
+                caseRecord(caseId, null, null)
+        ));
+
+        when(repository.save(any(CustomerAuthorization.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomerAuthorization result =
+                service.request(
+                        context,
+                        caseId,
+                        "AUTH-OBS-1",
+                        "CUSTOMER-OBS",
+                        "Observability Customer",
+                        "Authorize observability test",
+                        json("""
+                                {
+                                  "scopeVersion": 1,
+                                  "items": []
+                                }
+                                """),
+                        null,
+                        "Observability terms",
+                        "Observability disclaimer"
+                );
+
+        assertEquals(
+                CustomerAuthorizationStatus.REQUESTED,
+                result.getAuthorizationStatus()
+        );
+        assertEquals(
+                principalId,
+                result.getCreatedByPrincipalId()
+        );
+    }
+
+    @Test
+    void failedRepeatedDecisionDoesNotOverwriteSuccessfulDecision()
+            throws Exception {
+
+        UUID caseId = UUID.randomUUID();
+        UUID authorizationId = UUID.randomUUID();
+
+        CustomerAuthorization authorization =
+                authorizationRecord(
+                        authorizationId,
+                        caseId
+                );
+
+        prepareDecisionLookup(
+                caseId,
+                authorizationId,
+                authorization
+        );
+
+        service.authorize(
+                context,
+                caseId,
+                authorizationId,
+                "CUSTOMER_PORTAL",
+                "decision-observability-original"
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.cancel(
+                                context,
+                                caseId,
+                                authorizationId,
+                                "SERVICE_ADVISOR",
+                                "decision-observability-repeat"
+                        )
+                );
+
+        assertEquals(409, exception.getStatusCode().value());
+        assertEquals(
+                CustomerAuthorizationStatus.AUTHORIZED,
+                authorization.getAuthorizationStatus()
+        );
+        assertEquals(
+                "CUSTOMER_PORTAL",
+                authorization.getDecisionChannel()
+        );
+        assertEquals(
+                "decision-observability-original",
+                authorization.getDecisionReference()
+        );
+    }
     private void prepareDecisionLookup(
             UUID caseId,
             UUID authorizationId,
