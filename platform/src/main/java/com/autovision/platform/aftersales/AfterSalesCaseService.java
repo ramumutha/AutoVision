@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -74,6 +75,13 @@ public class AfterSalesCaseService {
             UUID branchId,
             AfterSalesCaseSourceChannel sourceChannel
     ) {
+        if (branchId != null && dealerId == null) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "dealerId is required when branchId is provided"
+            );
+        }
+
         requireCreatePermission(
                 tenantContext,
                 dealerId,

@@ -170,7 +170,7 @@ class AfterSalesCaseControllerIntegrationTests {
                                 }
                                 """)
         )
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(
                 jsonPath("$.id")
                         .value(caseId.toString())
@@ -215,6 +215,69 @@ class AfterSalesCaseControllerIntegrationTests {
         );
     }
 
+
+    @Test
+    void openRejectsBlankCaseNumber()
+            throws Exception {
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        mockMvc.perform(
+                post("/api/v1/aftersales-cases")
+                        .with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "caseNumber": " ",
+                                  "sourceChannel": "CUSTOMER_PORTAL"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void openRejectsMissingSourceChannel()
+            throws Exception {
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        mockMvc.perform(
+                post("/api/v1/aftersales-cases")
+                        .with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "caseNumber": "ASC-INVALID"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void openRejectsBranchWithoutDealer()
+            throws Exception {
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        mockMvc.perform(
+                post("/api/v1/aftersales-cases")
+                        .with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "caseNumber": "ASC-INVALID",
+                                  "branchId": "11111111-1111-1111-1111-111111111111",
+                                  "sourceChannel": "SERVICE_ADVISOR"
+                                }
+                                """)
+        )
+        .andExpect(status().isBadRequest());
+    }
     private org.springframework.test.web.servlet.request.RequestPostProcessor
             authenticatedJwt() {
 

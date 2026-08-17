@@ -266,6 +266,26 @@ class AfterSalesCaseServiceTests {
         assertNotNull(result.getClosedAt());
     }
 
+
+    @Test
+    void rejectsBranchWithoutDealerBeforeAuthorizationOrPersistence() {
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.open(
+                                context,
+                                "ASC-INVALID",
+                                null,
+                                UUID.randomUUID(),
+                                AfterSalesCaseSourceChannel.SERVICE_ADVISOR
+                        )
+                );
+
+        assertEquals(400, exception.getStatusCode().value());
+
+        verifyNoInteractions(repository);
+        verifyNoInteractions(authorizationService);
+    }
     private AfterSalesCase caseRecord(UUID caseId) {
         return AfterSalesCase.open(
                 caseId,
