@@ -1,5 +1,8 @@
 package com.autovision.platform.aftersales;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.springframework.stereotype.Service;
@@ -18,16 +21,24 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class AfterSalesCaseService {
 
     private final AfterSalesCaseRepository repository;
+    private final AuthorizationService authorizationService;
 
     public AfterSalesCaseService(
-            AfterSalesCaseRepository repository
+            AfterSalesCaseRepository repository,
+            AuthorizationService authorizationService
     ) {
         this.repository = repository;
+        this.authorizationService = authorizationService;
     }
 
     public List<AfterSalesCase> findAll(
             AuthenticatedTenantContext tenantContext
     ) {
+        authorizationService.requirePermission(
+                tenantContext,
+                AfterSalesPermissions.CASE_READ
+        );
+
         return repository.findAllByTenantId(
                 tenantContext.tenantId()
         );
@@ -37,6 +48,15 @@ public class AfterSalesCaseService {
             AuthenticatedTenantContext tenantContext,
             UUID caseId
     ) {
+        authorizationService.requirePermission(
+                new AuthorizationRequest(
+                        tenantContext,
+                        AfterSalesPermissions.CASE_READ,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                )
+        );
+
         return repository.findByIdAndTenantId(
                 caseId,
                 tenantContext.tenantId()
@@ -54,6 +74,12 @@ public class AfterSalesCaseService {
             UUID branchId,
             AfterSalesCaseSourceChannel sourceChannel
     ) {
+        requireCreatePermission(
+                tenantContext,
+                dealerId,
+                branchId
+        );
+
         if (repository.existsByTenantIdAndCaseNumber(
                 tenantContext.tenantId(),
                 caseNumber
@@ -85,8 +111,23 @@ public class AfterSalesCaseService {
             AuthenticatedTenantContext tenantContext,
             UUID caseId
     ) {
+        authorizationService.requirePermission(
+                new AuthorizationRequest(
+                        tenantContext,
+                        AfterSalesPermissions.CASE_UPDATE,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                )
+        );
+
         AfterSalesCase afterSalesCase =
-                findById(tenantContext, caseId);
+                repository.findByIdAndTenantId(
+                        caseId,
+                        tenantContext.tenantId()
+                ).orElseThrow(() -> new ResponseStatusException(
+                        NOT_FOUND,
+                        "AfterSales case not found"
+                ));
 
         afterSalesCase.close(
                 tenantContext.userRefId(),
@@ -94,5 +135,34 @@ public class AfterSalesCaseService {
         );
 
         return afterSalesCase;
+    }
+
+    private void requireCreatePermission(
+            AuthenticatedTenantContext tenantContext,
+            UUID dealerId,
+            UUID branchId
+    ) {
+        AuthorizationResourceType resourceType;
+        UUID resourceId;
+
+        if (branchId != null) {
+            resourceType = AuthorizationResourceType.BRANCH;
+            resourceId = branchId;
+        } else if (dealerId != null) {
+            resourceType = AuthorizationResourceType.DEALER;
+            resourceId = dealerId;
+        } else {
+            resourceType = AuthorizationResourceType.TENANT;
+            resourceId = tenantContext.tenantId();
+        }
+
+        authorizationService.requirePermission(
+                new AuthorizationRequest(
+                        tenantContext,
+                        AfterSalesPermissions.CASE_CREATE,
+                        resourceType,
+                        resourceId
+                )
+        );
     }
 }

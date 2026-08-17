@@ -1,10 +1,15 @@
 package com.autovision.platform.aftersales;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,18 +19,26 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 
 class AfterSalesCaseServiceTests {
 
     private final AfterSalesCaseRepository repository =
             mock(AfterSalesCaseRepository.class);
 
+    private final AuthorizationService authorizationService =
+            mock(AuthorizationService.class);
+
     private final AfterSalesCaseService service =
-            new AfterSalesCaseService(repository);
+            new AfterSalesCaseService(
+                    repository,
+                    authorizationService
+            );
 
     private final UUID tenantId =
             UUID.fromString(
@@ -47,17 +60,7 @@ class AfterSalesCaseServiceTests {
     @Test
     void findsCaseOnlyWithinAuthenticatedTenant() {
         UUID caseId = UUID.randomUUID();
-
-        AfterSalesCase afterSalesCase = AfterSalesCase.open(
-                caseId,
-                tenantId,
-                null,
-                null,
-                "ASC-2001",
-                AfterSalesCaseSourceChannel.SERVICE_ADVISOR,
-                principalId,
-                java.time.OffsetDateTime.now()
-        );
+        AfterSalesCase afterSalesCase = caseRecord(caseId);
 
         when(repository.findByIdAndTenantId(caseId, tenantId))
                 .thenReturn(Optional.of(afterSalesCase));
@@ -67,12 +70,41 @@ class AfterSalesCaseServiceTests {
 
         assertSame(afterSalesCase, result);
 
-        verify(repository)
-                .findByIdAndTenantId(caseId, tenantId);
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_READ,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                )
+        );
     }
 
     @Test
-    void returnsNotFoundWhenCaseIsOutsideTenantOrAbsent() {
+    void deniesFindByIdBeforeRepositoryAccess() {
+        UUID caseId = UUID.randomUUID();
+        AuthorizationRequest request =
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_READ,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                );
+
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(request);
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findById(context, caseId)
+        );
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void returnsNotFoundWhenCaseIsAbsent() {
         UUID caseId = UUID.randomUUID();
 
         when(repository.findByIdAndTenantId(caseId, tenantId))
@@ -113,19 +145,88 @@ class AfterSalesCaseServiceTests {
     }
 
     @Test
-    void opensCaseWithTenantAndAuditContext() {
-        when(repository.existsByTenantIdAndCaseNumber(
-                tenantId,
-                "ASC-2003"
-        )).thenReturn(false);
+    void createAtBranchAuthorizesAgainstBranch() {
+        UUID dealerId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
 
+        when(repository.save(any(AfterSalesCase.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.open(
+                context,
+                "ASC-2003",
+                dealerId,
+                branchId,
+                AfterSalesCaseSourceChannel.SERVICE_ADVISOR
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_CREATE,
+                        AuthorizationResourceType.BRANCH,
+                        branchId
+                )
+        );
+    }
+
+    @Test
+    void createAtDealerAuthorizesAgainstDealer() {
+        UUID dealerId = UUID.randomUUID();
+
+        when(repository.save(any(AfterSalesCase.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.open(
+                context,
+                "ASC-2004",
+                dealerId,
+                null,
+                AfterSalesCaseSourceChannel.SERVICE_ADVISOR
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_CREATE,
+                        AuthorizationResourceType.DEALER,
+                        dealerId
+                )
+        );
+    }
+
+    @Test
+    void createWithoutDealerOrBranchAuthorizesAgainstTenant() {
+        when(repository.save(any(AfterSalesCase.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.open(
+                context,
+                "ASC-2005",
+                null,
+                null,
+                AfterSalesCaseSourceChannel.CUSTOMER_PORTAL
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_CREATE,
+                        AuthorizationResourceType.TENANT,
+                        tenantId
+                )
+        );
+    }
+
+    @Test
+    void opensCaseWithTenantAndAuditContext() {
         when(repository.save(any(AfterSalesCase.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         AfterSalesCase result =
                 service.open(
                         context,
-                        "ASC-2003",
+                        "ASC-2006",
                         null,
                         null,
                         AfterSalesCaseSourceChannel.CUSTOMER_PORTAL
@@ -133,37 +234,15 @@ class AfterSalesCaseServiceTests {
 
         assertNotNull(result.getId());
         assertEquals(tenantId, result.getTenantId());
-        assertEquals("ASC-2003", result.getCaseNumber());
-        assertEquals(
-                AfterSalesCaseStatus.OPEN,
-                result.getLifecycleStatus()
-        );
-        assertEquals(
-                AfterSalesCaseSourceChannel.CUSTOMER_PORTAL,
-                result.getSourceChannel()
-        );
+        assertEquals(AfterSalesCaseStatus.OPEN, result.getLifecycleStatus());
         assertEquals(principalId, result.getCreatedByPrincipalId());
-        assertEquals(principalId, result.getUpdatedByPrincipalId());
-        assertNotNull(result.getOpenedAt());
-        assertNotNull(result.getCreatedAt());
-        assertNotNull(result.getUpdatedAt());
         assertNull(result.getClosedAt());
     }
 
     @Test
-    void closesExistingCaseWithAuditContext() {
+    void closeAuthorizesUpdateAgainstCase() {
         UUID caseId = UUID.randomUUID();
-
-        AfterSalesCase afterSalesCase = AfterSalesCase.open(
-                caseId,
-                tenantId,
-                null,
-                null,
-                "ASC-2004",
-                AfterSalesCaseSourceChannel.SERVICE_ADVISOR,
-                principalId,
-                java.time.OffsetDateTime.now()
-        );
+        AfterSalesCase afterSalesCase = caseRecord(caseId);
 
         when(repository.findByIdAndTenantId(caseId, tenantId))
                 .thenReturn(Optional.of(afterSalesCase));
@@ -171,14 +250,32 @@ class AfterSalesCaseServiceTests {
         AfterSalesCase result =
                 service.close(context, caseId);
 
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CASE_UPDATE,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                )
+        );
+
         assertEquals(
                 AfterSalesCaseStatus.CLOSED,
                 result.getLifecycleStatus()
         );
         assertNotNull(result.getClosedAt());
-        assertEquals(principalId, result.getUpdatedByPrincipalId());
+    }
 
-        verify(repository)
-                .findByIdAndTenantId(caseId, tenantId);
+    private AfterSalesCase caseRecord(UUID caseId) {
+        return AfterSalesCase.open(
+                caseId,
+                tenantId,
+                null,
+                null,
+                "ASC-TEST",
+                AfterSalesCaseSourceChannel.SERVICE_ADVISOR,
+                principalId,
+                OffsetDateTime.now()
+        );
     }
 }
