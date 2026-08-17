@@ -64,6 +64,9 @@ public class ServiceJob {
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
 
+    @Column(name = "closed_at")
+    private OffsetDateTime closedAt;
+
     @Column(name = "approved_at")
     private OffsetDateTime approvedAt;
 
@@ -115,6 +118,124 @@ public class ServiceJob {
         return serviceJob;
     }
 
+    public void markReady(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requirePolicy(policy);
+
+        if (!policy.isServiceJobReadyForExecution(approvalStatus)) {
+            throw new IllegalStateException(
+                    "Service job approval requirements are not satisfied"
+            );
+        }
+
+        transition(
+                ServiceJobStatus.READY,
+                policy,
+                principalId,
+                now
+        );
+
+        readyAt = now;
+    }
+
+    public void start(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceJobStatus.IN_PROGRESS,
+                policy,
+                principalId,
+                now
+        );
+
+        startedAt = now;
+    }
+
+    public void completeWork(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceJobStatus.WORK_COMPLETED,
+                policy,
+                principalId,
+                now
+        );
+
+        completedAt = now;
+    }
+
+    public void close(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceJobStatus.CLOSED,
+                policy,
+                principalId,
+                now
+        );
+
+        closedAt = now;
+    }
+
+    public void cancel(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceJobStatus.CANCELLED,
+                policy,
+                principalId,
+                now
+        );
+
+        cancelledAt = now;
+    }
+
+    private void transition(
+            ServiceJobStatus targetStatus,
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requirePolicy(policy);
+
+        if (!policy.isServiceJobTransitionAllowed(
+                status,
+                targetStatus
+        )) {
+            throw new IllegalStateException(
+                    "Service job transition is not allowed: "
+                            + status
+                            + " -> "
+                            + targetStatus
+            );
+        }
+
+        status = targetStatus;
+        updatedByPrincipalId = principalId;
+        updatedAt = now;
+    }
+
+    private void requirePolicy(
+            ServiceLifecyclePolicy policy
+    ) {
+        if (policy == null) {
+            throw new IllegalArgumentException(
+                    "Service lifecycle policy is required"
+            );
+        }
+    }
+
     public UUID getId() {
         return id;
     }
@@ -157,6 +278,10 @@ public class ServiceJob {
 
     public OffsetDateTime getCancelledAt() {
         return cancelledAt;
+    }
+
+    public OffsetDateTime getClosedAt() {
+        return closedAt;
     }
 
     public OffsetDateTime getApprovedAt() {

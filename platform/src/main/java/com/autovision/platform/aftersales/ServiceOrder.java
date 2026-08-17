@@ -110,6 +110,93 @@ public class ServiceOrder {
         return serviceOrder;
     }
 
+    public void start(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceOrderStatus.IN_PROGRESS,
+                policy,
+                principalId,
+                now
+        );
+    }
+
+    public void completeWork(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceOrderStatus.WORK_COMPLETED,
+                policy,
+                principalId,
+                now
+        );
+
+        completedAt = now;
+    }
+
+    public void close(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceOrderStatus.CLOSED,
+                policy,
+                principalId,
+                now
+        );
+
+        closedAt = now;
+    }
+
+    public void cancel(
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        transition(
+                ServiceOrderStatus.CANCELLED,
+                policy,
+                principalId,
+                now
+        );
+
+        cancelledAt = now;
+    }
+
+    private void transition(
+            ServiceOrderStatus targetStatus,
+            ServiceLifecyclePolicy policy,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        if (policy == null) {
+            throw new IllegalArgumentException(
+                    "Service lifecycle policy is required"
+            );
+        }
+
+        if (!policy.isServiceOrderTransitionAllowed(
+                status,
+                targetStatus
+        )) {
+            throw new IllegalStateException(
+                    "Service order transition is not allowed: "
+                            + status
+                            + " -> "
+                            + targetStatus
+            );
+        }
+
+        status = targetStatus;
+        updatedByPrincipalId = principalId;
+        updatedAt = now;
+    }
+
     public UUID getId() {
         return id;
     }

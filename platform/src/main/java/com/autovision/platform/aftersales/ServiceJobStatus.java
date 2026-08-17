@@ -4,6 +4,7 @@ public enum ServiceJobStatus {
     OPEN,
     READY,
     IN_PROGRESS,
-    COMPLETED,
+    WORK_COMPLETED,
+    CLOSED,
     CANCELLED
 }
