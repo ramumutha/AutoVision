@@ -18,6 +18,9 @@ public final class AfterSalesPermissions {
     public static final String CUSTOMER_AUTHORIZATION_DECIDE =
             "CUSTOMER_AUTHORIZATION.DECIDE";
 
+    public static final String SERVICE_ORDER_READ =
+            "SERVICE_ORDER.READ";
+
     private AfterSalesPermissions() {
     }
 }

@@ -278,6 +278,33 @@ class ServiceOrderControllerIntegrationTests {
     }
 
     @Test
+    void aggregateRejectsAuthenticatedRequestWithoutAuthorizedScope()
+            throws Exception {
+
+        UUID orderId = UUID.randomUUID();
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        when(accessService.requireAggregate(
+                context,
+                orderId
+        )).thenThrow(
+                new org.springframework.security.access.AccessDeniedException(
+                        "Access is denied"
+                )
+        );
+
+        mockMvc.perform(
+                get(
+                        "/api/v1/service-orders/{orderId}/aggregate",
+                        orderId
+                )
+                .with(authenticatedJwt())
+        )
+        .andExpect(status().isForbidden());
+    }
+    @Test
     void aggregateRejectsMalformedOrderId()
             throws Exception {
 

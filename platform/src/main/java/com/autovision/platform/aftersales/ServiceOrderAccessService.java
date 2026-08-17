@@ -1,5 +1,8 @@
 package com.autovision.platform.aftersales;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +20,18 @@ public class ServiceOrderAccessService {
     private final ServiceOrderRepository orderRepository;
     private final ServiceJobRepository jobRepository;
     private final ServiceLineRepository lineRepository;
+    private final AuthorizationService authorizationService;
 
     public ServiceOrderAccessService(
             ServiceOrderRepository orderRepository,
             ServiceJobRepository jobRepository,
-            ServiceLineRepository lineRepository
+            ServiceLineRepository lineRepository,
+            AuthorizationService authorizationService
     ) {
         this.orderRepository = orderRepository;
         this.jobRepository = jobRepository;
         this.lineRepository = lineRepository;
+        this.authorizationService = authorizationService;
     }
 
     public ServiceOrder requireOrder(
@@ -33,6 +39,15 @@ public class ServiceOrderAccessService {
             UUID orderId
     ) {
         requireTenantContext(tenantContext);
+
+        authorizationService.requirePermission(
+                new AuthorizationRequest(
+                        tenantContext,
+                        AfterSalesPermissions.SERVICE_ORDER_READ,
+                        AuthorizationResourceType.SERVICE_ORDER,
+                        orderId
+                )
+        );
 
         return orderRepository.findByIdAndTenantId(
                 orderId,
@@ -166,6 +181,7 @@ public class ServiceOrderAccessService {
                 lines
         );
     }
+
     private void requireTenantContext(
             AuthenticatedTenantContext tenantContext
     ) {

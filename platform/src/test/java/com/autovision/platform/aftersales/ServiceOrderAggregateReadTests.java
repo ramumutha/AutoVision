@@ -1,5 +1,6 @@
 package com.autovision.platform.aftersales;
 
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class ServiceOrderAggregateReadTests {
     @Mock
     private ServiceLineRepository lineRepository;
 
+    @Mock
+    private AuthorizationService authorizationService;
+
     private ServiceOrderAccessService service;
 
     @BeforeEach
@@ -39,7 +43,8 @@ class ServiceOrderAggregateReadTests {
         service = new ServiceOrderAccessService(
                 orderRepository,
                 jobRepository,
-                lineRepository
+                lineRepository,
+                authorizationService
         );
     }
 

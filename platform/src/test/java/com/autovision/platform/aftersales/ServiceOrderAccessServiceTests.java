@@ -1,5 +1,6 @@
 package com.autovision.platform.aftersales;
 
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +33,9 @@ class ServiceOrderAccessServiceTests {
     @Mock
     private ServiceLineRepository lineRepository;
 
+    @Mock
+    private AuthorizationService authorizationService;
+
     private ServiceOrderAccessService service;
 
     @BeforeEach
@@ -38,7 +43,8 @@ class ServiceOrderAccessServiceTests {
         service = new ServiceOrderAccessService(
                 orderRepository,
                 jobRepository,
-                lineRepository
+                lineRepository,
+                authorizationService
         );
     }
 
@@ -391,6 +397,51 @@ class ServiceOrderAccessServiceTests {
         assertSame(line, result.getFirst());
     }
 
+    @Test
+    void deniesOrderReadBeforeRepositoryAccessWhenScopeDoesNotContainOrder() {
+
+        AuthenticatedTenantContext context = context();
+        UUID orderId = UUID.randomUUID();
+
+        com.autovision.platform.authorization.AuthorizationRequest request =
+                new com.autovision.platform.authorization.AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_READ,
+                        com.autovision.platform.authorization.AuthorizationResourceType.SERVICE_ORDER,
+                        orderId
+                );
+
+        org.mockito.Mockito.doThrow(
+                new org.springframework.security.access.AccessDeniedException(
+                        "Access is denied"
+                )
+        ).when(authorizationService)
+                .requirePermission(request);
+
+        assertThrows(
+                org.springframework.security.access.AccessDeniedException.class,
+                () -> service.requireOrder(
+                        context,
+                        orderId
+                )
+        );
+
+        verify(authorizationService)
+                .requirePermission(request);
+
+        verify(
+                orderRepository,
+                never()
+        ).findByIdAndTenantId(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+
+        verifyNoInteractions(
+                jobRepository,
+                lineRepository
+        );
+    }
     @Test
     void rejectsMissingAuthenticatedTenantContext() {
 
