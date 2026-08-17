@@ -102,7 +102,7 @@ class AfterSalesCaseRepositoryTests {
         List<AfterSalesCase> cases =
                 repository.findAllByTenantIdAndLifecycleStatus(
                         tenantId,
-                        "OPEN"
+                        AfterSalesCaseStatus.OPEN
                 );
 
         assertEquals(1, cases.size());

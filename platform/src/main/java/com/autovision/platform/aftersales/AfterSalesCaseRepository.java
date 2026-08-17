@@ -12,7 +12,7 @@ public interface AfterSalesCaseRepository extends JpaRepository<AfterSalesCase, 
 
     List<AfterSalesCase> findAllByTenantIdAndLifecycleStatus(
             UUID tenantId,
-            String lifecycleStatus
+            AfterSalesCaseStatus lifecycleStatus
     );
 
     Optional<AfterSalesCase> findByIdAndTenantId(

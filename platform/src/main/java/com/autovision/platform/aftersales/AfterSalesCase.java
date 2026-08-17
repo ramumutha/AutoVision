@@ -2,6 +2,8 @@ package com.autovision.platform.aftersales;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -42,11 +44,13 @@ public class AfterSalesCase {
     @Column(name = "case_number", nullable = false, length = 80)
     private String caseNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "lifecycle_status", nullable = false, length = 32)
-    private String lifecycleStatus;
+    private AfterSalesCaseStatus lifecycleStatus;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "source_channel", length = 32)
-    private String sourceChannel;
+    private AfterSalesCaseSourceChannel sourceChannel;
 
     @Column(name = "opened_at", nullable = false)
     private OffsetDateTime openedAt;
@@ -73,6 +77,44 @@ public class AfterSalesCase {
     protected AfterSalesCase() {
     }
 
+    public static AfterSalesCase open(
+            UUID id,
+            UUID tenantId,
+            UUID dealerId,
+            UUID branchId,
+            String caseNumber,
+            AfterSalesCaseSourceChannel sourceChannel,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        AfterSalesCase afterSalesCase = new AfterSalesCase();
+
+        afterSalesCase.id = id;
+        afterSalesCase.tenantId = tenantId;
+        afterSalesCase.dealerId = dealerId;
+        afterSalesCase.branchId = branchId;
+        afterSalesCase.caseNumber = caseNumber;
+        afterSalesCase.lifecycleStatus = AfterSalesCaseStatus.OPEN;
+        afterSalesCase.sourceChannel = sourceChannel;
+        afterSalesCase.openedAt = now;
+        afterSalesCase.createdByPrincipalId = principalId;
+        afterSalesCase.updatedByPrincipalId = principalId;
+        afterSalesCase.createdAt = now;
+        afterSalesCase.updatedAt = now;
+
+        return afterSalesCase;
+    }
+
+    public void close(
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        lifecycleStatus = AfterSalesCaseStatus.CLOSED;
+        closedAt = now;
+        updatedByPrincipalId = principalId;
+        updatedAt = now;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -93,11 +135,11 @@ public class AfterSalesCase {
         return caseNumber;
     }
 
-    public String getLifecycleStatus() {
+    public AfterSalesCaseStatus getLifecycleStatus() {
         return lifecycleStatus;
     }
 
-    public String getSourceChannel() {
+    public AfterSalesCaseSourceChannel getSourceChannel() {
         return sourceChannel;
     }
 
