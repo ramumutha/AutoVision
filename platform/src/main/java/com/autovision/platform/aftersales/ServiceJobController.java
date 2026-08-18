@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,6 +28,26 @@ public class ServiceJobController {
     ) {
         this.tenantContextResolver = tenantContextResolver;
         this.commandService = commandService;
+    }
+
+    @PostMapping
+    public ServiceJobMutationResponse create(
+            @PathVariable UUID orderId,
+            @RequestBody CreateServiceJobRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        ServiceJob job = commandService.create(
+                tenantContext,
+                orderId,
+                request.jobNumber(),
+                request.summary(),
+                request.approvalStatus()
+        );
+
+        return ServiceJobMutationResponse.from(job);
     }
 
     @PostMapping("/{jobId}/mark-ready")
