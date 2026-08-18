@@ -4,6 +4,7 @@ import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import com.autovision.platform.tenant.TenantContextResolver;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -21,13 +23,16 @@ public class ServiceJobController {
 
     private final TenantContextResolver tenantContextResolver;
     private final ServiceJobCommandService commandService;
+        private final ServiceOrderAccessService accessService;
 
     public ServiceJobController(
             TenantContextResolver tenantContextResolver,
-            ServiceJobCommandService commandService
+                        ServiceJobCommandService commandService,
+                        ServiceOrderAccessService accessService
     ) {
         this.tenantContextResolver = tenantContextResolver;
         this.commandService = commandService;
+                this.accessService = accessService;
     }
 
     @PostMapping
@@ -48,6 +53,59 @@ public class ServiceJobController {
         );
 
         return ServiceJobMutationResponse.from(job);
+    }
+
+    @GetMapping
+    public List<ServiceOrderAggregateResponse.ServiceJobResponse> findJobs(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        return accessService.findJobs(
+                        tenantContext,
+                        orderId
+                ).stream()
+                .map(ServiceOrderAggregateResponse.ServiceJobResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{jobId}")
+    public ServiceOrderAggregateResponse.ServiceJobResponse requireJob(
+            @PathVariable UUID orderId,
+            @PathVariable UUID jobId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        return ServiceOrderAggregateResponse.ServiceJobResponse.from(
+                accessService.requireJob(
+                        tenantContext,
+                        orderId,
+                        jobId
+                )
+        );
+    }
+
+    @GetMapping("/{jobId}/lines")
+    public List<ServiceOrderAggregateResponse.ServiceLineResponse>
+            findLinesForJob(
+                    @PathVariable UUID orderId,
+                    @PathVariable UUID jobId,
+                    @AuthenticationPrincipal Jwt jwt
+            ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        return accessService.findLinesForJob(
+                        tenantContext,
+                        orderId,
+                        jobId
+                ).stream()
+                .map(ServiceOrderAggregateResponse.ServiceLineResponse::from)
+                .toList();
     }
 
     @PostMapping("/{jobId}/mark-ready")

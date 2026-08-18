@@ -4,6 +4,7 @@ import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import com.autovision.platform.tenant.TenantContextResolver;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -21,13 +23,16 @@ public class ServiceLineController {
 
     private final TenantContextResolver tenantContextResolver;
     private final ServiceLineCommandService commandService;
+        private final ServiceOrderAccessService accessService;
 
     public ServiceLineController(
             TenantContextResolver tenantContextResolver,
-            ServiceLineCommandService commandService
+                        ServiceLineCommandService commandService,
+                        ServiceOrderAccessService accessService
     ) {
         this.tenantContextResolver = tenantContextResolver;
         this.commandService = commandService;
+                this.accessService = accessService;
     }
 
     @PostMapping
@@ -56,6 +61,40 @@ public class ServiceLineController {
         } catch (IllegalArgumentException exception) {
             throw badRequest(exception);
         }
+    }
+
+    @GetMapping
+    public List<ServiceOrderAggregateResponse.ServiceLineResponse> findLines(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        return accessService.findLines(
+                        tenantContext,
+                        orderId
+                ).stream()
+                .map(ServiceOrderAggregateResponse.ServiceLineResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{lineId}")
+    public ServiceOrderAggregateResponse.ServiceLineResponse requireLine(
+            @PathVariable UUID orderId,
+            @PathVariable UUID lineId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        return ServiceOrderAggregateResponse.ServiceLineResponse.from(
+                accessService.requireLine(
+                        tenantContext,
+                        orderId,
+                        lineId
+                )
+        );
     }
 
     @PostMapping("/{lineId}/update-details")
