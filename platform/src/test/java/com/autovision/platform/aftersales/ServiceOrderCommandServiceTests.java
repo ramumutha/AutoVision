@@ -33,6 +33,12 @@ class ServiceOrderCommandServiceTests {
     private ServiceOrderRepository orderRepository;
 
     @Mock
+    private ServiceJobRepository jobRepository;
+
+    @Mock
+    private ServiceLineRepository lineRepository;
+
+    @Mock
     private AuthorizationService authorizationService;
 
     private ServiceOrderCommandService service;
@@ -40,12 +46,22 @@ class ServiceOrderCommandServiceTests {
     private final ServiceLifecyclePolicy lifecyclePolicy =
             new DefaultServiceLifecyclePolicy();
 
+    private final ServiceOrderAggregateLifecycle aggregateLifecycle =
+            new ServiceOrderAggregateLifecycle();
+
+    private final ServiceOrderAggregatePolicy aggregatePolicy =
+            new DefaultServiceOrderAggregatePolicy();
+
     @BeforeEach
     void setUp() {
         service = new ServiceOrderCommandService(
                 orderRepository,
+                jobRepository,
+                lineRepository,
                 authorizationService,
-                lifecyclePolicy
+                lifecyclePolicy,
+                aggregateLifecycle,
+                aggregatePolicy
         );
     }
 
@@ -271,6 +287,461 @@ class ServiceOrderCommandServiceTests {
         );
     }
 
+    @Test
+    void completesDirectWorkOrderWithoutServiceJobs() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceLine line =
+                ServiceLine.create(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        null,
+                        10,
+                        ServiceLineType.LABOR,
+                        "Direct diagnostic work",
+                        java.math.BigDecimal.ONE,
+                        "HOUR",
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of(line));
+
+        ServiceOrder result =
+                service.completeWork(
+                        context,
+                        order.getId()
+                );
+
+        assertSame(order, result);
+
+        assertEquals(
+                ServiceOrderStatus.WORK_COMPLETED,
+                result.getStatus()
+        );
+
+        assertEquals(
+                context.userRefId(),
+                result.getUpdatedByPrincipalId()
+        );
+    }
+
+    @Test
+    void completesOrderWhenAllJobsAreResolved() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceJob completedJob =
+                ServiceJob.open(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        "JOB-001",
+                        "Completed work",
+                        ServiceJobApprovalStatus.NOT_REQUIRED,
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        completedJob.markReady(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        completedJob.start(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        completedJob.completeWork(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(
+                        java.util.List.of(completedJob)
+                );
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        ServiceOrder result =
+                service.completeWork(
+                        context,
+                        order.getId()
+                );
+
+        assertEquals(
+                ServiceOrderStatus.WORK_COMPLETED,
+                result.getStatus()
+        );
+    }
+
+    @Test
+    void rejectsCompletionWhileServiceJobIsStillOpen() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceJob openJob =
+                ServiceJob.open(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        "JOB-OPEN",
+                        "Unresolved job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED,
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(
+                        java.util.List.of(openJob)
+                );
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.completeWork(
+                        context,
+                        order.getId()
+                )
+        );
+
+        assertEquals(
+                ServiceOrderStatus.OPEN,
+                order.getStatus()
+        );
+    }
+
+    @Test
+    void rejectsCompletionOfEmptyServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.completeWork(
+                        context,
+                        order.getId()
+                )
+        );
+
+        assertEquals(
+                ServiceOrderStatus.OPEN,
+                order.getStatus()
+        );
+    }
+
+    @Test
+    void closesCompletedDirectWorkOrderWithoutJobs() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceLine line =
+                ServiceLine.create(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        null,
+                        10,
+                        ServiceLineType.LABOR,
+                        "Direct work",
+                        java.math.BigDecimal.ONE,
+                        "HOUR",
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of(line));
+
+        service.completeWork(
+                context,
+                order.getId()
+        );
+
+        ServiceOrder result =
+                service.close(
+                        context,
+                        order.getId()
+                );
+
+        assertEquals(
+                ServiceOrderStatus.CLOSED,
+                result.getStatus()
+        );
+
+        assertEquals(
+                context.userRefId(),
+                result.getUpdatedByPrincipalId()
+        );
+    }
+
+    @Test
+    void closesOrderOnlyAfterServiceJobsAreClosedOrCancelled() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceJob closedJob =
+                ServiceJob.open(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        "JOB-001",
+                        "Closed job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED,
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        closedJob.markReady(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        closedJob.start(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        closedJob.completeWork(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        closedJob.close(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(
+                        java.util.List.of(closedJob)
+                );
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        service.completeWork(
+                context,
+                order.getId()
+        );
+
+        ServiceOrder result =
+                service.close(
+                        context,
+                        order.getId()
+                );
+
+        assertEquals(
+                ServiceOrderStatus.CLOSED,
+                result.getStatus()
+        );
+    }
+
+    @Test
+    void rejectsCloseWhileJobIsOnlyWorkCompleted() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+
+        ServiceJob completedJob =
+                ServiceJob.open(
+                        UUID.randomUUID(),
+                        order.getId(),
+                        "JOB-001",
+                        "Completed job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED,
+                        context.userRefId(),
+                        OffsetDateTime.now()
+                );
+
+        completedJob.markReady(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        completedJob.start(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        completedJob.completeWork(
+                lifecyclePolicy,
+                context.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+
+        when(jobRepository
+                .findAllByServiceOrderIdOrderByJobNumber(
+                        order.getId()
+                )).thenReturn(
+                        java.util.List.of(completedJob)
+                );
+
+        when(lineRepository
+                .findAllByServiceOrderIdOrderByLineNumber(
+                        order.getId()
+                )).thenReturn(java.util.List.of());
+
+        service.completeWork(
+                context,
+                order.getId()
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.close(
+                        context,
+                        order.getId()
+                )
+        );
+
+        assertEquals(
+                ServiceOrderStatus.WORK_COMPLETED,
+                order.getStatus()
+        );
+    }
+
+    @Test
+    void doesNotLoadAggregateChildrenWhenUpdateAuthorizationFails() {
+
+        AuthenticatedTenantContext context = context();
+        UUID orderId = UUID.randomUUID();
+
+        AuthorizationRequest request =
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_UPDATE,
+                        AuthorizationResourceType.SERVICE_ORDER,
+                        orderId
+                );
+
+        doThrow(
+                new AccessDeniedException(
+                        "Access is denied"
+                )
+        ).when(authorizationService)
+                .requirePermission(request);
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.completeWork(
+                        context,
+                        orderId
+                )
+        );
+
+        verify(
+                orderRepository,
+                never()
+        ).findByIdAndTenantId(
+                any(),
+                any()
+        );
+
+        verify(
+                jobRepository,
+                never()
+        ).findAllByServiceOrderIdOrderByJobNumber(
+                any()
+        );
+
+        verify(
+                lineRepository,
+                never()
+        ).findAllByServiceOrderIdOrderByLineNumber(
+                any()
+        );
+    }
     private AuthenticatedTenantContext context() {
         return new AuthenticatedTenantContext(
                 UUID.randomUUID(),

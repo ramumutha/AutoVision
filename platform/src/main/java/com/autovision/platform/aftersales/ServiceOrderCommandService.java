@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -17,17 +18,29 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class ServiceOrderCommandService {
 
     private final ServiceOrderRepository orderRepository;
+    private final ServiceJobRepository jobRepository;
+    private final ServiceLineRepository lineRepository;
     private final AuthorizationService authorizationService;
     private final ServiceLifecyclePolicy lifecyclePolicy;
+    private final ServiceOrderAggregateLifecycle aggregateLifecycle;
+    private final ServiceOrderAggregatePolicy aggregatePolicy;
 
     public ServiceOrderCommandService(
             ServiceOrderRepository orderRepository,
+            ServiceJobRepository jobRepository,
+            ServiceLineRepository lineRepository,
             AuthorizationService authorizationService,
-            ServiceLifecyclePolicy lifecyclePolicy
+            ServiceLifecyclePolicy lifecyclePolicy,
+            ServiceOrderAggregateLifecycle aggregateLifecycle,
+            ServiceOrderAggregatePolicy aggregatePolicy
     ) {
         this.orderRepository = orderRepository;
+        this.jobRepository = jobRepository;
+        this.lineRepository = lineRepository;
         this.authorizationService = authorizationService;
         this.lifecyclePolicy = lifecyclePolicy;
+        this.aggregateLifecycle = aggregateLifecycle;
+        this.aggregatePolicy = aggregatePolicy;
     }
 
     @Transactional
@@ -63,6 +76,71 @@ public class ServiceOrderCommandService {
 
         order.cancel(
                 lifecyclePolicy,
+                tenantContext.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        return order;
+    }
+
+    @Transactional
+    public ServiceOrder completeWork(
+            AuthenticatedTenantContext tenantContext,
+            UUID orderId
+    ) {
+        ServiceOrder order =
+                requireMutableOrder(
+                        tenantContext,
+                        orderId
+                );
+
+        List<ServiceJob> jobs =
+                jobRepository
+                        .findAllByServiceOrderIdOrderByJobNumber(
+                                order.getId()
+                        );
+
+        List<ServiceLine> lines =
+                lineRepository
+                        .findAllByServiceOrderIdOrderByLineNumber(
+                                order.getId()
+                        );
+
+        aggregateLifecycle.completeWork(
+                order,
+                jobs,
+                lines,
+                lifecyclePolicy,
+                aggregatePolicy,
+                tenantContext.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        return order;
+    }
+
+    @Transactional
+    public ServiceOrder close(
+            AuthenticatedTenantContext tenantContext,
+            UUID orderId
+    ) {
+        ServiceOrder order =
+                requireMutableOrder(
+                        tenantContext,
+                        orderId
+                );
+
+        List<ServiceJob> jobs =
+                jobRepository
+                        .findAllByServiceOrderIdOrderByJobNumber(
+                                order.getId()
+                        );
+
+        aggregateLifecycle.close(
+                order,
+                jobs,
+                lifecyclePolicy,
+                aggregatePolicy,
                 tenantContext.userRefId(),
                 OffsetDateTime.now()
         );
