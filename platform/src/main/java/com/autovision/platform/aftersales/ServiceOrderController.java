@@ -4,6 +4,7 @@ import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import com.autovision.platform.tenant.TenantContextResolver;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +32,25 @@ public class ServiceOrderController {
         this.tenantContextResolver = tenantContextResolver;
         this.accessService = accessService;
         this.commandService = commandService;
+    }
+
+    @PostMapping
+    public ServiceOrderMutationResponse create(
+            @RequestBody CreateServiceOrderRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        ServiceOrder order = commandService.create(
+                tenantContext,
+                request.orderNumber(),
+                request.dealerId(),
+                request.branchId(),
+                request.vehicleId()
+        );
+
+        return ServiceOrderMutationResponse.from(order);
     }
 
     @GetMapping("/{orderId}/aggregate")
