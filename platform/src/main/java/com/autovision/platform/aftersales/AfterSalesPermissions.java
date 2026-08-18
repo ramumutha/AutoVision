@@ -21,6 +21,9 @@ public final class AfterSalesPermissions {
     public static final String SERVICE_ORDER_READ =
             "SERVICE_ORDER.READ";
 
+    public static final String SERVICE_ORDER_UPDATE =
+            "SERVICE_ORDER.UPDATE";
+
     private AfterSalesPermissions() {
     }
 }
