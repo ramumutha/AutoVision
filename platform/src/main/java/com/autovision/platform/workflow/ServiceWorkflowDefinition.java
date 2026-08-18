@@ -4,28 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "service_workflow_definitions",
-        schema = "platform",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uq_service_workflow_definitions_tenant_scope_code",
-                        columnNames = {
-                                "tenant_id",
-                                "dealer_id",
-                                "branch_id",
-                                "code"
-                        }
-                )
-        }
-)
+@Table(name = "service_workflow_definitions", schema = "platform")
 public class ServiceWorkflowDefinition {
 
     @Id
