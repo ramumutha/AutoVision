@@ -66,6 +66,189 @@ class ServiceOrderCommandServiceTests {
     }
 
     @Test
+    void createsTenantLevelServiceOrderWhenDealerAndBranchAreNull() {
+
+        AuthenticatedTenantContext context = context();
+        UUID vehicleId = UUID.randomUUID();
+        String orderNumber = "SO-TENANT-1";
+
+        when(orderRepository.save(any(ServiceOrder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrder result = service.create(
+                context,
+                orderNumber,
+                null,
+                null,
+                vehicleId
+        );
+
+        assertEquals(context.tenantId(), result.getTenantId());
+        assertEquals(orderNumber, result.getOrderNumber());
+        assertEquals(vehicleId, result.getVehicleId());
+        assertEquals(ServiceOrderStatus.OPEN, result.getStatus());
+        assertEquals(context.userRefId(), result.getCreatedByPrincipalId());
+        assertEquals(null, result.getDealerId());
+        assertEquals(null, result.getBranchId());
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_CREATE,
+                        AuthorizationResourceType.TENANT,
+                        context.tenantId()
+                )
+        );
+        verify(orderRepository).save(any(ServiceOrder.class));
+    }
+
+    @Test
+    void createsDealerScopedServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        UUID dealerId = UUID.randomUUID();
+
+        when(orderRepository.save(any(ServiceOrder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(
+                context,
+                "SO-DEALER-1",
+                dealerId,
+                null,
+                UUID.randomUUID()
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_CREATE,
+                        AuthorizationResourceType.DEALER,
+                        dealerId
+                )
+        );
+    }
+
+    @Test
+    void createsBranchScopedServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        UUID dealerId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+
+        when(orderRepository.save(any(ServiceOrder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(
+                context,
+                "SO-BRANCH-1",
+                dealerId,
+                branchId,
+                UUID.randomUUID()
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_CREATE,
+                        AuthorizationResourceType.BRANCH,
+                        branchId
+                )
+        );
+    }
+
+    @Test
+    void rejectsBranchWithoutDealer() {
+
+        AuthenticatedTenantContext context = context();
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.create(
+                        context,
+                        "SO-INVALID-1",
+                        null,
+                        UUID.randomUUID(),
+                        UUID.randomUUID()
+                )
+        );
+
+        assertEquals(400, exception.getStatusCode().value());
+        verify(authorizationService, never()).requirePermission(
+                any(AuthorizationRequest.class)
+        );
+        verify(orderRepository, never()).save(any(ServiceOrder.class));
+    }
+
+    @Test
+    void rejectsDuplicateOrderNumberWithinTenant() {
+
+        AuthenticatedTenantContext context = context();
+        when(orderRepository.existsByTenantIdAndOrderNumber(
+                context.tenantId(),
+                "SO-DUPLICATE-1"
+        )).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.create(
+                        context,
+                        "SO-DUPLICATE-1",
+                        null,
+                        null,
+                        UUID.randomUUID()
+                )
+        );
+
+        assertEquals(409, exception.getStatusCode().value());
+        verify(orderRepository, never()).save(any(ServiceOrder.class));
+    }
+
+    @Test
+    void authorizationOccursBeforeDuplicateCheck() {
+
+        AuthenticatedTenantContext context = context();
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.create(
+                        context,
+                        "SO-AUTH-1",
+                        null,
+                        null,
+                        UUID.randomUUID()
+                )
+        );
+
+        verify(orderRepository, never()).existsByTenantIdAndOrderNumber(
+                any(),
+                any()
+        );
+        verify(orderRepository, never()).save(any(ServiceOrder.class));
+    }
+
+    @Test
+    void newOrderStartsOpen() {
+
+        AuthenticatedTenantContext context = context();
+        when(orderRepository.save(any(ServiceOrder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrder result = service.create(
+                context,
+                "SO-OPEN-1",
+                null,
+                null,
+                UUID.randomUUID()
+        );
+
+        assertEquals(ServiceOrderStatus.OPEN, result.getStatus());
+    }
+
+    @Test
     void startsAuthorizedServiceOrder() {
 
         AuthenticatedTenantContext context = context();

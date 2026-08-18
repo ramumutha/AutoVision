@@ -12,6 +12,8 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -41,6 +43,53 @@ public class ServiceOrderCommandService {
         this.lifecyclePolicy = lifecyclePolicy;
         this.aggregateLifecycle = aggregateLifecycle;
         this.aggregatePolicy = aggregatePolicy;
+    }
+
+    @Transactional
+    public ServiceOrder create(
+            AuthenticatedTenantContext tenantContext,
+            String orderNumber,
+            UUID dealerId,
+            UUID branchId,
+            UUID vehicleId
+    ) {
+        if (branchId != null && dealerId == null) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "dealerId is required when branchId is provided"
+            );
+        }
+
+        requireCreatePermission(
+                tenantContext,
+                dealerId,
+                branchId
+        );
+
+        if (orderRepository.existsByTenantIdAndOrderNumber(
+                tenantContext.tenantId(),
+                orderNumber
+        )) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "Service order number already exists"
+            );
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+
+        ServiceOrder serviceOrder = ServiceOrder.open(
+                UUID.randomUUID(),
+                tenantContext.tenantId(),
+                dealerId,
+                branchId,
+                orderNumber,
+                vehicleId,
+                tenantContext.userRefId(),
+                now
+        );
+
+        return orderRepository.save(serviceOrder);
     }
 
     @Transactional
@@ -171,6 +220,35 @@ public class ServiceOrderCommandService {
                 "Service order not found"
         ));
     }
+
+        private void requireCreatePermission(
+                        AuthenticatedTenantContext tenantContext,
+                        UUID dealerId,
+                        UUID branchId
+        ) {
+                AuthorizationResourceType resourceType;
+                UUID resourceId;
+
+                if (branchId != null) {
+                        resourceType = AuthorizationResourceType.BRANCH;
+                        resourceId = branchId;
+                } else if (dealerId != null) {
+                        resourceType = AuthorizationResourceType.DEALER;
+                        resourceId = dealerId;
+                } else {
+                        resourceType = AuthorizationResourceType.TENANT;
+                        resourceId = tenantContext.tenantId();
+                }
+
+                authorizationService.requirePermission(
+                                new AuthorizationRequest(
+                                                tenantContext,
+                                                AfterSalesPermissions.SERVICE_ORDER_CREATE,
+                                                resourceType,
+                                                resourceId
+                                )
+                );
+        }
 
     private void requireTenantContext(
             AuthenticatedTenantContext tenantContext
