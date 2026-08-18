@@ -87,6 +87,35 @@ public class ServiceLine {
             UUID principalId,
             OffsetDateTime now
     ) {
+        if (id == null) {
+            throw new IllegalArgumentException(
+                    "Service line ID is required"
+            );
+        }
+
+        if (serviceOrderId == null) {
+            throw new IllegalArgumentException(
+                    "Service order ID is required"
+            );
+        }
+
+        if (lineNumber <= 0) {
+            throw new IllegalArgumentException(
+                    "Service line number must be greater than zero"
+            );
+        }
+
+        requireLineType(lineType);
+        requireDescription(description);
+        requireQuantity(quantity);
+        requireUnitOfMeasure(unitOfMeasure);
+
+        if (now == null) {
+            throw new IllegalArgumentException(
+                    "Service line creation time is required"
+            );
+        }
+
         ServiceLine serviceLine = new ServiceLine();
 
         serviceLine.id = id;
@@ -103,6 +132,124 @@ public class ServiceLine {
         serviceLine.updatedAt = now;
 
         return serviceLine;
+    }
+
+    public void updateDetails(
+            ServiceLineType lineType,
+            String description,
+            BigDecimal quantity,
+            String unitOfMeasure,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requireLineType(lineType);
+        requireDescription(description);
+        requireQuantity(quantity);
+        requireUnitOfMeasure(unitOfMeasure);
+        requireMutationTime(now);
+
+        this.lineType = lineType;
+        this.description = description;
+        this.quantity = quantity;
+        this.unitOfMeasure = unitOfMeasure;
+
+        touch(principalId, now);
+    }
+
+    public void assignToJob(
+            UUID serviceJobId,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        if (serviceJobId == null) {
+            throw new IllegalArgumentException(
+                    "Service job ID is required"
+            );
+        }
+
+        requireMutationTime(now);
+
+        this.serviceJobId = serviceJobId;
+
+        touch(principalId, now);
+    }
+
+    public void unassignFromJob(
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requireMutationTime(now);
+
+        this.serviceJobId = null;
+
+        touch(principalId, now);
+    }
+
+    private static void requireLineType(
+            ServiceLineType lineType
+    ) {
+        if (lineType == null) {
+            throw new IllegalArgumentException(
+                    "Service line type is required"
+            );
+        }
+    }
+
+    private static void requireDescription(
+            String description
+    ) {
+        if (
+                description == null
+                        || description.isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                    "Service line description is required"
+            );
+        }
+    }
+
+    private static void requireQuantity(
+            BigDecimal quantity
+    ) {
+        if (
+                quantity == null
+                        || quantity.compareTo(BigDecimal.ZERO) <= 0
+        ) {
+            throw new IllegalArgumentException(
+                    "Service line quantity must be greater than zero"
+            );
+        }
+    }
+
+    private static void requireUnitOfMeasure(
+            String unitOfMeasure
+    ) {
+        if (
+                unitOfMeasure == null
+                        || unitOfMeasure.isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                    "Service line unit of measure is required"
+            );
+        }
+    }
+
+    private void requireMutationTime(
+            OffsetDateTime now
+    ) {
+        if (now == null) {
+            throw new IllegalArgumentException(
+                    "Service line mutation time is required"
+            );
+        }
+    }
+
+    private void touch(
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        this.updatedByPrincipalId = principalId;
+        this.updatedAt = now;
     }
 
     public UUID getId() {
