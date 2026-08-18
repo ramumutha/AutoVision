@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -31,6 +32,56 @@ public class ServiceJobCommandService {
         this.jobRepository = jobRepository;
         this.authorizationService = authorizationService;
         this.lifecyclePolicy = lifecyclePolicy;
+    }
+
+    @Transactional
+    public ServiceJob create(
+            AuthenticatedTenantContext tenantContext,
+            UUID orderId,
+            String jobNumber,
+            String summary,
+            ServiceJobApprovalStatus approvalStatus
+    ) {
+        requireTenantContext(tenantContext);
+
+        authorizationService.requirePermission(
+                new AuthorizationRequest(
+                        tenantContext,
+                        AfterSalesPermissions.SERVICE_ORDER_UPDATE,
+                        AuthorizationResourceType.SERVICE_ORDER,
+                        orderId
+                )
+        );
+
+        ServiceOrder order =
+                orderRepository.findByIdAndTenantId(
+                        orderId,
+                        tenantContext.tenantId()
+                ).orElseThrow(() -> notFound(
+                        "Service order not found"
+                ));
+
+        if (jobRepository.existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        )) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "Service job number already exists"
+            );
+        }
+
+        ServiceJob job = ServiceJob.open(
+                UUID.randomUUID(),
+                order.getId(),
+                jobNumber,
+                summary,
+                approvalStatus,
+                tenantContext.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        return jobRepository.save(job);
     }
 
     @Transactional

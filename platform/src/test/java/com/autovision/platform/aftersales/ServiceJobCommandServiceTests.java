@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpStatus.CONFLICT;
 
 @ExtendWith(MockitoExtension.class)
 class ServiceJobCommandServiceTests {
@@ -49,6 +50,209 @@ class ServiceJobCommandServiceTests {
                 jobRepository,
                 authorizationService,
                 lifecyclePolicy
+        );
+    }
+
+    @Test
+    void createsServiceJobWithinAuthorizedServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+        String jobNumber = "JOB-CREATE-001";
+        String summary = "Initial diagnostic work";
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+        when(jobRepository.existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        )).thenReturn(false);
+        when(jobRepository.save(any(ServiceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceJob result = service.create(
+                context,
+                order.getId(),
+                jobNumber,
+                summary,
+                ServiceJobApprovalStatus.NOT_REQUIRED
+        );
+
+        assertEquals(order.getId(), result.getServiceOrderId());
+        assertEquals(jobNumber, result.getJobNumber());
+        assertEquals(summary, result.getSummary());
+        assertEquals(
+                ServiceJobApprovalStatus.NOT_REQUIRED,
+                result.getApprovalStatus()
+        );
+        assertEquals(ServiceJobStatus.OPEN, result.getStatus());
+        assertEquals(
+                context.userRefId(),
+                result.getCreatedByPrincipalId()
+        );
+
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.SERVICE_ORDER_UPDATE,
+                        AuthorizationResourceType.SERVICE_ORDER,
+                        order.getId()
+                )
+        );
+        verify(orderRepository).findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        );
+        verify(jobRepository).existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        );
+        verify(jobRepository).save(any(ServiceJob.class));
+    }
+
+    @Test
+    void authorizesJobCreationBeforeServiceOrderLookup() {
+
+        AuthenticatedTenantContext context = context();
+        UUID orderId = UUID.randomUUID();
+
+        doThrow(new AccessDeniedException("Access is denied"))
+                .when(authorizationService)
+                .requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.create(
+                        context,
+                        orderId,
+                        "JOB-AUTH-001",
+                        "Unauthorized job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED
+                )
+        );
+
+        verify(orderRepository, never()).findByIdAndTenantId(
+                any(),
+                any()
+        );
+        verify(jobRepository, never())
+                .existsByServiceOrderIdAndJobNumber(any(), any());
+        verify(jobRepository, never()).save(any(ServiceJob.class));
+    }
+
+    @Test
+    void hidesServiceOrderOutsideAuthenticatedTenantDuringCreation() {
+
+        AuthenticatedTenantContext context = context();
+        UUID orderId = UUID.randomUUID();
+
+        when(orderRepository.findByIdAndTenantId(
+                orderId,
+                context.tenantId()
+        )).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.create(
+                        context,
+                        orderId,
+                        "JOB-NOT-FOUND-001",
+                        "Missing order job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED
+                )
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        verify(jobRepository, never())
+                .existsByServiceOrderIdAndJobNumber(any(), any());
+        verify(jobRepository, never()).save(any(ServiceJob.class));
+    }
+
+    @Test
+    void rejectsDuplicateJobNumberWithinServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+        String jobNumber = "JOB-DUPLICATE-001";
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+        when(jobRepository.existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        )).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.create(
+                        context,
+                        order.getId(),
+                        jobNumber,
+                        "Duplicate job",
+                        ServiceJobApprovalStatus.NOT_REQUIRED
+                )
+        );
+
+        assertEquals(CONFLICT.value(), exception.getStatusCode().value());
+        verify(jobRepository, never()).save(any(ServiceJob.class));
+    }
+
+    @Test
+    void scopesDuplicateJobNumberCheckToResolvedServiceOrder() {
+
+        AuthenticatedTenantContext context = context();
+        ServiceOrder order = order(context);
+        String jobNumber = "JOB-SCOPED-001";
+
+        when(orderRepository.findByIdAndTenantId(
+                order.getId(),
+                context.tenantId()
+        )).thenReturn(Optional.of(order));
+        when(jobRepository.existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        )).thenReturn(false);
+        when(jobRepository.save(any(ServiceJob.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(
+                context,
+                order.getId(),
+                jobNumber,
+                "Scoped job",
+                ServiceJobApprovalStatus.NOT_REQUIRED
+        );
+
+        verify(jobRepository).existsByServiceOrderIdAndJobNumber(
+                order.getId(),
+                jobNumber
+        );
+    }
+
+    @Test
+    void rejectsMissingTenantContextBeforeAuthorizationDuringCreation() {
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.create(
+                        null,
+                        UUID.randomUUID(),
+                        "JOB-NO-CONTEXT-001",
+                        "Missing context",
+                        ServiceJobApprovalStatus.NOT_REQUIRED
+                )
+        );
+
+        verify(authorizationService, never()).requirePermission(
+                any(AuthorizationRequest.class)
+        );
+        verify(orderRepository, never()).findByIdAndTenantId(
+                any(),
+                any()
         );
     }
 
