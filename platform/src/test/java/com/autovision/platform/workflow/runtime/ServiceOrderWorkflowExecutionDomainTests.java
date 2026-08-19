@@ -109,15 +109,181 @@ class ServiceOrderWorkflowExecutionDomainTests {
     }
 
     @Test
-    void noTransitionMethodsAreExposedYet() {
-        Set<String> methodNames = Set.of(
-                ServiceOrderWorkflowExecution.class.getDeclaredMethods())
+    void movesWithinSameStageToDifferentStatus() {
+        ServiceOrderWorkflowExecution execution = execution();
+        UUID newStatusId = UUID.randomUUID();
+        OffsetDateTime moveTime = now.plusMinutes(1);
+
+        execution.moveTo(stageId, newStatusId, principalId, moveTime);
+
+        assertEquals(stageId, execution.getCurrentStageId());
+        assertEquals(newStatusId, execution.getCurrentStatusId());
+    }
+
+    @Test
+    void movesAcrossStages() {
+        ServiceOrderWorkflowExecution execution = execution();
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        OffsetDateTime moveTime = now.plusMinutes(1);
+
+        execution.moveTo(newStageId, newStatusId, principalId, moveTime);
+
+        assertEquals(newStageId, execution.getCurrentStageId());
+        assertEquals(newStatusId, execution.getCurrentStatusId());
+    }
+
+    @Test
+    void moveUpdatesUpdatedByPrincipalId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        UUID movingPrincipalId = UUID.randomUUID();
+
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(),
+                movingPrincipalId, now.plusMinutes(1));
+
+        assertEquals(movingPrincipalId, execution.getUpdatedByPrincipalId());
+    }
+
+    @Test
+    void moveUpdatesUpdatedAt() {
+        ServiceOrderWorkflowExecution execution = execution();
+        OffsetDateTime moveTime = now.plusMinutes(1);
+
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, moveTime);
+
+        assertEquals(moveTime, execution.getUpdatedAt());
+    }
+
+    @Test
+    void movePreservesTenantId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+        assertEquals(tenantId, execution.getTenantId());
+    }
+
+    @Test
+    void movePreservesServiceOrderId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+        assertEquals(serviceOrderId, execution.getServiceOrderId());
+    }
+
+    @Test
+    void movePreservesWorkflowDefinitionId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+        assertEquals(definitionId, execution.getWorkflowDefinitionId());
+    }
+
+    @Test
+    void movePreservesWorkflowVersionId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+        assertEquals(versionId, execution.getWorkflowVersionId());
+    }
+
+    @Test
+    void movePreservesCreatedByPrincipalId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), now.plusMinutes(1));
+        assertEquals(principalId, execution.getCreatedByPrincipalId());
+    }
+
+    @Test
+    void movePreservesCreatedAt() {
+        ServiceOrderWorkflowExecution execution = execution();
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+        assertEquals(now, execution.getCreatedAt());
+    }
+
+    @Test
+    void moveRejectsNullTargetStageId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        assertThrows(IllegalArgumentException.class, () ->
+                execution.moveTo(null, UUID.randomUUID(), principalId, now.plusMinutes(1)));
+    }
+
+    @Test
+    void moveRejectsNullTargetStatusId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        assertThrows(IllegalArgumentException.class, () ->
+                execution.moveTo(UUID.randomUUID(), null, principalId, now.plusMinutes(1)));
+    }
+
+    @Test
+    void moveRejectsNullPrincipalId() {
+        ServiceOrderWorkflowExecution execution = execution();
+        assertThrows(IllegalArgumentException.class, () ->
+                execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), null, now.plusMinutes(1)));
+    }
+
+    @Test
+    void moveRejectsNullTimestamp() {
+        ServiceOrderWorkflowExecution execution = execution();
+        assertThrows(IllegalArgumentException.class, () ->
+                execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, null));
+    }
+
+    @Test
+    void moveRejectsCompleteNoOp() {
+        ServiceOrderWorkflowExecution execution = execution();
+        assertThrows(IllegalStateException.class, () ->
+                execution.moveTo(stageId, statusId, principalId, now.plusMinutes(1)));
+    }
+
+    @Test
+    void moveAllowsSameStageWithDifferentStatus() {
+        ServiceOrderWorkflowExecution execution = execution();
+        UUID newStatusId = UUID.randomUUID();
+
+        execution.moveTo(stageId, newStatusId, principalId, now.plusMinutes(1));
+
+        assertEquals(stageId, execution.getCurrentStageId());
+        assertEquals(newStatusId, execution.getCurrentStatusId());
+    }
+
+    @Test
+    void moveDoesNotManuallyChangeOptimisticLockVersion() {
+        ServiceOrderWorkflowExecution execution = execution();
+        long versionBeforeMove = execution.getVersion();
+
+        execution.moveTo(UUID.randomUUID(), UUID.randomUUID(), principalId, now.plusMinutes(1));
+
+        assertEquals(versionBeforeMove, execution.getVersion());
+    }
+
+    @Test
+    void noServiceOrderStatusDependencyExistsOnMoveTo() throws NoSuchMethodException {
+        Method moveTo = ServiceOrderWorkflowExecution.class.getMethod(
+                "moveTo", UUID.class, UUID.class, UUID.class, OffsetDateTime.class);
+
+        for (Class<?> parameterType : moveTo.getParameterTypes()) {
+            org.junit.jupiter.api.Assertions.assertNotEquals(
+                    ServiceOrderStatus.class, parameterType);
+        }
+    }
+
+    @Test
+    void noTransitionRepositoryOrConfigurationDependencyExists() {
+        Set<String> fieldTypeNames = Set.of(
+                        ServiceOrderWorkflowExecution.class.getDeclaredFields())
                 .stream()
-                .map(Method::getName)
+                .map(field -> field.getType().getName())
                 .collect(Collectors.toSet());
 
-        org.junit.jupiter.api.Assertions.assertFalse(methodNames.contains("moveToStage"));
-        org.junit.jupiter.api.Assertions.assertFalse(methodNames.contains("changeStatus"));
+        boolean hasConfigurationDependency = fieldTypeNames.stream().anyMatch(name ->
+                name.contains("Repository") || name.contains("Transition"));
+
+        org.junit.jupiter.api.Assertions.assertFalse(hasConfigurationDependency);
+    }
+
+    @Test
+    void moveToDoesNotRequireTransitionIdParameter() throws NoSuchMethodException {
+        Method moveTo = ServiceOrderWorkflowExecution.class.getMethod(
+                "moveTo", UUID.class, UUID.class, UUID.class, OffsetDateTime.class);
+
+        assertEquals(4, moveTo.getParameterCount());
     }
 
     private ServiceOrderWorkflowExecution execution() {

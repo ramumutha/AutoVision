@@ -97,6 +97,31 @@ public class ServiceOrderWorkflowExecution {
         return execution;
     }
 
+    public void moveTo(
+            UUID targetStageId,
+            UUID targetStatusId,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requireId(targetStageId, "Target workflow stage ID");
+        requireId(targetStatusId, "Target workflow status ID");
+        requireId(principalId, "Principal ID");
+        if (now == null) {
+            throw new IllegalArgumentException(
+                    "Workflow execution timestamp is required");
+        }
+        if (targetStageId.equals(currentStageId)
+                && targetStatusId.equals(currentStatusId)) {
+            throw new IllegalStateException(
+                    "Workflow execution is already at the target stage and status");
+        }
+
+        currentStageId = targetStageId;
+        currentStatusId = targetStatusId;
+        updatedByPrincipalId = principalId;
+        updatedAt = now;
+    }
+
     public UUID getId() {
         return id;
     }
