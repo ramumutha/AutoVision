@@ -22,6 +22,7 @@ import com.autovision.platform.workflow.ServiceWorkflowVersionStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,6 +52,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
     @Mock private ServiceWorkflowStageRepository stageRepository;
     @Mock private ServiceWorkflowStatusRepository statusRepository;
     @Mock private ServiceWorkflowTransitionRepository transitionRepository;
+    @Mock private ServiceOrderWorkflowTransitionHistoryRepository historyRepository;
     @Mock private AuthorizationService authorizationService;
     @Mock private ServiceOrder order;
     @Mock private ServiceWorkflowDefinition definition;
@@ -74,7 +76,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
         service = new ServiceOrderWorkflowExecutionCommandService(
                 orderRepository, executionRepository, definitionRepository,
                 versionRepository, stageRepository, statusRepository,
-                transitionRepository, authorizationService);
+                transitionRepository, historyRepository, authorizationService);
     }
 
     @Test
@@ -364,7 +366,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 () -> service.transition(context, orderId, UUID.randomUUID()));
 
         verifyNoInteractions(orderRepository, executionRepository, transitionRepository,
-                stageRepository, statusRepository);
+                stageRepository, statusRepository, historyRepository);
     }
 
     @Test
@@ -373,7 +375,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 .thenReturn(Optional.empty());
 
         assertEquals(404, statusOfTransition(UUID.randomUUID()));
-        verifyNoInteractions(executionRepository, transitionRepository);
+        verifyNoInteractions(executionRepository, transitionRepository, historyRepository);
     }
 
     @Test
@@ -384,7 +386,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 .thenReturn(Optional.empty());
 
         assertEquals(404, statusOfTransition(UUID.randomUUID()));
-        verifyNoInteractions(transitionRepository);
+        verifyNoInteractions(transitionRepository, historyRepository);
     }
 
     @Test
@@ -399,7 +401,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 .thenReturn(Optional.empty());
 
         assertEquals(404, statusOfTransition(transitionId));
-        verifyNoInteractions(stageRepository, statusRepository);
+        verifyNoInteractions(stageRepository, statusRepository, historyRepository);
         verify(executionRepository, never()).save(any());
     }
 
@@ -419,6 +421,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
 
         assertEquals(400, statusOfTransition(transitionId));
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -430,6 +433,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
 
         assertEquals(409, statusOfTransition(transition.getId()));
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -441,6 +445,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
 
         assertEquals(409, statusOfTransition(transition.getId()));
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -452,6 +457,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
 
         assertEquals(409, statusOfTransition(transition.getId()));
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -493,7 +499,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 transition.getToStageId(), versionId)).thenReturn(Optional.empty());
 
         assertEquals(404, statusOfTransition(transition.getId()));
-        verifyNoInteractions(statusRepository);
+        verifyNoInteractions(statusRepository, historyRepository);
         verify(executionRepository, never()).save(any());
     }
 
@@ -512,7 +518,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
         when(stage.isActive()).thenReturn(false);
 
         assertEquals(400, statusOfTransition(transition.getId()));
-        verifyNoInteractions(statusRepository);
+        verifyNoInteractions(statusRepository, historyRepository);
         verify(executionRepository, never()).save(any());
     }
 
@@ -572,6 +578,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
 
         assertEquals(400, statusOfTransition(transition.getId()));
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -641,6 +648,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 () -> service.transition(context, orderId, transition.getId()));
 
         verify(executionRepository, never()).save(any());
+        verifyNoInteractions(historyRepository);
     }
 
     @Test
@@ -674,6 +682,132 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
         java.lang.reflect.Method method = ServiceOrderWorkflowExecutionCommandService.class
                 .getMethod("transition", AuthenticatedTenantContext.class, UUID.class, UUID.class);
         assertEquals(3, method.getParameterCount());
+    }
+
+    @Test
+    void successfulSameStageTransitionWritesOneHistoryRow() {
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(stageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(historyRepository, org.mockito.Mockito.times(1)).save(any());
+    }
+
+    @Test
+    void successfulCrossStageTransitionWritesOneHistoryRow() {
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(newStageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(historyRepository, org.mockito.Mockito.times(1)).save(any());
+    }
+
+    @Test
+    void historyRecordCapturesExactIdentitiesFromStateAndToState() {
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(newStageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ArgumentCaptor<ServiceOrderWorkflowTransitionHistory> captor =
+                ArgumentCaptor.forClass(ServiceOrderWorkflowTransitionHistory.class);
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(historyRepository).save(captor.capture());
+        ServiceOrderWorkflowTransitionHistory history = captor.getValue();
+        assertEquals(tenantId, history.getTenantId());
+        assertEquals(orderId, history.getServiceOrderId());
+        assertEquals(execution.getId(), history.getWorkflowExecutionId());
+        assertEquals(definitionId, history.getWorkflowDefinitionId());
+        assertEquals(versionId, history.getWorkflowVersionId());
+        assertEquals(transition.getId(), history.getTransitionId());
+        assertEquals(stageId, history.getFromStageId());
+        assertEquals(statusId, history.getFromStatusId());
+        assertEquals(newStageId, history.getToStageId());
+        assertEquals(newStatusId, history.getToStatusId());
+        assertEquals(principalId, history.getExecutedByPrincipalId());
+    }
+
+    @Test
+    void executionUpdatedAtAndHistoryExecutedAtShareCommandTimestamp() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ArgumentCaptor<ServiceOrderWorkflowTransitionHistory> captor =
+                ArgumentCaptor.forClass(ServiceOrderWorkflowTransitionHistory.class);
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        verify(historyRepository).save(captor.capture());
+        assertEquals(result.getUpdatedAt(), captor.getValue().getExecutedAt());
+    }
+
+    @Test
+    void executionSaveOccursBeforeHistorySave() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        InOrder inOrder = org.mockito.Mockito.inOrder(executionRepository, historyRepository);
+
+        service.transition(context, orderId, transition.getId());
+
+        inOrder.verify(executionRepository).save(any());
+        inOrder.verify(historyRepository).save(any());
+    }
+
+    @Test
+    void assignmentDoesNotWriteHistory() {
+        stubValidAssignment();
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.assign(context, orderId, definitionId, versionId, stageId, statusId);
+
+        verifyNoInteractions(historyRepository);
+    }
+
+    @Test
+    void historyPersistenceExceptionIsNotSwallowed() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new RuntimeException("history persistence failed"))
+                .when(historyRepository).save(any());
+
+        assertThrows(RuntimeException.class,
+                () -> service.transition(context, orderId, transition.getId()));
+    }
+
+    @Test
+    void transitionMethodRemainsTransactional() throws NoSuchMethodException {
+        java.lang.reflect.Method method = ServiceOrderWorkflowExecutionCommandService.class
+                .getMethod("transition", AuthenticatedTenantContext.class, UUID.class, UUID.class);
+        assertEquals(true, method.isAnnotationPresent(
+                org.springframework.transaction.annotation.Transactional.class));
+    }
+
+    @Test
+    void transitionHasNoServiceOrderStatusDependency() throws NoSuchMethodException {
+        java.lang.reflect.Method method = ServiceOrderWorkflowExecutionCommandService.class
+                .getMethod("transition", AuthenticatedTenantContext.class, UUID.class, UUID.class);
+        for (Class<?> parameterType : method.getParameterTypes()) {
+            org.junit.jupiter.api.Assertions.assertNotEquals(
+                    com.autovision.platform.aftersales.ServiceOrderStatus.class, parameterType);
+        }
     }
 
     private int statusOfTransition(UUID transitionId) {

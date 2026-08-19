@@ -40,6 +40,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
     private final ServiceWorkflowStageRepository stageRepository;
     private final ServiceWorkflowStatusRepository statusRepository;
     private final ServiceWorkflowTransitionRepository transitionRepository;
+    private final ServiceOrderWorkflowTransitionHistoryRepository historyRepository;
     private final AuthorizationService authorizationService;
 
     public ServiceOrderWorkflowExecutionCommandService(
@@ -50,6 +51,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
             ServiceWorkflowStageRepository stageRepository,
             ServiceWorkflowStatusRepository statusRepository,
             ServiceWorkflowTransitionRepository transitionRepository,
+            ServiceOrderWorkflowTransitionHistoryRepository historyRepository,
             AuthorizationService authorizationService
     ) {
         this.orderRepository = orderRepository;
@@ -59,6 +61,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
         this.stageRepository = stageRepository;
         this.statusRepository = statusRepository;
         this.transitionRepository = transitionRepository;
+        this.historyRepository = historyRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -186,14 +189,36 @@ public class ServiceOrderWorkflowExecutionCommandService {
             throw badRequest("Workflow status is inactive");
         }
 
+        UUID fromStageId = execution.getCurrentStageId();
+        UUID fromStatusId = execution.getCurrentStatusId();
+        OffsetDateTime now = OffsetDateTime.now();
+
         execution.moveTo(
                 transition.getToStageId(),
                 transition.getToStatusId(),
                 tenantContext.userRefId(),
-                OffsetDateTime.now()
+                now
         );
 
-        return executionRepository.save(execution);
+        ServiceOrderWorkflowExecution savedExecution = executionRepository.save(execution);
+
+        historyRepository.save(ServiceOrderWorkflowTransitionHistory.record(
+                UUID.randomUUID(),
+                tenantContext.tenantId(),
+                serviceOrderId,
+                execution.getId(),
+                execution.getWorkflowDefinitionId(),
+                execution.getWorkflowVersionId(),
+                transition.getId(),
+                fromStageId,
+                fromStatusId,
+                transition.getToStageId(),
+                transition.getToStatusId(),
+                tenantContext.userRefId(),
+                now
+        ));
+
+        return savedExecution;
     }
 
     private void requireTransitionInputs(
