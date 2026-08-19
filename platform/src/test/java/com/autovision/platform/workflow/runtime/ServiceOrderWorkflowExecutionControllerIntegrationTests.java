@@ -168,6 +168,184 @@ class ServiceOrderWorkflowExecutionControllerIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void postTransitionExecutesAndReturnsOk() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.transition(context, orderId, transitionId))
+                .thenReturn(movedExecution());
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceOrderId").value(orderId.toString()))
+                .andExpect(jsonPath("$.workflowVersionId").value(versionId.toString()))
+                .andExpect(jsonPath("$.currentStageId").value(stageId.toString()));
+
+        verify(commandService).transition(context, orderId, transitionId);
+    }
+
+    @Test
+    void postTransitionForwardsExactOrderAndTransitionIds() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.transition(context, orderId, transitionId))
+                .thenReturn(movedExecution());
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isOk());
+
+        verify(commandService).transition(context, orderId, transitionId);
+    }
+
+    @Test
+    void postTransitionResolvesTenantContextFromJwt() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.transition(context, orderId, transitionId))
+                .thenReturn(movedExecution());
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isOk());
+
+        verify(tenantContextResolver).resolve(any());
+    }
+
+    @Test
+    void postTransitionResponseMapsUpdatedCurrentStageAndStatus() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.transition(context, orderId, transitionId))
+                .thenReturn(ServiceOrderWorkflowExecution.start(
+                        executionId(), tenantId, orderId, definitionId, versionId,
+                        stageId, statusId, userRefId,
+                        OffsetDateTime.parse("2026-08-19T10:00:00Z")));
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentStageId").value(stageId.toString()))
+                .andExpect(jsonPath("$.currentStatusId").value(statusId.toString()));
+    }
+
+    @Test
+    void postTransitionResponsePreservesPinnedWorkflowVersionAndServiceOrderId() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.transition(context, orderId, transitionId))
+                .thenReturn(movedExecution());
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workflowVersionId").value(versionId.toString()))
+                .andExpect(jsonPath("$.serviceOrderId").value(orderId.toString()));
+    }
+
+    @Test
+    void postTransitionRejectsMalformedOrderId() throws Exception {
+        mockMvc.perform(post("/api/v1/aftersales/service-orders/not-a-uuid/workflow/transitions/"
+                        + UUID.randomUUID())
+                        .with(authenticatedJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionRejectsMalformedTransitionId() throws Exception {
+        mockMvc.perform(post("/api/v1/aftersales/service-orders/" + orderId
+                        + "/workflow/transitions/not-a-uuid")
+                        .with(authenticatedJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionAuthorizationDenialReturnsForbidden() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new AccessDeniedException("denied"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void postTransitionMissingServiceOrderReturnsNotFound() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(NOT_FOUND, "missing"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void postTransitionMissingWorkflowExecutionReturnsNotFound() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(NOT_FOUND,
+                        "workflow execution not found"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void postTransitionMissingTransitionReturnsNotFound() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(NOT_FOUND,
+                        "transition not found"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void postTransitionInactiveTransitionOrTargetReturnsBadRequest() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "workflow transition is not active"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionFromStateMismatchReturnsConflict() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(CONFLICT,
+                        "workflow transition does not match the current execution state"))
+                .when(commandService).transition(context, orderId, transitionId);
+
+        mockMvc.perform(post(transitionPath(transitionId)).with(authenticatedJwt()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void postTransitionUnauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(post(transitionPath(UUID.randomUUID())).with(csrf()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private String transitionPath(UUID transitionId) {
+        return "/api/v1/aftersales/service-orders/" + orderId
+                + "/workflow/transitions/" + transitionId;
+    }
+
+    private ServiceOrderWorkflowExecution movedExecution() {
+        return ServiceOrderWorkflowExecution.start(
+                executionId(), tenantId, orderId, definitionId, versionId,
+                stageId, statusId, userRefId, OffsetDateTime.parse(
+                        "2026-08-19T10:00:00Z"));
+    }
+
     private String path() {
         return "/api/v1/aftersales/service-orders/" + orderId + "/workflow";
     }

@@ -61,4 +61,15 @@ public class ServiceOrderWorkflowExecutionController {
         return ServiceOrderWorkflowExecutionResponse.from(
                 readService.getForServiceOrder(context, orderId));
     }
+
+    @PostMapping("/transitions/{transitionId}")
+    public ServiceOrderWorkflowExecutionResponse transition(
+            @PathVariable UUID orderId,
+            @PathVariable UUID transitionId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext context = tenantContextResolver.resolve(jwt);
+        return ServiceOrderWorkflowExecutionResponse.from(commandService.transition(
+                context, orderId, transitionId));
+    }
 }
