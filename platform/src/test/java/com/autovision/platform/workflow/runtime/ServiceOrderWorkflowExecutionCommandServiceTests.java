@@ -14,6 +14,8 @@ import com.autovision.platform.workflow.ServiceWorkflowStage;
 import com.autovision.platform.workflow.ServiceWorkflowStageRepository;
 import com.autovision.platform.workflow.ServiceWorkflowStatus;
 import com.autovision.platform.workflow.ServiceWorkflowStatusRepository;
+import com.autovision.platform.workflow.ServiceWorkflowTransition;
+import com.autovision.platform.workflow.ServiceWorkflowTransitionRepository;
 import com.autovision.platform.workflow.ServiceWorkflowVersion;
 import com.autovision.platform.workflow.ServiceWorkflowVersionRepository;
 import com.autovision.platform.workflow.ServiceWorkflowVersionStatus;
@@ -48,6 +50,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
     @Mock private ServiceWorkflowVersionRepository versionRepository;
     @Mock private ServiceWorkflowStageRepository stageRepository;
     @Mock private ServiceWorkflowStatusRepository statusRepository;
+    @Mock private ServiceWorkflowTransitionRepository transitionRepository;
     @Mock private AuthorizationService authorizationService;
     @Mock private ServiceOrder order;
     @Mock private ServiceWorkflowDefinition definition;
@@ -71,7 +74,7 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
         service = new ServiceOrderWorkflowExecutionCommandService(
                 orderRepository, executionRepository, definitionRepository,
                 versionRepository, stageRepository, statusRepository,
-                authorizationService);
+                transitionRepository, authorizationService);
     }
 
     @Test
@@ -305,6 +308,425 @@ class ServiceOrderWorkflowExecutionCommandServiceTests {
                 context, null, definitionId, versionId, stageId, statusId))
                 .getStatusCode().value());
         verifyNoInteractions(authorizationService);
+    }
+
+    @Test
+    void executesValidSameStageDifferentStatusTransition() {
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(stageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(stageId, result.getCurrentStageId());
+        assertEquals(newStatusId, result.getCurrentStatusId());
+    }
+
+    @Test
+    void executesValidCrossStageTransition() {
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(newStageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(newStageId, result.getCurrentStageId());
+        assertEquals(newStatusId, result.getCurrentStatusId());
+    }
+
+    @Test
+    void transitionRequiresServiceOrderUpdatePermission() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(stageId, UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+                context, AfterSalesPermissions.SERVICE_ORDER_UPDATE,
+                AuthorizationResourceType.SERVICE_ORDER, orderId));
+    }
+
+    @Test
+    void transitionAuthorizationDenialPreventsSubsequentAccess() {
+        doThrow(new AccessDeniedException("denied"))
+                .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.transition(context, orderId, UUID.randomUUID()));
+
+        verifyNoInteractions(orderRepository, executionRepository, transitionRepository,
+                stageRepository, statusRepository);
+    }
+
+    @Test
+    void transitionMissingContainedServiceOrderIsNotFound() {
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, statusOfTransition(UUID.randomUUID()));
+        verifyNoInteractions(executionRepository, transitionRepository);
+    }
+
+    @Test
+    void transitionMissingRuntimeExecutionIsNotFound() {
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, statusOfTransition(UUID.randomUUID()));
+        verifyNoInteractions(transitionRepository);
+    }
+
+    @Test
+    void transitionMustBelongToExecutionWorkflowVersion() {
+        ServiceOrderWorkflowExecution execution = execution();
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        UUID transitionId = UUID.randomUUID();
+        when(transitionRepository.findByIdAndWorkflowVersionId(transitionId, versionId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, statusOfTransition(transitionId));
+        verifyNoInteractions(stageRepository, statusRepository);
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void inactiveTransitionIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = org.mockito.Mockito.mock(
+                ServiceWorkflowTransition.class);
+        UUID transitionId = UUID.randomUUID();
+        when(transition.isActive()).thenReturn(false);
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transitionId, versionId))
+                .thenReturn(Optional.of(transition));
+
+        assertEquals(400, statusOfTransition(transitionId));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void fromStageMismatchIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transitionFrom(
+                UUID.randomUUID(), statusId, UUID.randomUUID(), UUID.randomUUID());
+        stubExecutionAndTransition(execution, transition);
+
+        assertEquals(409, statusOfTransition(transition.getId()));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void fromStatusMismatchIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transitionFrom(
+                stageId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        stubExecutionAndTransition(execution, transition);
+
+        assertEquals(409, statusOfTransition(transition.getId()));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void fromStageAndStatusMismatchIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transitionFrom(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        stubExecutionAndTransition(execution, transition);
+
+        assertEquals(409, statusOfTransition(transition.getId()));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void exactFromStateIsAccepted() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(executionRepository).save(any());
+    }
+
+    @Test
+    void toStageLoadedUnderPinnedWorkflowVersion() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(stageRepository).findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId);
+    }
+
+    @Test
+    void toStageBelongingToAnotherVersionIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transition.getId(), versionId))
+                .thenReturn(Optional.of(transition));
+        when(stageRepository.findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId)).thenReturn(Optional.empty());
+
+        assertEquals(404, statusOfTransition(transition.getId()));
+        verifyNoInteractions(statusRepository);
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void inactiveToStageIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transition.getId(), versionId))
+                .thenReturn(Optional.of(transition));
+        when(stageRepository.findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId)).thenReturn(Optional.of(stage));
+        when(stage.isActive()).thenReturn(false);
+
+        assertEquals(400, statusOfTransition(transition.getId()));
+        verifyNoInteractions(statusRepository);
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void toStatusLoadedUnderToStage() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(statusRepository).findByIdAndWorkflowStageId(
+                transition.getToStatusId(), transition.getToStageId());
+    }
+
+    @Test
+    void toStatusBelongingToAnotherStageIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transition.getId(), versionId))
+                .thenReturn(Optional.of(transition));
+        when(stageRepository.findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId)).thenReturn(Optional.of(stage));
+        when(stage.isActive()).thenReturn(true);
+        when(stage.getId()).thenReturn(transition.getToStageId());
+        when(statusRepository.findByIdAndWorkflowStageId(
+                transition.getToStatusId(), transition.getToStageId()))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, statusOfTransition(transition.getId()));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void inactiveToStatusIsRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transition.getId(), versionId))
+                .thenReturn(Optional.of(transition));
+        when(stageRepository.findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId)).thenReturn(Optional.of(stage));
+        when(stage.isActive()).thenReturn(true);
+        when(stage.getId()).thenReturn(transition.getToStageId());
+        when(statusRepository.findByIdAndWorkflowStageId(
+                transition.getToStatusId(), transition.getToStageId()))
+                .thenReturn(Optional.of(workflowStatus));
+        when(workflowStatus.isActive()).thenReturn(false);
+
+        assertEquals(400, statusOfTransition(transition.getId()));
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void moveToCalledWithExactTransitionTargetIdentities() {
+        UUID newStageId = UUID.randomUUID();
+        UUID newStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(newStageId, newStatusId);
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(newStageId, result.getCurrentStageId());
+        assertEquals(newStatusId, result.getCurrentStatusId());
+    }
+
+    @Test
+    void transitionPropagatesAuthenticatedPrincipal() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(principalId, result.getUpdatedByPrincipalId());
+    }
+
+    @Test
+    void transitionUpdatedAtAdvances() {
+        ServiceOrderWorkflowExecution execution = execution();
+        OffsetDateTime createdAt = execution.getUpdatedAt();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(true, result.getUpdatedAt().isAfter(createdAt)
+                || result.getUpdatedAt().isEqual(createdAt));
+    }
+
+    @Test
+    void transitionSavesExecutionExactlyOnce() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verify(executionRepository, org.mockito.Mockito.times(1)).save(any());
+    }
+
+    @Test
+    void transitionNotSavedOnValidationFailure() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transitionFrom(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        stubExecutionAndTransition(execution, transition);
+
+        assertThrows(ResponseStatusException.class,
+                () -> service.transition(context, orderId, transition.getId()));
+
+        verify(executionRepository, never()).save(any());
+    }
+
+    @Test
+    void transitionDoesNotMutateServiceOrder() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.transition(context, orderId, transition.getId());
+
+        verifyNoInteractions(order);
+    }
+
+    @Test
+    void retiredPinnedVersionIsNotAutomaticallyRejected() {
+        ServiceOrderWorkflowExecution execution = execution();
+        ServiceWorkflowTransition transition = transition(UUID.randomUUID(), UUID.randomUUID());
+        stubValidTransition(execution, transition);
+        when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        verifyNoInteractions(versionRepository, definitionRepository);
+
+        ServiceOrderWorkflowExecution result = service.transition(
+                context, orderId, transition.getId());
+
+        assertEquals(transition.getToStageId(), result.getCurrentStageId());
+    }
+
+    @Test
+    void transitionDoesNotAcceptTargetStageOrStatusFromCaller() throws NoSuchMethodException {
+        java.lang.reflect.Method method = ServiceOrderWorkflowExecutionCommandService.class
+                .getMethod("transition", AuthenticatedTenantContext.class, UUID.class, UUID.class);
+        assertEquals(3, method.getParameterCount());
+    }
+
+    private int statusOfTransition(UUID transitionId) {
+        return assertThrows(ResponseStatusException.class, () -> service.transition(
+                context, orderId, transitionId))
+                .getStatusCode().value();
+    }
+
+    private ServiceOrderWorkflowExecution execution() {
+        return ServiceOrderWorkflowExecution.start(
+                UUID.randomUUID(), tenantId, orderId, definitionId, versionId,
+                stageId, statusId, principalId, OffsetDateTime.now());
+    }
+
+    private ServiceWorkflowTransition transition(UUID toStageIdValue, UUID toStatusIdValue) {
+        return transitionFrom(stageId, statusId, toStageIdValue, toStatusIdValue);
+    }
+
+    private ServiceWorkflowTransition transitionFrom(
+            UUID fromStageIdValue, UUID fromStatusIdValue,
+            UUID toStageIdValue, UUID toStatusIdValue
+    ) {
+        return ServiceWorkflowTransition.create(
+                UUID.randomUUID(), versionId, fromStageIdValue, fromStatusIdValue,
+                toStageIdValue, toStatusIdValue, "T1", "T1", 1,
+                principalId, OffsetDateTime.now());
+    }
+
+    private void stubExecutionAndTransition(
+            ServiceOrderWorkflowExecution execution,
+            ServiceWorkflowTransition transition
+    ) {
+        when(orderRepository.findByIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(order));
+        when(executionRepository.findByServiceOrderIdAndTenantId(orderId, tenantId))
+                .thenReturn(Optional.of(execution));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transition.getId(), versionId))
+                .thenReturn(Optional.of(transition));
+    }
+
+    private void stubValidTransition(
+            ServiceOrderWorkflowExecution execution,
+            ServiceWorkflowTransition transition
+    ) {
+        stubExecutionAndTransition(execution, transition);
+        when(stageRepository.findByIdAndWorkflowVersionId(
+                transition.getToStageId(), versionId)).thenReturn(Optional.of(stage));
+        when(stage.isActive()).thenReturn(true);
+        when(stage.getId()).thenReturn(transition.getToStageId());
+        when(statusRepository.findByIdAndWorkflowStageId(
+                transition.getToStatusId(), transition.getToStageId()))
+                .thenReturn(Optional.of(workflowStatus));
+        when(workflowStatus.isActive()).thenReturn(true);
     }
 
     private void stubValidAssignment() {

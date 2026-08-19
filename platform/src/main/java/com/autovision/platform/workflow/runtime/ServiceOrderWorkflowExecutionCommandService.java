@@ -14,6 +14,8 @@ import com.autovision.platform.workflow.ServiceWorkflowStage;
 import com.autovision.platform.workflow.ServiceWorkflowStageRepository;
 import com.autovision.platform.workflow.ServiceWorkflowStatus;
 import com.autovision.platform.workflow.ServiceWorkflowStatusRepository;
+import com.autovision.platform.workflow.ServiceWorkflowTransition;
+import com.autovision.platform.workflow.ServiceWorkflowTransitionRepository;
 import com.autovision.platform.workflow.ServiceWorkflowVersion;
 import com.autovision.platform.workflow.ServiceWorkflowVersionRepository;
 import com.autovision.platform.workflow.ServiceWorkflowVersionStatus;
@@ -37,6 +39,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
     private final ServiceWorkflowVersionRepository versionRepository;
     private final ServiceWorkflowStageRepository stageRepository;
     private final ServiceWorkflowStatusRepository statusRepository;
+    private final ServiceWorkflowTransitionRepository transitionRepository;
     private final AuthorizationService authorizationService;
 
     public ServiceOrderWorkflowExecutionCommandService(
@@ -46,6 +49,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
             ServiceWorkflowVersionRepository versionRepository,
             ServiceWorkflowStageRepository stageRepository,
             ServiceWorkflowStatusRepository statusRepository,
+            ServiceWorkflowTransitionRepository transitionRepository,
             AuthorizationService authorizationService
     ) {
         this.orderRepository = orderRepository;
@@ -54,6 +58,7 @@ public class ServiceOrderWorkflowExecutionCommandService {
         this.versionRepository = versionRepository;
         this.stageRepository = stageRepository;
         this.statusRepository = statusRepository;
+        this.transitionRepository = transitionRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -129,6 +134,80 @@ public class ServiceOrderWorkflowExecutionCommandService {
                 tenantContext.userRefId(),
                 OffsetDateTime.now()
         ));
+    }
+
+    @Transactional
+    public ServiceOrderWorkflowExecution transition(
+            AuthenticatedTenantContext tenantContext,
+            UUID serviceOrderId,
+            UUID transitionId
+    ) {
+        requireTransitionInputs(tenantContext, serviceOrderId, transitionId);
+
+        authorizationService.requirePermission(new AuthorizationRequest(
+                tenantContext,
+                AfterSalesPermissions.SERVICE_ORDER_UPDATE,
+                AuthorizationResourceType.SERVICE_ORDER,
+                serviceOrderId
+        ));
+
+        orderRepository.findByIdAndTenantId(serviceOrderId, tenantContext.tenantId())
+                .orElseThrow(() -> notFound("Service order not found"));
+
+        ServiceOrderWorkflowExecution execution = executionRepository
+                .findByServiceOrderIdAndTenantId(serviceOrderId, tenantContext.tenantId())
+                .orElseThrow(() -> notFound("Service order workflow execution not found"));
+
+        ServiceWorkflowTransition transition = transitionRepository
+                .findByIdAndWorkflowVersionId(transitionId, execution.getWorkflowVersionId())
+                .orElseThrow(() -> notFound("Workflow transition not found"));
+
+        if (!transition.isActive()) {
+            throw badRequest("Workflow transition is not active");
+        }
+
+        if (!transition.getFromStageId().equals(execution.getCurrentStageId())
+                || !transition.getFromStatusId().equals(execution.getCurrentStatusId())) {
+            throw conflict(
+                    "Workflow transition does not match the current execution state");
+        }
+
+        ServiceWorkflowStage toStage = stageRepository.findByIdAndWorkflowVersionId(
+                        transition.getToStageId(), execution.getWorkflowVersionId())
+                .orElseThrow(() -> notFound("Workflow stage not found"));
+        if (!toStage.isActive()) {
+            throw badRequest("Workflow stage is inactive");
+        }
+
+        ServiceWorkflowStatus toStatus = statusRepository.findByIdAndWorkflowStageId(
+                        transition.getToStatusId(), toStage.getId())
+                .orElseThrow(() -> notFound("Workflow status not found"));
+        if (!toStatus.isActive()) {
+            throw badRequest("Workflow status is inactive");
+        }
+
+        execution.moveTo(
+                transition.getToStageId(),
+                transition.getToStatusId(),
+                tenantContext.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        return executionRepository.save(execution);
+    }
+
+    private void requireTransitionInputs(
+            AuthenticatedTenantContext tenantContext,
+            UUID serviceOrderId,
+            UUID transitionId
+    ) {
+        if (tenantContext == null || tenantContext.tenantId() == null
+                || tenantContext.userRefId() == null) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST, "Authenticated tenant context is required");
+        }
+        requireId(serviceOrderId, "Service order ID");
+        requireId(transitionId, "Workflow transition ID");
     }
 
     private void requireInputs(
