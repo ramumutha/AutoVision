@@ -47,10 +47,10 @@ public class ServiceWorkflowTransition {
     @Column(nullable = false)
     private long version;
 
-    @Column(name = "created_by_principal_id")
+    @Column(name = "created_by_principal_id", nullable = false)
     private UUID createdByPrincipalId;
 
-    @Column(name = "updated_by_principal_id")
+    @Column(name = "updated_by_principal_id", nullable = false)
     private UUID updatedByPrincipalId;
 
     @Column(name = "created_at", nullable = false)
