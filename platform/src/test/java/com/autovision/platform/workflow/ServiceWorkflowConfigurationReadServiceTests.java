@@ -32,6 +32,7 @@ class ServiceWorkflowConfigurationReadServiceTests {
     @Mock private ServiceWorkflowVersionRepository versionRepository;
     @Mock private ServiceWorkflowStageRepository stageRepository;
     @Mock private ServiceWorkflowStatusRepository statusRepository;
+    @Mock private ServiceWorkflowTransitionRepository transitionRepository;
     @Mock private AuthorizationService authorizationService;
 
     private ServiceWorkflowConfigurationReadService service;
@@ -47,7 +48,7 @@ class ServiceWorkflowConfigurationReadServiceTests {
     void setUp() {
         service = new ServiceWorkflowConfigurationReadService(
                 definitionRepository, versionRepository, stageRepository,
-                statusRepository, authorizationService);
+                statusRepository, transitionRepository, authorizationService);
     }
 
     @Test
@@ -175,6 +176,135 @@ class ServiceWorkflowConfigurationReadServiceTests {
         verify(versionRepository, never()).save(any());
         verify(stageRepository, never()).save(any());
         verify(statusRepository, never()).save(any());
+    }
+
+    @Test
+    void listTransitionsRequiresReadPermissionOnDefinition() {
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(version()));
+        when(transitionRepository.findByWorkflowVersionIdOrderBySequenceAsc(versionId))
+                .thenReturn(List.of(transition()));
+
+        assertEquals(1, service.findTransitions(context, definitionId, versionId).size());
+
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+                context, ServiceWorkflowPermissions.READ,
+                AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+    }
+
+    @Test
+    void listTransitionsRequiresTenantContainedDefinition() {
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.findTransitions(context, definitionId, versionId))
+                .getStatusCode().value());
+        verifyNoInteractions(transitionRepository);
+    }
+
+    @Test
+    void listTransitionsRejectsVersionBelongingToAnotherDefinition() {
+        UUID otherDefinitionId = UUID.randomUUID();
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(
+                ServiceWorkflowVersion.draft(versionId, otherDefinitionId, 1,
+                        principalId, OffsetDateTime.now())));
+
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.findTransitions(context, definitionId, versionId))
+                .getStatusCode().value());
+        verifyNoInteractions(transitionRepository);
+    }
+
+    @Test
+    void listTransitionsReturnsRepositoryOrder() {
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(version()));
+        ServiceWorkflowTransition first = transition();
+        when(transitionRepository.findByWorkflowVersionIdOrderBySequenceAsc(versionId))
+                .thenReturn(List.of(first));
+
+        List<ServiceWorkflowTransition> result =
+                service.findTransitions(context, definitionId, versionId);
+
+        assertEquals(List.of(first), result);
+        verify(transitionRepository).findByWorkflowVersionIdOrderBySequenceAsc(versionId);
+    }
+
+    @Test
+    void requireTransitionUsesTransitionAndVersionContainment() {
+        UUID transitionId = UUID.randomUUID();
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(version()));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transitionId, versionId))
+                .thenReturn(Optional.of(transition()));
+
+        service.requireTransition(context, definitionId, versionId, transitionId);
+
+        verify(transitionRepository).findByIdAndWorkflowVersionId(transitionId, versionId);
+    }
+
+    @Test
+    void requireTransitionRejectsTransitionBelongingToAnotherVersion() {
+        UUID transitionId = UUID.randomUUID();
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(version()));
+        when(transitionRepository.findByIdAndWorkflowVersionId(transitionId, versionId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.requireTransition(context, definitionId, versionId, transitionId))
+                .getStatusCode().value());
+    }
+
+    @Test
+    void requireTransitionRejectsCrossTenantDefinition() {
+        UUID transitionId = UUID.randomUUID();
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.empty());
+
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.requireTransition(context, definitionId, versionId, transitionId))
+                .getStatusCode().value());
+        verifyNoInteractions(transitionRepository);
+    }
+
+    @Test
+    void deniedTransitionListingPreventsDisclosureAfterMinimumLookup() {
+        org.mockito.Mockito.doThrow(new AccessDeniedException("denied"))
+                .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.findTransitions(context, definitionId, versionId));
+
+        verifyNoInteractions(definitionRepository, versionRepository, transitionRepository);
+    }
+
+    @Test
+    void transitionReadsDoNotInvokeRuntimeExecutionRepositories() {
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+                .thenReturn(Optional.of(definition()));
+        when(versionRepository.findById(versionId)).thenReturn(Optional.of(version()));
+        when(transitionRepository.findByWorkflowVersionIdOrderBySequenceAsc(versionId))
+                .thenReturn(List.of(transition()));
+
+        service.findTransitions(context, definitionId, versionId);
+
+        verify(transitionRepository, never()).save(any());
+        verify(transitionRepository, never()).deleteAll();
+    }
+
+    private ServiceWorkflowTransition transition() {
+        return ServiceWorkflowTransition.create(
+                UUID.randomUUID(), versionId, stageId, UUID.randomUUID(),
+                UUID.randomUUID(), UUID.randomUUID(), "APPROVE", "Approve", 1,
+                principalId, OffsetDateTime.now());
     }
 
     private ServiceWorkflowDefinition definition() {

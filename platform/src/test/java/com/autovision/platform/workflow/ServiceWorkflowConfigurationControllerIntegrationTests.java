@@ -184,6 +184,231 @@ class ServiceWorkflowConfigurationControllerIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void postTransitionSucceedsAndForwardsExactFields() throws Exception {
+        UUID fromStageId = UUID.randomUUID();
+        UUID fromStatusId = UUID.randomUUID();
+        UUID toStageId = UUID.randomUUID();
+        UUID toStatusId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.addTransition(context, definitionId, versionId,
+                fromStageId, fromStatusId, toStageId, toStatusId,
+                "APPROVE", "Approve", 1)).thenReturn(transition(
+                fromStageId, fromStatusId, toStageId, toStatusId));
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("{\"fromStageId\":\"" + fromStageId + "\","
+                                + "\"fromStatusId\":\"" + fromStatusId + "\","
+                                + "\"toStageId\":\"" + toStageId + "\","
+                                + "\"toStatusId\":\"" + toStatusId + "\","
+                                + "\"code\":\"APPROVE\",\"displayName\":\"Approve\",\"sequence\":1}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fromStageId").value(fromStageId.toString()))
+                .andExpect(jsonPath("$.toStatusId").value(toStatusId.toString()));
+
+        verify(commandService).addTransition(context, definitionId, versionId,
+                fromStageId, fromStatusId, toStageId, toStatusId, "APPROVE", "Approve", 1);
+    }
+
+    @Test
+    void postTransitionMissingFromStageIdIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("{\"fromStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"code\":\"A\",\"displayName\":\"A\",\"sequence\":1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionMissingFromStatusIdIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("{\"fromStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"code\":\"A\",\"displayName\":\"A\",\"sequence\":1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionMissingToStageIdIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("{\"fromStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"fromStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"code\":\"A\",\"displayName\":\"A\",\"sequence\":1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionMissingToStatusIdIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content("{\"fromStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"fromStatusId\":\"" + UUID.randomUUID() + "\","
+                                + "\"toStageId\":\"" + UUID.randomUUID() + "\","
+                                + "\"code\":\"A\",\"displayName\":\"A\",\"sequence\":1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionBlankCodeIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("", "A", 1)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionBlankDisplayNameIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("A", "", 1)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionNegativeSequenceIsRejected() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("A", "A", -1)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postTransitionAuthorizationDenialReturnsForbidden() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.addTransition(any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenThrow(new AccessDeniedException("denied"));
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("A", "A", 1)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void postTransitionDuplicateConflictPropagates() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.addTransition(any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "duplicate"));
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("A", "A", 1)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void postTransitionMissingParentReturnsNotFound() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(commandService.addTransition(any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "missing"));
+
+        mockMvc.perform(post("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt())
+                        .contentType("application/json")
+                        .content(transitionRequestJson("A", "A", 1)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getTransitionsCollectionReturnsOkAndMapsIdentities() throws Exception {
+        UUID fromStageId = UUID.randomUUID();
+        UUID fromStatusId = UUID.randomUUID();
+        UUID toStageId = UUID.randomUUID();
+        UUID toStatusId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.findTransitions(context, definitionId, versionId))
+                .thenReturn(List.of(transition(fromStageId, fromStatusId, toStageId, toStatusId)));
+
+        mockMvc.perform(get("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].fromStageId").value(fromStageId.toString()))
+                .andExpect(jsonPath("$[0].fromStatusId").value(fromStatusId.toString()))
+                .andExpect(jsonPath("$[0].toStageId").value(toStageId.toString()))
+                .andExpect(jsonPath("$[0].toStatusId").value(toStatusId.toString()));
+    }
+
+    @Test
+    void getTransitionMemberReturnsOk() throws Exception {
+        UUID transitionId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.requireTransition(context, definitionId, versionId, transitionId))
+                .thenReturn(transition(UUID.randomUUID(), UUID.randomUUID(),
+                        UUID.randomUUID(), UUID.randomUUID()));
+
+        mockMvc.perform(get("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions/{t}",
+                        definitionId, versionId, transitionId).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("APPROVE"));
+    }
+
+    @Test
+    void getTransitionsMalformedVersionUuidIsBadRequest() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+
+        mockMvc.perform(get("/api/v1/admin/service-workflows/{d}/versions/not-a-uuid/transitions",
+                        definitionId).with(authenticatedJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getTransitionsUnauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/service-workflows/{d}/versions/{v}/transitions",
+                        definitionId, versionId))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private String transitionRequestJson(String code, String displayName, int sequence) {
+        return "{\"fromStageId\":\"" + UUID.randomUUID() + "\","
+                + "\"fromStatusId\":\"" + UUID.randomUUID() + "\","
+                + "\"toStageId\":\"" + UUID.randomUUID() + "\","
+                + "\"toStatusId\":\"" + UUID.randomUUID() + "\","
+                + "\"code\":\"" + code + "\",\"displayName\":\"" + displayName
+                + "\",\"sequence\":" + sequence + "}";
+    }
+
+    private ServiceWorkflowTransition transition(
+            UUID fromStageId, UUID fromStatusId, UUID toStageId, UUID toStatusId) {
+        return ServiceWorkflowTransition.create(
+                UUID.randomUUID(), versionId, fromStageId, fromStatusId,
+                toStageId, toStatusId, "APPROVE", "Approve", 1,
+                userRefId, OffsetDateTime.now());
+    }
+
     private RequestPostProcessor authenticatedJwt() {
         return jwt().jwt(token -> token.subject("test-subject")
                 .claim("autovision_user_ref_id", userRefId.toString()));

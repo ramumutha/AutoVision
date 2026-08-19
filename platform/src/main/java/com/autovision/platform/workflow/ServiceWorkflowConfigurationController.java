@@ -163,6 +163,42 @@ public class ServiceWorkflowConfigurationController {
                 context(jwt), workflowVersionId));
     }
 
+    @GetMapping("/{workflowDefinitionId}/versions/{workflowVersionId}/transitions")
+    public List<ServiceWorkflowTransitionResponse> findTransitions(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID workflowDefinitionId,
+            @PathVariable UUID workflowVersionId
+    ) {
+        return readService.findTransitions(context(jwt), workflowDefinitionId, workflowVersionId)
+                .stream().map(ServiceWorkflowTransitionResponse::from).toList();
+    }
+
+    @PostMapping("/{workflowDefinitionId}/versions/{workflowVersionId}/transitions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ServiceWorkflowTransitionResponse addTransition(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID workflowDefinitionId,
+            @PathVariable UUID workflowVersionId,
+            @Valid @RequestBody CreateServiceWorkflowTransitionRequest request
+    ) {
+        return ServiceWorkflowTransitionResponse.from(commandService.addTransition(
+                context(jwt), workflowDefinitionId, workflowVersionId,
+                request.fromStageId(), request.fromStatusId(),
+                request.toStageId(), request.toStatusId(),
+                request.code(), request.displayName(), request.sequence()));
+    }
+
+    @GetMapping("/{workflowDefinitionId}/versions/{workflowVersionId}/transitions/{transitionId}")
+    public ServiceWorkflowTransitionResponse requireTransition(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID workflowDefinitionId,
+            @PathVariable UUID workflowVersionId,
+            @PathVariable UUID transitionId
+    ) {
+        return ServiceWorkflowTransitionResponse.from(readService.requireTransition(
+                context(jwt), workflowDefinitionId, workflowVersionId, transitionId));
+    }
+
     private AuthenticatedTenantContext context(Jwt jwt) {
         return tenantContextResolver.resolve(jwt);
     }

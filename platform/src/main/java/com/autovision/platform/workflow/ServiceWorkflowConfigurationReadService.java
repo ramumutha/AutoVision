@@ -21,6 +21,7 @@ public class ServiceWorkflowConfigurationReadService {
     private final ServiceWorkflowVersionRepository versionRepository;
     private final ServiceWorkflowStageRepository stageRepository;
     private final ServiceWorkflowStatusRepository statusRepository;
+    private final ServiceWorkflowTransitionRepository transitionRepository;
     private final AuthorizationService authorizationService;
 
     public ServiceWorkflowConfigurationReadService(
@@ -28,12 +29,14 @@ public class ServiceWorkflowConfigurationReadService {
             ServiceWorkflowVersionRepository versionRepository,
             ServiceWorkflowStageRepository stageRepository,
             ServiceWorkflowStatusRepository statusRepository,
+            ServiceWorkflowTransitionRepository transitionRepository,
             AuthorizationService authorizationService
     ) {
         this.definitionRepository = definitionRepository;
         this.versionRepository = versionRepository;
         this.stageRepository = stageRepository;
         this.statusRepository = statusRepository;
+        this.transitionRepository = transitionRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -101,6 +104,28 @@ public class ServiceWorkflowConfigurationReadService {
         }
         return statusRepository.findAllByWorkflowStageIdOrderBySequence(
                 workflowStageId);
+    }
+
+    public List<ServiceWorkflowTransition> findTransitions(
+            AuthenticatedTenantContext context,
+            UUID workflowDefinitionId,
+            UUID workflowVersionId
+    ) {
+        requireVersion(context, workflowDefinitionId, workflowVersionId);
+        return transitionRepository.findByWorkflowVersionIdOrderBySequenceAsc(
+                workflowVersionId);
+    }
+
+    public ServiceWorkflowTransition requireTransition(
+            AuthenticatedTenantContext context,
+            UUID workflowDefinitionId,
+            UUID workflowVersionId,
+            UUID transitionId
+    ) {
+        requireVersion(context, workflowDefinitionId, workflowVersionId);
+        return transitionRepository.findByIdAndWorkflowVersionId(
+                        transitionId, workflowVersionId)
+                .orElseThrow(() -> notFound("Workflow transition not found"));
     }
 
     private void requireReadPermission(AuthenticatedTenantContext context) {
