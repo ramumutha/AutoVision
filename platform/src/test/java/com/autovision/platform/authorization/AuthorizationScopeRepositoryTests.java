@@ -64,6 +64,7 @@ class AuthorizationScopeRepositoryTests {
         exec("DELETE FROM platform.dealer_group_memberships");
         exec("DELETE FROM platform.tenant_group_memberships");
         exec("DELETE FROM platform.tenant_groups");
+                exec("DELETE FROM platform.service_workflow_definitions");
         exec("DELETE FROM platform.branches");
         exec("DELETE FROM platform.locations");
         exec("DELETE FROM platform.dealers");
@@ -196,6 +197,74 @@ class AuthorizationScopeRepositoryTests {
         assertFalse(
                 repository.locationBelongsToTenant(locationId, otherTenantId)
         );
+    }
+
+    @Test
+    void workflowBelongsToTenantAcrossAllWorkflowScopes() {
+        UUID tenantWorkflowId = insertWorkflow(tenantId, null, null);
+        UUID dealerId = insertDealer(tenantId, null);
+        UUID dealerWorkflowId = insertWorkflow(tenantId, dealerId, null);
+        UUID branchId = insertBranch(tenantId, dealerId, null);
+        UUID branchWorkflowId = insertWorkflow(tenantId, dealerId, branchId);
+
+        assertTrue(repository.serviceWorkflowBelongsToTenant(
+                tenantWorkflowId, tenantId));
+        assertTrue(repository.serviceWorkflowBelongsToTenant(
+                dealerWorkflowId, tenantId));
+        assertTrue(repository.serviceWorkflowBelongsToTenant(
+                branchWorkflowId, tenantId));
+    }
+
+    @Test
+    void workflowDoesNotBelongToAnotherTenant() {
+        UUID workflowId = insertWorkflow(tenantId, null, null);
+
+        assertFalse(repository.serviceWorkflowBelongsToTenant(
+                workflowId, otherTenantId));
+    }
+
+    @Test
+    void workflowBelongsToDealerForDealerAndBranchScopes() {
+        UUID dealerId = insertDealer(tenantId, null);
+        UUID dealerWorkflowId = insertWorkflow(tenantId, dealerId, null);
+        UUID branchId = insertBranch(tenantId, dealerId, null);
+        UUID branchWorkflowId = insertWorkflow(tenantId, dealerId, branchId);
+
+        assertTrue(repository.serviceWorkflowBelongsToDealer(
+                dealerWorkflowId, dealerId, tenantId));
+        assertTrue(repository.serviceWorkflowBelongsToDealer(
+                branchWorkflowId, dealerId, tenantId));
+        assertFalse(repository.serviceWorkflowBelongsToDealer(
+                dealerWorkflowId, UUID.randomUUID(), tenantId));
+    }
+
+    @Test
+    void workflowBelongsToExactBranchOnly() {
+        UUID dealerId = insertDealer(tenantId, null);
+        UUID branchId = insertBranch(tenantId, dealerId, null);
+        UUID workflowId = insertWorkflow(tenantId, dealerId, branchId);
+
+        assertTrue(repository.serviceWorkflowBelongsToBranch(
+                workflowId, branchId, tenantId));
+        assertFalse(repository.serviceWorkflowBelongsToBranch(
+                workflowId, UUID.randomUUID(), tenantId));
+    }
+
+    @Test
+    void workflowBelongsToDealerAndTenantGroups() {
+        UUID dealerId = insertDealer(tenantId, null);
+        UUID workflowId = insertWorkflow(tenantId, dealerId, null);
+        UUID dealerGroupId = UUID.randomUUID();
+        insertDealerGroupMembership(tenantId, dealerGroupId, dealerId);
+        UUID tenantGroupId = insertTenantGroup("ACTIVE");
+        insertTenantGroupMembership(tenantGroupId, tenantId);
+
+        assertTrue(repository.serviceWorkflowBelongsToDealerGroup(
+                workflowId, dealerGroupId, tenantId));
+        assertTrue(repository.serviceWorkflowBelongsToActiveTenantGroup(
+                workflowId, tenantGroupId));
+        assertFalse(repository.serviceWorkflowBelongsToDealerGroup(
+                UUID.randomUUID(), dealerGroupId, tenantId));
     }
 
     @Test
@@ -467,6 +536,33 @@ class AuthorizationScopeRepositoryTests {
 
         return id;
     }
+
+        private UUID insertWorkflow(
+                        UUID workflowTenantId,
+                        UUID dealerId,
+                        UUID branchId
+        ) {
+                UUID id = UUID.randomUUID();
+                OffsetDateTime now = OffsetDateTime.now();
+
+                jdbcClient.sql("""
+                                INSERT INTO platform.service_workflow_definitions
+                                        (id, tenant_id, dealer_id, branch_id, code, display_name,
+                                         active, version, created_at, updated_at)
+                                VALUES (:id, :tenantId, :dealerId, :branchId, :code, :displayName,
+                                                TRUE, 0, :now, :now)
+                                """)
+                                .param("id", id)
+                                .param("tenantId", workflowTenantId)
+                                .param("dealerId", dealerId)
+                                .param("branchId", branchId)
+                                .param("code", "W-" + id)
+                                .param("displayName", "Workflow " + id)
+                                .param("now", now)
+                                .update();
+
+                return id;
+        }
 
     private void insertDealerGroupMembership(
             UUID membershipTenantId,

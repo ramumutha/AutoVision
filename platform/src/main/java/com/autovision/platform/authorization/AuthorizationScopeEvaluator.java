@@ -97,6 +97,11 @@ public class AuthorizationScopeEvaluator {
                             resourceId,
                             tenantGroupId
                     );
+            case SERVICE_WORKFLOW ->
+                    scopeRepository.serviceWorkflowBelongsToActiveTenantGroup(
+                            resourceId,
+                            tenantGroupId
+                    );
         };
     }
 
@@ -126,6 +131,11 @@ public class AuthorizationScopeEvaluator {
                     );
             case SERVICE_ORDER ->
                     scopeRepository.serviceOrderBelongsToTenant(
+                            resourceId,
+                            grantTenantId
+                    );
+            case SERVICE_WORKFLOW ->
+                    scopeRepository.serviceWorkflowBelongsToTenant(
                             resourceId,
                             grantTenantId
                     );
@@ -163,6 +173,12 @@ public class AuthorizationScopeEvaluator {
                     );
             case SERVICE_ORDER ->
                     scopeRepository.serviceOrderBelongsToDealerGroup(
+                            resourceId,
+                            dealerGroupId,
+                            authenticatedTenantId
+                    );
+            case SERVICE_WORKFLOW ->
+                    scopeRepository.serviceWorkflowBelongsToDealerGroup(
                             resourceId,
                             dealerGroupId,
                             authenticatedTenantId
@@ -205,6 +221,12 @@ public class AuthorizationScopeEvaluator {
                             grantDealerId,
                             authenticatedTenantId
                     );
+            case SERVICE_WORKFLOW ->
+                    scopeRepository.serviceWorkflowBelongsToDealer(
+                            resourceId,
+                            grantDealerId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -239,6 +261,12 @@ public class AuthorizationScopeEvaluator {
                             grantBranchId,
                             authenticatedTenantId
                     );
+            case SERVICE_WORKFLOW ->
+                    scopeRepository.serviceWorkflowBelongsToBranch(
+                            resourceId,
+                            grantBranchId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -259,6 +287,7 @@ public class AuthorizationScopeEvaluator {
                     );
             case AFTERSALES_CASE -> false;
             case SERVICE_ORDER -> false;
+                        case SERVICE_WORKFLOW -> false;
         };
     }
 }

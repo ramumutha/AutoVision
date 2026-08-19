@@ -1,5 +1,8 @@
 package com.autovision.platform.workflow;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.organization.Branch;
 import com.autovision.platform.organization.BranchRepository;
 import com.autovision.platform.organization.DealerRepository;
@@ -25,6 +28,7 @@ public class ServiceWorkflowConfigurationCommandService {
     private final ServiceWorkflowStatusRepository statusRepository;
     private final DealerRepository dealerRepository;
     private final BranchRepository branchRepository;
+    private final AuthorizationService authorizationService;
 
     public ServiceWorkflowConfigurationCommandService(
             ServiceWorkflowDefinitionRepository definitionRepository,
@@ -32,7 +36,8 @@ public class ServiceWorkflowConfigurationCommandService {
             ServiceWorkflowStageRepository stageRepository,
             ServiceWorkflowStatusRepository statusRepository,
             DealerRepository dealerRepository,
-            BranchRepository branchRepository
+            BranchRepository branchRepository,
+            AuthorizationService authorizationService
     ) {
         this.definitionRepository = definitionRepository;
         this.versionRepository = versionRepository;
@@ -40,6 +45,7 @@ public class ServiceWorkflowConfigurationCommandService {
         this.statusRepository = statusRepository;
         this.dealerRepository = dealerRepository;
         this.branchRepository = branchRepository;
+        this.authorizationService = authorizationService;
     }
 
     @Transactional
@@ -51,6 +57,8 @@ public class ServiceWorkflowConfigurationCommandService {
             String displayName
     ) {
         requireTenantContext(tenantContext);
+        validateRequestedScope(dealerId, branchId);
+        authorizeCreateDefinition(tenantContext, dealerId, branchId);
         validateScope(tenantContext, dealerId, branchId);
 
         boolean duplicate = dealerId == null
@@ -93,6 +101,8 @@ public class ServiceWorkflowConfigurationCommandService {
         requireTenantContext(tenantContext);
         ServiceWorkflowDefinition definition = requireDefinition(
                 tenantContext, definitionId);
+        authorizeWorkflow(tenantContext, definition.getId(),
+            ServiceWorkflowPermissions.MANAGE);
         if (versionNumber <= 0) {
             throw badRequest("Workflow version number must be greater than zero");
         }
@@ -122,8 +132,11 @@ public class ServiceWorkflowConfigurationCommandService {
             String displayName,
             int sequence
     ) {
-        ServiceWorkflowVersion version = requireDraftVersion(
-                tenantContext, versionId);
+        ServiceWorkflowVersion version = requireVersionInTenant(
+            tenantContext, versionId);
+        authorizeWorkflow(tenantContext, version.getWorkflowDefinitionId(),
+            ServiceWorkflowPermissions.MANAGE);
+        requireDraft(version);
         if (stageRepository.existsByWorkflowVersionIdAndCode(version.getId(), code)) {
             throw conflict("Workflow stage code already exists");
         }
@@ -145,8 +158,11 @@ public class ServiceWorkflowConfigurationCommandService {
             int sequence
     ) {
         ServiceWorkflowStage stage = requireStageInTenant(tenantContext, stageId);
-        ServiceWorkflowVersion version = requireDraftVersion(
+        ServiceWorkflowVersion version = requireVersionInTenant(
                 tenantContext, stage.getWorkflowVersionId());
+        authorizeWorkflow(tenantContext, version.getWorkflowDefinitionId(),
+            ServiceWorkflowPermissions.MANAGE);
+        requireDraft(version);
         if (statusRepository.existsByWorkflowStageIdAndCode(stage.getId(), code)) {
             throw conflict("Workflow status code already exists");
         }
@@ -164,8 +180,11 @@ public class ServiceWorkflowConfigurationCommandService {
             AuthenticatedTenantContext tenantContext,
             UUID versionId
     ) {
-        ServiceWorkflowVersion version = requireDraftVersion(
-                tenantContext, versionId);
+        ServiceWorkflowVersion version = requireVersionInTenant(
+            tenantContext, versionId);
+        authorizeWorkflow(tenantContext, version.getWorkflowDefinitionId(),
+            ServiceWorkflowPermissions.PUBLISH);
+        requireDraft(version);
         List<ServiceWorkflowStage> stages = stageRepository
                 .findAllByWorkflowVersionIdOrderBySequence(version.getId());
         if (stages.isEmpty()) {
@@ -192,6 +211,8 @@ public class ServiceWorkflowConfigurationCommandService {
     ) {
         ServiceWorkflowVersion version = requireVersionInTenant(
                 tenantContext, versionId);
+        authorizeWorkflow(tenantContext, version.getWorkflowDefinitionId(),
+            ServiceWorkflowPermissions.PUBLISH);
         try {
             version.retire();
         } catch (IllegalStateException exception) {
@@ -200,15 +221,10 @@ public class ServiceWorkflowConfigurationCommandService {
         return versionRepository.save(version);
     }
 
-    private ServiceWorkflowVersion requireDraftVersion(
-            AuthenticatedTenantContext tenantContext,
-            UUID versionId
-    ) {
-        ServiceWorkflowVersion version = requireVersionInTenant(tenantContext, versionId);
+    private void requireDraft(ServiceWorkflowVersion version) {
         if (version.getStatus() != ServiceWorkflowVersionStatus.DRAFT) {
             throw badRequest("Only draft workflow versions can be structurally changed");
         }
-        return version;
     }
 
     private ServiceWorkflowVersion requireVersionInTenant(
@@ -247,9 +263,6 @@ public class ServiceWorkflowConfigurationCommandService {
             UUID dealerId,
             UUID branchId
     ) {
-        if (branchId != null && dealerId == null) {
-            throw badRequest("dealerId is required when branchId is provided");
-        }
         if (dealerId != null && dealerRepository.findByIdAndTenantId(
                 dealerId, tenantContext.tenantId()).isEmpty()) {
             throw notFound("Dealer not found");
@@ -263,6 +276,48 @@ public class ServiceWorkflowConfigurationCommandService {
             }
         }
     }
+
+        private void validateRequestedScope(UUID dealerId, UUID branchId) {
+        if (branchId != null && dealerId == null) {
+            throw badRequest("dealerId is required when branchId is provided");
+        }
+        }
+
+        private void authorizeCreateDefinition(
+            AuthenticatedTenantContext tenantContext,
+            UUID dealerId,
+            UUID branchId
+        ) {
+        AuthorizationResourceType resourceType = branchId != null
+            ? AuthorizationResourceType.BRANCH
+            : dealerId != null
+                ? AuthorizationResourceType.DEALER
+                : AuthorizationResourceType.TENANT;
+        UUID resourceId = branchId != null
+            ? branchId
+            : dealerId != null
+                ? dealerId
+                : tenantContext.tenantId();
+        authorizationService.requirePermission(new AuthorizationRequest(
+            tenantContext,
+            ServiceWorkflowPermissions.MANAGE,
+            resourceType,
+            resourceId
+        ));
+        }
+
+        private void authorizeWorkflow(
+            AuthenticatedTenantContext tenantContext,
+            UUID definitionId,
+            String permission
+        ) {
+        authorizationService.requirePermission(new AuthorizationRequest(
+            tenantContext,
+            permission,
+            AuthorizationResourceType.SERVICE_WORKFLOW,
+            definitionId
+        ));
+        }
 
     private void requireTenantContext(AuthenticatedTenantContext tenantContext) {
         if (tenantContext == null

@@ -514,6 +514,99 @@ public class AuthorizationScopeRepository {
 
         return matchCount != null && matchCount > 0;
     }
+
+    public boolean serviceWorkflowBelongsToTenant(
+            UUID workflowId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_workflow_definitions
+                 WHERE id = :workflowId
+                   AND tenant_id = :tenantId
+                """,
+                "workflowId", workflowId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceWorkflowBelongsToDealer(
+            UUID workflowId,
+            UUID dealerId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_workflow_definitions
+                 WHERE id = :workflowId
+                   AND dealer_id = :dealerId
+                   AND tenant_id = :tenantId
+                """,
+                "workflowId", workflowId,
+                "dealerId", dealerId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceWorkflowBelongsToBranch(
+            UUID workflowId,
+            UUID branchId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_workflow_definitions
+                 WHERE id = :workflowId
+                   AND branch_id = :branchId
+                   AND tenant_id = :tenantId
+                """,
+                "workflowId", workflowId,
+                "branchId", branchId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceWorkflowBelongsToDealerGroup(
+            UUID workflowId,
+            UUID dealerGroupId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_workflow_definitions wf
+                  JOIN platform.dealer_group_memberships m
+                    ON m.dealer_id = wf.dealer_id
+                   AND m.tenant_id = wf.tenant_id
+                 WHERE wf.id = :workflowId
+                   AND m.dealer_group_id = :dealerGroupId
+                   AND wf.tenant_id = :tenantId
+                """,
+                "workflowId", workflowId,
+                "dealerGroupId", dealerGroupId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceWorkflowBelongsToActiveTenantGroup(
+            UUID workflowId,
+            UUID tenantGroupId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_workflow_definitions wf
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = wf.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE wf.id = :workflowId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """,
+                "workflowId", workflowId,
+                "tenantGroupId", tenantGroupId
+        );
+    }
+
     private boolean exists(
             String sql,
             String param1Name,
@@ -529,4 +622,23 @@ public class AuthorizationScopeRepository {
 
         return matchCount != null && matchCount > 0;
     }
+
+        private boolean exists(
+                        String sql,
+                        String param1Name,
+                        UUID param1Value,
+                        String param2Name,
+                        UUID param2Value,
+                        String param3Name,
+                        UUID param3Value
+        ) {
+                Integer matchCount = jdbcClient.sql(sql)
+                                .param(param1Name, param1Value)
+                                .param(param2Name, param2Value)
+                                .param(param3Name, param3Value)
+                                .query(Integer.class)
+                                .single();
+
+                return matchCount != null && matchCount > 0;
+        }
 }

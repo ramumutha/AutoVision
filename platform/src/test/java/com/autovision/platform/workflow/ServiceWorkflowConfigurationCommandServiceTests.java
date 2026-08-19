@@ -1,5 +1,8 @@
 package com.autovision.platform.workflow;
 
+import com.autovision.platform.authorization.AuthorizationRequest;
+import com.autovision.platform.authorization.AuthorizationResourceType;
+import com.autovision.platform.authorization.AuthorizationService;
 import com.autovision.platform.organization.Branch;
 import com.autovision.platform.organization.BranchRepository;
 import com.autovision.platform.organization.Dealer;
@@ -10,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -21,8 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +40,7 @@ class ServiceWorkflowConfigurationCommandServiceTests {
     @Mock private ServiceWorkflowStatusRepository statusRepository;
     @Mock private DealerRepository dealerRepository;
     @Mock private BranchRepository branchRepository;
+    @Mock private AuthorizationService authorizationService;
 
     private ServiceWorkflowConfigurationCommandService service;
     private final UUID tenantId = UUID.randomUUID();
@@ -48,7 +55,8 @@ class ServiceWorkflowConfigurationCommandServiceTests {
     void setUp() {
         service = new ServiceWorkflowConfigurationCommandService(
                 definitionRepository, versionRepository, stageRepository,
-                statusRepository, dealerRepository, branchRepository);
+            statusRepository, dealerRepository, branchRepository,
+            authorizationService);
     }
 
     @Test
@@ -59,6 +67,54 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         assertEquals(tenantId, result.getTenantId());
         assertEquals(principalId, result.getCreatedByPrincipalId());
         verify(definitionRepository).save(any(ServiceWorkflowDefinition.class));
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.TENANT, tenantId));
+        }
+
+        @Test
+        void createsDealerScopedDefinitionWithDealerAuthorizationTarget() {
+        UUID dealerId = UUID.randomUUID();
+        when(dealerRepository.findByIdAndTenantId(dealerId, tenantId))
+            .thenReturn(Optional.of(org.mockito.Mockito.mock(Dealer.class)));
+        when(definitionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createDefinition(context, dealerId, null, "A", "A");
+
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.DEALER, dealerId));
+        }
+
+        @Test
+        void createsBranchScopedDefinitionWithBranchAuthorizationTarget() {
+        UUID dealerId = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        Branch branch = org.mockito.Mockito.mock(Branch.class);
+        when(dealerRepository.findByIdAndTenantId(dealerId, tenantId))
+            .thenReturn(Optional.of(org.mockito.Mockito.mock(Dealer.class)));
+        when(branchRepository.findByIdAndTenantId(branchId, tenantId))
+            .thenReturn(Optional.of(branch));
+        when(branch.getDealerId()).thenReturn(dealerId);
+        when(definitionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createDefinition(context, dealerId, branchId, "A", "A");
+
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.BRANCH, branchId));
+        }
+
+        @Test
+        void deniedDefinitionCreationOccursBeforeOrganizationAndDuplicateAccess() {
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.createDefinition(
+                context, UUID.randomUUID(), UUID.randomUUID(), "A", "A"));
+
+        verifyNoInteractions(dealerRepository, branchRepository, definitionRepository);
     }
 
     @Test
@@ -106,6 +162,22 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         ServiceWorkflowVersion result = service.createDraftVersion(context, definitionId, 1);
         assertEquals(ServiceWorkflowVersionStatus.DRAFT, result.getStatus());
         assertEquals(principalId, result.getCreatedByPrincipalId());
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+        }
+
+        @Test
+        void deniedDraftCreationDoesNotSave() {
+        when(definitionRepository.findByIdAndTenantId(definitionId, tenantId))
+            .thenReturn(Optional.of(definition()));
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.createDraftVersion(context, definitionId, 1));
+
+        verify(versionRepository, never()).save(any());
     }
 
     @Test
@@ -137,6 +209,21 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         when(stageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         ServiceWorkflowStage result = service.addStage(context, versionId, "INTAKE", "Intake", 1);
         assertEquals(versionId, result.getWorkflowVersionId());
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+        }
+
+        @Test
+        void deniedStageAdditionDoesNotSave() {
+        stubDraftVersion();
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.addStage(context, versionId, "A", "A", 1));
+
+        verify(stageRepository, never()).save(any());
     }
 
     @Test
@@ -166,6 +253,22 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         when(statusRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         ServiceWorkflowStatus result = service.addStatus(context, stageId, "OPEN", "Open", 1);
         assertEquals(stageId, result.getWorkflowStageId());
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.MANAGE,
+            AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+        }
+
+        @Test
+        void deniedStatusAdditionDoesNotSave() {
+        stubDraftVersion();
+        when(stageRepository.findById(stageId)).thenReturn(Optional.of(stage()));
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.addStatus(context, stageId, "A", "A", 1));
+
+        verify(statusRepository, never()).save(any());
     }
 
     @Test
@@ -201,6 +304,21 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         ServiceWorkflowVersion result = service.publish(context, versionId);
         assertEquals(ServiceWorkflowVersionStatus.PUBLISHED, result.getStatus());
         assertEquals(principalId, result.getPublishedByPrincipalId());
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.PUBLISH,
+            AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+        }
+
+        @Test
+        void deniedPublishDoesNotSaveOrMutateLifecycle() {
+        stubDraftVersion();
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.publish(context, versionId));
+
+        verify(versionRepository, never()).save(any());
     }
 
     @Test
@@ -238,6 +356,21 @@ class ServiceWorkflowConfigurationCommandServiceTests {
         when(versionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         ServiceWorkflowVersion result = service.retire(context, versionId);
         assertEquals(ServiceWorkflowVersionStatus.RETIRED, result.getStatus());
+        verify(authorizationService).requirePermission(new AuthorizationRequest(
+            context, ServiceWorkflowPermissions.PUBLISH,
+            AuthorizationResourceType.SERVICE_WORKFLOW, definitionId));
+        }
+
+        @Test
+        void deniedRetirementDoesNotSaveOrMutateLifecycle() {
+        stubVersion(ServiceWorkflowVersionStatus.PUBLISHED);
+        doThrow(new AccessDeniedException("denied"))
+            .when(authorizationService).requirePermission(any(AuthorizationRequest.class));
+
+        assertThrows(AccessDeniedException.class,
+            () -> service.retire(context, versionId));
+
+        verify(versionRepository, never()).save(any());
     }
 
     @Test

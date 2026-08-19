@@ -499,4 +499,131 @@ class AuthorizationScopeEvaluatorTests {
                 tenantB
         ));
     }
+
+    @Test
+    void tenantGrantAllowsWorkflowInSameTenant() {
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT, tenantA);
+        when(scopeRepository.serviceWorkflowBelongsToTenant(workflowId, tenantA))
+                .thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void tenantGrantDeniesWorkflowInAnotherTenant() {
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT, tenantA);
+        when(scopeRepository.serviceWorkflowBelongsToTenant(workflowId, tenantA))
+                .thenReturn(false);
+
+        assertFalse(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void dealerGrantAllowsWorkflowScopedToDealer() {
+        UUID dealerId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER, dealerId);
+        when(scopeRepository.serviceWorkflowBelongsToDealer(
+                workflowId, dealerId, tenantA)).thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void dealerGrantAllowsWorkflowScopedToContainedBranch() {
+        UUID dealerId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER, dealerId);
+        when(scopeRepository.serviceWorkflowBelongsToDealer(
+                workflowId, dealerId, tenantA)).thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void dealerGrantDeniesWorkflowOutsideDealer() {
+        UUID dealerId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER, dealerId);
+        when(scopeRepository.serviceWorkflowBelongsToDealer(
+                workflowId, dealerId, tenantA)).thenReturn(false);
+
+        assertFalse(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void branchGrantAllowsWorkflowScopedToBranch() {
+        UUID branchId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.BRANCH, branchId);
+        when(scopeRepository.serviceWorkflowBelongsToBranch(
+                workflowId, branchId, tenantA)).thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void branchGrantDeniesWorkflowOutsideBranch() {
+        UUID branchId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.BRANCH, branchId);
+        when(scopeRepository.serviceWorkflowBelongsToBranch(
+                workflowId, branchId, tenantA)).thenReturn(false);
+
+        assertFalse(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void dealerGroupGrantAllowsWorkflowForMemberDealer() {
+        UUID dealerGroupId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.DEALER_GROUP, dealerGroupId);
+        when(scopeRepository.serviceWorkflowBelongsToDealerGroup(
+                workflowId, dealerGroupId, tenantA)).thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void tenantGroupGrantAllowsWorkflowInActiveMemberTenant() {
+        UUID tenantGroupId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.TENANT_GROUP, tenantGroupId);
+        when(scopeRepository.serviceWorkflowBelongsToActiveTenantGroup(
+                workflowId, tenantGroupId)).thenReturn(true);
+
+        assertTrue(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+    }
+
+    @Test
+    void locationGrantDoesNotContainWorkflow() {
+        UUID locationId = UUID.randomUUID();
+        UUID workflowId = UUID.randomUUID();
+        AuthorizationGrant grant = new AuthorizationGrant(
+                AuthorizationScopeType.LOCATION, locationId);
+
+        assertFalse(evaluator.contains(grant, tenantA,
+                AuthorizationResourceType.SERVICE_WORKFLOW, workflowId));
+        org.mockito.Mockito.verifyNoInteractions(scopeRepository);
+    }
 }

@@ -10,5 +10,6 @@ public enum AuthorizationResourceType {
     BRANCH,
     LOCATION,
     AFTERSALES_CASE,
-    SERVICE_ORDER
+    SERVICE_ORDER,
+    SERVICE_WORKFLOW
 }

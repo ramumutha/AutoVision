@@ -15,7 +15,8 @@ class AuthorizationResourceTypeTests {
                         AuthorizationResourceType.BRANCH,
                         AuthorizationResourceType.LOCATION,
                         AuthorizationResourceType.AFTERSALES_CASE,
-                        AuthorizationResourceType.SERVICE_ORDER
+                        AuthorizationResourceType.SERVICE_ORDER,
+                        AuthorizationResourceType.SERVICE_WORKFLOW
                 },
                 AuthorizationResourceType.values()
         );
