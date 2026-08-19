@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -71,5 +72,15 @@ public class ServiceOrderWorkflowExecutionController {
         AuthenticatedTenantContext context = tenantContextResolver.resolve(jwt);
         return ServiceOrderWorkflowExecutionResponse.from(commandService.transition(
                 context, orderId, transitionId));
+    }
+
+    @GetMapping("/history")
+    public List<ServiceOrderWorkflowTransitionHistoryResponse> findHistory(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        AuthenticatedTenantContext context = tenantContextResolver.resolve(jwt);
+        return readService.findHistoryForServiceOrder(context, orderId).stream()
+                .map(ServiceOrderWorkflowTransitionHistoryResponse::from).toList();
     }
 }

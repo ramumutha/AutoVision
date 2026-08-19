@@ -334,6 +334,116 @@ class ServiceOrderWorkflowExecutionControllerIntegrationTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void getHistoryReturnsOk() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.findHistoryForServiceOrder(context, orderId))
+                .thenReturn(java.util.List.of(history(UUID.randomUUID(), UUID.randomUUID())));
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getHistoryMapsOneHistoryRecordCorrectly() throws Exception {
+        UUID fromStageId = UUID.randomUUID();
+        UUID fromStatusId = UUID.randomUUID();
+        ServiceOrderWorkflowTransitionHistory record = history(fromStageId, fromStatusId);
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.findHistoryForServiceOrder(context, orderId))
+                .thenReturn(java.util.List.of(record));
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(record.getId().toString()))
+                .andExpect(jsonPath("$[0].tenantId").value(tenantId.toString()))
+                .andExpect(jsonPath("$[0].serviceOrderId").value(orderId.toString()))
+                .andExpect(jsonPath("$[0].workflowExecutionId")
+                        .value(record.getWorkflowExecutionId().toString()))
+                .andExpect(jsonPath("$[0].workflowDefinitionId").value(definitionId.toString()))
+                .andExpect(jsonPath("$[0].workflowVersionId").value(versionId.toString()))
+                .andExpect(jsonPath("$[0].transitionId")
+                        .value(record.getTransitionId().toString()))
+                .andExpect(jsonPath("$[0].fromStageId").value(fromStageId.toString()))
+                .andExpect(jsonPath("$[0].fromStatusId").value(fromStatusId.toString()))
+                .andExpect(jsonPath("$[0].toStageId")
+                        .value(record.getToStageId().toString()))
+                .andExpect(jsonPath("$[0].toStatusId")
+                        .value(record.getToStatusId().toString()))
+                .andExpect(jsonPath("$[0].executedByPrincipalId").value(userRefId.toString()));
+    }
+
+    @Test
+    void getHistoryMapsMultipleHistoryRecordsInChronologicalOrder() throws Exception {
+        ServiceOrderWorkflowTransitionHistory first = history(UUID.randomUUID(), UUID.randomUUID());
+        ServiceOrderWorkflowTransitionHistory second = history(UUID.randomUUID(), UUID.randomUUID());
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.findHistoryForServiceOrder(context, orderId))
+                .thenReturn(java.util.List.of(first, second));
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(first.getId().toString()))
+                .andExpect(jsonPath("$[1].id").value(second.getId().toString()));
+    }
+
+    @Test
+    void getHistoryReturnsEmptyListWhenNoHistoryExists() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(readService.findHistoryForServiceOrder(context, orderId))
+                .thenReturn(java.util.List.of());
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void getHistoryRejectsMalformedOrderId() throws Exception {
+        mockMvc.perform(get("/api/v1/aftersales/service-orders/not-a-uuid/workflow/history")
+                        .with(authenticatedJwt()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getHistoryAuthorizationDenialReturnsForbidden() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new AccessDeniedException("denied"))
+                .when(readService).findHistoryForServiceOrder(context, orderId);
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getHistoryMissingServiceOrderReturnsNotFound() throws Exception {
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new ResponseStatusException(NOT_FOUND, "missing"))
+                .when(readService).findHistoryForServiceOrder(context, orderId);
+
+        mockMvc.perform(get(historyPath()).with(authenticatedJwt()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getHistoryUnauthenticatedRequestIsRejected() throws Exception {
+        mockMvc.perform(get(historyPath()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private String historyPath() {
+        return "/api/v1/aftersales/service-orders/" + orderId + "/workflow/history";
+    }
+
+    private ServiceOrderWorkflowTransitionHistory history(UUID fromStageId, UUID fromStatusId) {
+        return ServiceOrderWorkflowTransitionHistory.record(
+                UUID.randomUUID(), tenantId, orderId, executionId(),
+                definitionId, versionId, UUID.randomUUID(),
+                fromStageId, fromStatusId, UUID.randomUUID(), UUID.randomUUID(),
+                userRefId, OffsetDateTime.parse("2026-08-19T10:00:00Z"));
+    }
+
     private String transitionPath(UUID transitionId) {
         return "/api/v1/aftersales/service-orders/" + orderId
                 + "/workflow/transitions/" + transitionId;
