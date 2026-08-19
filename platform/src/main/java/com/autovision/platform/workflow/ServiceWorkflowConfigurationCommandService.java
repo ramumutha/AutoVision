@@ -26,6 +26,7 @@ public class ServiceWorkflowConfigurationCommandService {
     private final ServiceWorkflowVersionRepository versionRepository;
     private final ServiceWorkflowStageRepository stageRepository;
     private final ServiceWorkflowStatusRepository statusRepository;
+    private final ServiceWorkflowTransitionRepository transitionRepository;
     private final DealerRepository dealerRepository;
     private final BranchRepository branchRepository;
     private final AuthorizationService authorizationService;
@@ -35,6 +36,7 @@ public class ServiceWorkflowConfigurationCommandService {
             ServiceWorkflowVersionRepository versionRepository,
             ServiceWorkflowStageRepository stageRepository,
             ServiceWorkflowStatusRepository statusRepository,
+            ServiceWorkflowTransitionRepository transitionRepository,
             DealerRepository dealerRepository,
             BranchRepository branchRepository,
             AuthorizationService authorizationService
@@ -43,6 +45,7 @@ public class ServiceWorkflowConfigurationCommandService {
         this.versionRepository = versionRepository;
         this.stageRepository = stageRepository;
         this.statusRepository = statusRepository;
+        this.transitionRepository = transitionRepository;
         this.dealerRepository = dealerRepository;
         this.branchRepository = branchRepository;
         this.authorizationService = authorizationService;
@@ -176,6 +179,73 @@ public class ServiceWorkflowConfigurationCommandService {
     }
 
     @Transactional
+    public ServiceWorkflowTransition addTransition(
+            AuthenticatedTenantContext tenantContext,
+            UUID workflowDefinitionId,
+            UUID workflowVersionId,
+            UUID fromStageId,
+            UUID fromStatusId,
+            UUID toStageId,
+            UUID toStatusId,
+            String code,
+            String displayName,
+            int sequence
+    ) {
+        requireTenantContext(tenantContext);
+        ServiceWorkflowDefinition definition = requireDefinition(
+                tenantContext, workflowDefinitionId);
+        authorizeWorkflow(tenantContext, definition.getId(),
+            ServiceWorkflowPermissions.MANAGE);
+
+        ServiceWorkflowVersion version = requireVersionInDefinition(
+                workflowVersionId, definition.getId());
+        requireDraft(version);
+
+        ServiceWorkflowStage fromStage = requireStageInVersion(
+                fromStageId, version.getId());
+        requireActive(fromStage.isActive(), "From workflow stage is not active");
+        ServiceWorkflowStatus fromStatus = requireStatusInStage(
+                fromStatusId, fromStage.getId());
+        requireActive(fromStatus.isActive(), "From workflow status is not active");
+
+        ServiceWorkflowStage toStage = requireStageInVersion(
+                toStageId, version.getId());
+        requireActive(toStage.isActive(), "To workflow stage is not active");
+        ServiceWorkflowStatus toStatus = requireStatusInStage(
+                toStatusId, toStage.getId());
+        requireActive(toStatus.isActive(), "To workflow status is not active");
+
+        if (transitionRepository.existsByWorkflowVersionIdAndCode(
+                version.getId(), code)) {
+            throw conflict("Workflow transition code already exists");
+        }
+        if (transitionRepository
+                .existsByWorkflowVersionIdAndFromStageIdAndFromStatusIdAndToStageIdAndToStatusId(
+                        version.getId(), fromStage.getId(), fromStatus.getId(),
+                        toStage.getId(), toStatus.getId())) {
+            throw conflict("Workflow transition edge already exists");
+        }
+
+        try {
+            return transitionRepository.save(ServiceWorkflowTransition.create(
+                    UUID.randomUUID(),
+                    version.getId(),
+                    fromStage.getId(),
+                    fromStatus.getId(),
+                    toStage.getId(),
+                    toStatus.getId(),
+                    code,
+                    displayName,
+                    sequence,
+                    tenantContext.userRefId(),
+                    OffsetDateTime.now()
+            ));
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(exception.getMessage());
+        }
+    }
+
+    @Transactional
     public ServiceWorkflowVersion publish(
             AuthenticatedTenantContext tenantContext,
             UUID versionId
@@ -225,6 +295,40 @@ public class ServiceWorkflowConfigurationCommandService {
         if (version.getStatus() != ServiceWorkflowVersionStatus.DRAFT) {
             throw badRequest("Only draft workflow versions can be structurally changed");
         }
+    }
+
+    private void requireActive(boolean active, String message) {
+        if (!active) {
+            throw badRequest(message);
+        }
+    }
+
+    private ServiceWorkflowVersion requireVersionInDefinition(
+            UUID workflowVersionId,
+            UUID workflowDefinitionId
+    ) {
+        ServiceWorkflowVersion version = versionRepository.findById(workflowVersionId)
+                .orElseThrow(() -> notFound("Workflow version not found"));
+        if (!version.getWorkflowDefinitionId().equals(workflowDefinitionId)) {
+            throw notFound("Workflow version not found");
+        }
+        return version;
+    }
+
+    private ServiceWorkflowStage requireStageInVersion(
+            UUID stageId,
+            UUID workflowVersionId
+    ) {
+        return stageRepository.findByIdAndWorkflowVersionId(stageId, workflowVersionId)
+                .orElseThrow(() -> notFound("Workflow stage not found"));
+    }
+
+    private ServiceWorkflowStatus requireStatusInStage(
+            UUID statusId,
+            UUID workflowStageId
+    ) {
+        return statusRepository.findByIdAndWorkflowStageId(statusId, workflowStageId)
+                .orElseThrow(() -> notFound("Workflow status not found"));
     }
 
     private ServiceWorkflowVersion requireVersionInTenant(
