@@ -28,8 +28,36 @@ public interface ServiceWorkflowDefinitionRepository
             String code
     );
 
+    Optional<ServiceWorkflowDefinition>
+    findByTenantIdAndDealerIdAndBranchIdIsNullAndCode(
+            UUID tenantId,
+            UUID dealerId,
+            String code
+    );
+
+    Optional<ServiceWorkflowDefinition>
+    findByTenantIdAndDealerIdAndBranchIdAndCode(
+            UUID tenantId,
+            UUID dealerId,
+            UUID branchId,
+            String code
+    );
+
     boolean existsByTenantIdAndDealerIdIsNullAndBranchIdIsNullAndCode(
             UUID tenantId,
+            String code
+    );
+
+    boolean existsByTenantIdAndDealerIdAndBranchIdIsNullAndCode(
+            UUID tenantId,
+            UUID dealerId,
+            String code
+    );
+
+    boolean existsByTenantIdAndDealerIdAndBranchIdAndCode(
+            UUID tenantId,
+            UUID dealerId,
+            UUID branchId,
             String code
     );
 }
