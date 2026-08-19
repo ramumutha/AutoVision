@@ -13,6 +13,11 @@ public interface ServiceWorkflowStatusRepository
             UUID workflowStageId
     );
 
+    Optional<ServiceWorkflowStatus> findByIdAndWorkflowStageId(
+            UUID id,
+            UUID workflowStageId
+    );
+
     boolean existsByWorkflowStageId(UUID workflowStageId);
 
     Optional<ServiceWorkflowStatus> findByWorkflowStageIdAndCode(

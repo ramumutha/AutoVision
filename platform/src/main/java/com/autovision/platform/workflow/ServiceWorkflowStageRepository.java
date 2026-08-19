@@ -13,6 +13,11 @@ public interface ServiceWorkflowStageRepository
             UUID workflowVersionId
     );
 
+    Optional<ServiceWorkflowStage> findByIdAndWorkflowVersionId(
+            UUID id,
+            UUID workflowVersionId
+    );
+
     Optional<ServiceWorkflowStage> findByWorkflowVersionIdAndCode(
             UUID workflowVersionId,
             String code
