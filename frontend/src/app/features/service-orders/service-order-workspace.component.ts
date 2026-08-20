@@ -10,11 +10,12 @@ import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component
 import { AvStatusComponent } from '../../shared/design-system/av-status.component';
 import { ServiceOrderApiService } from './service-order-api.service';
 import { ServiceOrderOverviewComponent } from './service-order-overview.component';
+import { ServiceOrderQuotesComponent } from './service-order-quotes.component';
 import { ServiceOrderSection } from './service-order.models';
 
 @Component({
   selector: 'app-service-order-workspace',
-  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent],
+  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent, ServiceOrderQuotesComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state$ | async; as state) {
@@ -39,6 +40,8 @@ import { ServiceOrderSection } from './service-order.models';
         </nav>
         @if (section() === 'overview') {
           <app-service-order-overview [order]="aggregate.order" />
+        } @else if (section() === 'quotes') {
+          <app-service-order-quotes />
         } @else {
           <av-feedback [title]="sectionTitle()" [message]="localization.text('nextDelivery')" />
         }
@@ -69,16 +72,20 @@ export class ServiceOrderWorkspaceComponent {
   protected readonly section = signal<ServiceOrderSection>('overview');
   protected readonly retryVersion = signal(0);
 
+  constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((query) => {
+      const section = query.get('section');
+      this.section.set(section === 'lines' || section === 'quotes' ? section : 'overview');
+    });
+  }
+
   readonly state$ = combineLatest([
     this.route.paramMap,
-    this.route.queryParamMap,
     toObservable(this.retryVersion),
   ]).pipe(
-    switchMap(([params, query]) => {
+    switchMap(([params]) => {
       const orderId = params.get('orderId');
       if (!orderId) return of({ loading: false, aggregate: null, error: { status: 404, message: 'Service Order not found.' } as ApiError });
-      const section = query.get('section') as ServiceOrderSection | null;
-      this.section.set(section === 'lines' || section === 'quotes' ? section : 'overview');
       return this.api.getServiceOrder(orderId).pipe(
         map((aggregate) => ({ loading: false, aggregate, error: null })),
         startWith({ loading: true, aggregate: null, error: null }),

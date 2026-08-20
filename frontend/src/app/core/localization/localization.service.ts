@@ -8,6 +8,9 @@ const ENGLISH = {
   loadingServiceOrder: 'Loading Service Order', unableToLoad: 'Unable to load Service Order',
   notFound: 'Service Order not found', notAuthorized: 'You are not authorized to view this Service Order.',
   offlineRetry: 'You appear to be offline. Reconnect and retry the request.', tryAgain: 'Something went wrong. Please try again.', retry: 'Retry',
+  quoteNumber: 'Quote Number', status: 'Status', currency: 'Currency', created: 'Created', validUntil: 'Valid Until',
+  loadingQuotes: 'Loading quotes', unableToLoadQuotes: 'Unable to load quotes', quotesUnavailable: 'Quotes unavailable',
+  noQuotes: 'No quotes have been created for this service order.',
 };
 
 @Injectable({ providedIn: 'root' })
