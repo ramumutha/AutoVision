@@ -8,6 +8,32 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  platform:
+    build:
+      context: ./platform
+      dockerfile: Dockerfile
+    container_name: autovision-platform
+    environment:
+      AUTOVISION_PLATFORM_DATABASE_URL: jdbc:postgresql://postgres:5432/autovision
+      AUTOVISION_PLATFORM_DATABASE_USERNAME: autovision
+      AUTOVISION_PLATFORM_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      AUTOVISION_OIDC_ISSUER: ${AUTOVISION_OIDC_ISSUER:-http://localhost:8081/realms/autovision}
+      AUTOVISION_OIDC_JWK_SET_URI: http://keycloak:8080/realms/autovision/protocol/openid-connect/certs
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: autovision-postgres
@@ -19,6 +45,11 @@ services:
       - "5432:5432"
     volumes:
       - autovision_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autovision -d autovision"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   keycloak:
@@ -35,6 +66,12 @@ services:
       - "8081:8080"
     volumes:
       - ./infra/keycloak/realm:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
     restart: unless-stopped
 
 volumes:

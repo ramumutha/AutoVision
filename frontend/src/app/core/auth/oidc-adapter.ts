@@ -14,7 +14,7 @@ export class OidcAdapter {
   private readonly oidc = inject(OidcSecurityService);
 
   checkAuth(): Observable<LoginResponse> { return this.oidc.checkAuth(); }
-  authorize(state?: string): void { this.oidc.authorize(undefined, state ? { customParams: { state } } : undefined); }
+  authorize(): void { this.oidc.authorize(); }
   refresh(): Observable<LoginResponse> { return this.oidc.forceRefreshSession(); }
   logout(): Observable<unknown> { return this.oidc.logoffAndRevokeTokens(); }
   accessToken(): Observable<string> { return this.oidc.getAccessToken(); }

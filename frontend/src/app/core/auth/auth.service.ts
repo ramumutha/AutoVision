@@ -26,11 +26,17 @@ export class AuthService {
     private readonly oidcAdapter: OidcAdapter,
   ) {}
 
-  login(returnUrl = '/'): void {
-    this.oidcAdapter.authorize(this.internalReturnUrl(returnUrl));
+  login(_returnUrl = '/'): void {
+    this.oidcAdapter.authorize();
   }
 
   beginLogin(): void { this.login('/'); }
+
+  prepareProviderToken(result: LoginResponse): void {
+    const claims = (result.userData ?? {}) as Record<string, unknown>;
+    const expiresAt = typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
+    this.tokenProvider.setToken({ accessToken: result.accessToken, expiresAt });
+  }
 
   establishFromProvider(result: LoginResponse): void {
     const claims = (result.userData ?? {}) as Record<string, unknown>;
@@ -71,7 +77,4 @@ export class AuthService {
     this.sessionService.clear();
   }
 
-  private internalReturnUrl(value: string): string {
-    return value.startsWith('/') && !value.startsWith('//') ? value : '/';
-  }
 }

@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 const ENGLISH = {
   appName: 'AutoVision', workspace: 'Workspace', navigation: 'Navigation', overview: 'Overview',
-  signedOut: 'Session not connected', online: 'Online', offline: 'Offline mode ready',
+  signedOut: 'Session not connected', signIn: 'Sign in', signOut: 'Sign out', online: 'Online', offline: 'Offline mode ready',
   serviceOrder: 'Service Order', vehicle: 'Vehicle', workspaceSections: 'Service Order sections',
   serviceLines: 'Service Lines', quotes: 'Quotes', nextDelivery: 'This section will be available in the next delivery slice.',
   loadingServiceOrder: 'Loading Service Order', unableToLoad: 'Unable to load Service Order',

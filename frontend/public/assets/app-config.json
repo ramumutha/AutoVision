@@ -4,9 +4,9 @@
   "productName": "AutoVision",
   "locale": "en",
   "oidc": {
-    "issuer": "",
-    "realm": "",
-    "clientId": ""
+    "issuer": "http://localhost:8081/realms/autovision",
+    "realm": "autovision",
+    "clientId": "autovision-web"
   },
   "featureFlags": {}
 }

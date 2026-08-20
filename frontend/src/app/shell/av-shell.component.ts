@@ -21,6 +21,11 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
       <div class="session" aria-label="Session status">
         <av-status [label]="connectivity.isOnline() ? localization.text('online') : localization.text('offline')" [tone]="connectivity.isOnline() ? 'success' : 'warning'" />
         <span class="user">{{ auth.isAuthenticated() ? (session.session()?.userDisplayName ?? branding.branding().organizationName) : localization.text('signedOut') }}</span>
+        @if (auth.isAuthenticated()) {
+          <button class="auth-action" type="button" (click)="auth.logout()">{{ localization.text('signOut') }}</button>
+        } @else {
+          <button class="auth-action" type="button" (click)="auth.beginLogin()">{{ localization.text('signIn') }}</button>
+        }
       </div>
     </header>
     <div class="shell">
@@ -39,6 +44,9 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
     .brand-mark { display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; border-radius: .25rem; background: var(--av-color-brand); color: white; font-size: .75rem; letter-spacing: .04em; }
     .session { display: flex; align-items: center; gap: .75rem; }
     .user { color: var(--av-color-muted); font-size: .875rem; }
+    .auth-action { min-block-size: 2.5rem; padding: .55rem .9rem; border: 1px solid var(--av-color-brand); border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font: inherit; font-weight: 700; }
+    .auth-action:hover { background: var(--av-color-brand-strong); border-color: var(--av-color-brand-strong); }
+    .auth-action:focus-visible { outline: 3px solid var(--av-color-focus); outline-offset: 2px; }
     .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); max-width: var(--av-content-max); min-height: calc(100dvh - 4.5rem); margin: 0 auto; }
     .nav { padding: 2rem 1rem; border-right: 1px solid var(--av-color-border); background: #eaf0f1; }
     .nav-label { margin: 0 0 .75rem .75rem; color: var(--av-color-muted); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
