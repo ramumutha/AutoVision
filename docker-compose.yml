@@ -1,4 +1,13 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: autovision-frontend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: autovision-postgres

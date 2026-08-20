@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.git/
+.gitignore
+*.log
+.vscode/
