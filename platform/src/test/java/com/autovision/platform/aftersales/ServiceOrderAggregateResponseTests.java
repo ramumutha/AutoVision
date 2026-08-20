@@ -66,6 +66,16 @@ class ServiceOrderAggregateResponseTests {
                         now
                 );
 
+        line.applyCommercialSnapshot(
+                new BigDecimal("125.00"),
+                "EUR",
+                new BigDecimal("187.50"),
+                new BigDecimal("37.50"),
+                new BigDecimal("225.00"),
+                principalId,
+                now.plusMinutes(1)
+        );
+
         ServiceOrderAggregateResponse response =
                 ServiceOrderAggregateResponse.from(
                         new ServiceOrderAggregateView(
@@ -143,6 +153,36 @@ class ServiceOrderAggregateResponseTests {
         assertEquals(
                 new BigDecimal("1.5000"),
                 response.lines().getFirst().quantity()
+        );
+
+        assertEquals(
+                new BigDecimal("125.00"),
+                response.lines().getFirst().unitPrice()
+        );
+
+        assertEquals(
+                "EUR",
+                response.lines().getFirst().currencyCode()
+        );
+
+        assertEquals(
+                new BigDecimal("187.50"),
+                response.lines().getFirst().netAmount()
+        );
+
+        assertEquals(
+                new BigDecimal("37.50"),
+                response.lines().getFirst().taxAmount()
+        );
+
+        assertEquals(
+                new BigDecimal("225.00"),
+                response.lines().getFirst().grossAmount()
+        );
+
+        assertEquals(
+                true,
+                response.lines().getFirst().hasCommercialSnapshot()
         );
 
         assertNull(
