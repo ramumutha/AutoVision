@@ -56,6 +56,21 @@ public class ServiceLine {
     @Column(name = "unit_of_measure", nullable = false, length = 32)
     private String unitOfMeasure;
 
+    @Column(name = "unit_price", precision = 19, scale = 4)
+    private BigDecimal unitPrice;
+
+    @Column(name = "currency_code", length = 3)
+    private String currencyCode;
+
+    @Column(name = "net_amount", precision = 19, scale = 4)
+    private BigDecimal netAmount;
+
+    @Column(name = "tax_amount", precision = 19, scale = 4)
+    private BigDecimal taxAmount;
+
+    @Column(name = "gross_amount", precision = 19, scale = 4)
+    private BigDecimal grossAmount;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -185,6 +200,45 @@ public class ServiceLine {
         touch(principalId, now);
     }
 
+    public void applyCommercialSnapshot(
+            BigDecimal unitPrice,
+            String currencyCode,
+            BigDecimal netAmount,
+            BigDecimal taxAmount,
+            BigDecimal grossAmount,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        requireNonNegative(unitPrice, "Service line unit price must not be negative");
+        requireCurrencyCode(currencyCode);
+        requireNonNegative(netAmount, "Service line net amount must not be negative");
+        requireNonNegative(taxAmount, "Service line tax amount must not be negative");
+        requireNonNegative(grossAmount, "Service line gross amount must not be negative");
+        if (principalId == null) {
+            throw new IllegalArgumentException(
+                    "Service line commercial snapshot principal is required"
+            );
+        }
+        requireMutationTime(now);
+
+        this.unitPrice = unitPrice;
+        this.currencyCode = currencyCode;
+        this.netAmount = netAmount;
+        this.taxAmount = taxAmount;
+        this.grossAmount = grossAmount;
+
+        touch(principalId, now);
+    }
+
+    public boolean hasCommercialSnapshot() {
+        return unitPrice != null
+                && currencyCode != null
+                && !currencyCode.isBlank()
+                && netAmount != null
+                && taxAmount != null
+                && grossAmount != null;
+    }
+
     private static void requireLineType(
             ServiceLineType lineType
     ) {
@@ -231,6 +285,28 @@ public class ServiceLine {
             throw new IllegalArgumentException(
                     "Service line unit of measure is required"
             );
+        }
+    }
+
+    private static void requireCurrencyCode(
+            String currencyCode
+    ) {
+        if (currencyCode == null || currencyCode.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Service line currency code is required"
+            );
+        }
+    }
+
+    private static void requireNonNegative(
+            BigDecimal amount,
+            String message
+    ) {
+        if (
+                amount == null
+                        || amount.compareTo(BigDecimal.ZERO) < 0
+        ) {
+            throw new IllegalArgumentException(message);
         }
     }
 
@@ -282,6 +358,26 @@ public class ServiceLine {
 
     public String getUnitOfMeasure() {
         return unitOfMeasure;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public BigDecimal getNetAmount() {
+        return netAmount;
+    }
+
+    public BigDecimal getTaxAmount() {
+        return taxAmount;
+    }
+
+    public BigDecimal getGrossAmount() {
+        return grossAmount;
     }
 
     public long getVersion() {
