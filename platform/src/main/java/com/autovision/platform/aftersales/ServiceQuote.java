@@ -140,51 +140,46 @@ public class ServiceQuote {
     }
 
     public void issue(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.ISSUED, principalId, now);
-        issuedAt = now;
+        changeStatus(ServiceQuoteStatus.ISSUED, principalId, now);
     }
 
     public void accept(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.ACCEPTED, principalId, now);
-        acceptedAt = now;
+        changeStatus(ServiceQuoteStatus.ACCEPTED, principalId, now);
     }
 
     public void decline(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.DECLINED, principalId, now);
-        declinedAt = now;
+        changeStatus(ServiceQuoteStatus.DECLINED, principalId, now);
     }
 
     public void cancel(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.CANCELLED, principalId, now);
-        cancelledAt = now;
+        changeStatus(ServiceQuoteStatus.CANCELLED, principalId, now);
     }
 
     public void expire(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.EXPIRED, principalId, now);
-        expiredAt = now;
+        changeStatus(ServiceQuoteStatus.EXPIRED, principalId, now);
     }
 
     public void supersede(UUID principalId, OffsetDateTime now) {
-        transition(ServiceQuoteStatus.SUPERSEDED, principalId, now);
-        supersededAt = now;
+        changeStatus(ServiceQuoteStatus.SUPERSEDED, principalId, now);
     }
 
-    private void transition(
+    public void changeStatus(
             ServiceQuoteStatus targetStatus,
             UUID principalId,
             OffsetDateTime now
     ) {
+        if (targetStatus == null) {
+            throw new IllegalArgumentException(
+                    "Service quote target status is required"
+            );
+        }
+
         requireId(principalId, "Principal ID is required");
         requireTime(now, "Service quote mutation time is required");
 
-        boolean allowed = status == ServiceQuoteStatus.DRAFT
-                && targetStatus == ServiceQuoteStatus.ISSUED
-                || status == ServiceQuoteStatus.ISSUED
-                && targetStatus != ServiceQuoteStatus.ISSUED
-                && targetStatus != ServiceQuoteStatus.DRAFT;
-        if (!allowed) {
+        if (status == targetStatus) {
             throw new IllegalStateException(
-                    "Service quote transition is not allowed: "
+                    "Service quote status is already "
                             + status + " -> " + targetStatus
             );
         }
@@ -192,6 +187,16 @@ public class ServiceQuote {
         status = targetStatus;
         updatedByPrincipalId = principalId;
         updatedAt = now;
+
+        switch (targetStatus) {
+            case ISSUED -> issuedAt = now;
+            case ACCEPTED -> acceptedAt = now;
+            case DECLINED -> declinedAt = now;
+            case CANCELLED -> cancelledAt = now;
+            case EXPIRED -> expiredAt = now;
+            case SUPERSEDED -> supersededAt = now;
+            case DRAFT -> { }
+        }
     }
 
     private static void requireId(UUID value, String message) {
