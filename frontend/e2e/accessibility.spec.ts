@@ -13,6 +13,9 @@ test('@a11y scans Overview, Quotes, Create Quote, and Quote Detail', async ({ pa
   await page.goto('/service-orders/11111111-1111-4111-8111-111111111111');
   await expect(page.getByRole('heading', { name: 'SO-QUALITY-001' })).toBeVisible();
   await expectAccessible(page);
+  await page.getByRole('link', { name: 'Service Lines' }).click();
+  await expect(page.getByRole('heading', { name: 'Service Lines' })).toBeVisible();
+  await expectAccessible(page);
   await openQuotes(page);
   await expectAccessible(page);
   await page.getByRole('button', { name: 'Create Quote' }).click();

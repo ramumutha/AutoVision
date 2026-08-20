@@ -11,11 +11,12 @@ import { AvStatusComponent } from '../../shared/design-system/av-status.componen
 import { ServiceOrderApiService } from './service-order-api.service';
 import { ServiceOrderOverviewComponent } from './service-order-overview.component';
 import { ServiceOrderQuotesComponent } from './service-order-quotes.component';
+import { ServiceOrderLinesComponent } from './service-order-lines.component';
 import { ServiceOrderSection } from './service-order.models';
 
 @Component({
   selector: 'app-service-order-workspace',
-  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent, ServiceOrderQuotesComponent],
+  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent, ServiceOrderQuotesComponent, ServiceOrderLinesComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state$ | async; as state) {
@@ -42,6 +43,8 @@ import { ServiceOrderSection } from './service-order.models';
           <app-service-order-overview [order]="aggregate.order" />
         } @else if (section() === 'quotes') {
           <app-service-order-quotes />
+        } @else if (section() === 'lines') {
+          <app-service-order-lines [lines]="aggregate.lines" [jobs]="aggregate.jobs" />
         } @else {
           <av-feedback [title]="sectionTitle()" [message]="localization.text('nextDelivery')" />
         }

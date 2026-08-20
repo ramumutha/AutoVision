@@ -17,8 +17,11 @@ const orderAggregate = {
     createdAt: '2026-08-20T08:00:00Z',
     updatedAt: '2026-08-20T08:00:00Z',
   },
-  jobs: [],
-  lines: [],
+  jobs: [{ id: '77777777-7777-4777-8777-777777777777', jobNumber: 'JOB-QUALITY-001', summary: 'Brake work' }],
+  lines: [
+    { id: '88888888-8888-4888-8888-888888888888', serviceOrderId: ORDER_ID, serviceJobId: null, lineNumber: 10, lineType: 'LABOR', description: 'Job-less diagnostic labor', quantity: 1.5, unitOfMeasure: 'HOUR', unitPrice: 100, currencyCode: 'EUR', netAmount: 150, taxAmount: 30, grossAmount: 180, hasCommercialSnapshot: true },
+    { id: '99999999-9999-4999-8999-999999999999', serviceOrderId: ORDER_ID, serviceJobId: '77777777-7777-4777-8777-777777777777', lineNumber: 20, lineType: 'PART', description: 'Incomplete part snapshot', quantity: 2, unitOfMeasure: 'EA', unitPrice: null, currencyCode: null, netAmount: null, taxAmount: null, grossAmount: null, hasCommercialSnapshot: false },
+  ],
 };
 
 export const existingQuote = {

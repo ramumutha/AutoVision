@@ -11,7 +11,7 @@ const ENGLISH = {
   quoteNumber: 'Quote Number', status: 'Status', currency: 'Currency', created: 'Created', validUntil: 'Valid Until',
   loadingQuotes: 'Loading quotes', unableToLoadQuotes: 'Unable to load quotes', quotesUnavailable: 'Quotes unavailable',
   noQuotes: 'No quotes have been created for this service order.',
-  createQuote: 'Create Quote', quoteAutomaticLines: 'Eligible Service Lines are resolved automatically by the backend.',
+  createQuote: 'Create Quote', quoteAutomaticLines: 'Eligible service lines are selected automatically when a quote is created.',
   terms: 'Terms', disclaimer: 'Disclaimer', create: 'Create', cancel: 'Cancel',
   creatingQuote: 'Creating Quote', requiredField: 'This field is required.', quoteCreateError: 'Quote could not be created',
   quoteConflict: 'Quote could not be created because the request conflicts with the current service-order state.',
@@ -21,6 +21,9 @@ const ENGLISH = {
   quantity: 'Quantity', unitPrice: 'Unit Price', net: 'Net', tax: 'Tax', gross: 'Gross', loadingQuoteDetails: 'Loading quote details',
   unableToLoadQuoteDetails: 'Unable to load quote details', quoteUnavailable: 'Quote unavailable',
   updated: 'Updated', issuedAt: 'Issued At', acceptedAt: 'Accepted At', declinedAt: 'Declined At', cancelledAt: 'Cancelled At', expiredAt: 'Expired At', supersededAt: 'Superseded At',
+  line: 'Line', lineType: 'Line Type', unitOfMeasure: 'Unit of Measure', jobContext: 'Job Context', commercialData: 'Commercial Data',
+  commercialAvailable: 'Commercial data available', commercialIncomplete: 'Commercial data incomplete', notAvailable: 'Not available',
+  noServiceLines: 'No service lines have been added to this service order.',
 };
 
 @Injectable({ providedIn: 'root' })

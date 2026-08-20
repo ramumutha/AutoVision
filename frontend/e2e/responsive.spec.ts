@@ -25,3 +25,13 @@ for (const [name, viewport] of viewports) {
     if (name === 'mobile') await expect(page.getByRole('button', { name: 'Back to Quotes' })).toBeVisible();
   });
 }
+
+test('@responsive Service Lines remain readable on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installQuoteFixtures(page);
+  await page.goto('/service-orders/11111111-1111-4111-8111-111111111111?section=lines');
+  await expect(page.getByRole('heading', { name: 'Service Lines' })).toBeVisible();
+  await expect(page.locator('.cards').getByText(/Job-less diagnostic labor/)).toBeVisible();
+  await expect(page.locator('.cards').getByText('Commercial data incomplete')).toBeVisible();
+  await expect(page.getByText('Eligible service lines are selected automatically when a quote is created.')).toBeVisible();
+});
