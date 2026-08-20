@@ -1,5 +1,13 @@
 export type ServiceQuoteStatus = 'DRAFT' | 'ISSUED' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED' | 'SUPERSEDED';
 
+export interface CreateServiceQuoteRequest {
+  quoteNumber: string;
+  currencyCode: string;
+  validUntil: string | null;
+  termsSnapshot: string | null;
+  disclaimerSnapshot: string | null;
+}
+
 export interface ServiceQuoteSummary {
   id: string;
   serviceOrderId: string;

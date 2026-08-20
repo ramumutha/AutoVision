@@ -11,6 +11,12 @@ const ENGLISH = {
   quoteNumber: 'Quote Number', status: 'Status', currency: 'Currency', created: 'Created', validUntil: 'Valid Until',
   loadingQuotes: 'Loading quotes', unableToLoadQuotes: 'Unable to load quotes', quotesUnavailable: 'Quotes unavailable',
   noQuotes: 'No quotes have been created for this service order.',
+  createQuote: 'Create Quote', quoteAutomaticLines: 'Eligible Service Lines are resolved automatically by the backend.',
+  terms: 'Terms', disclaimer: 'Disclaimer', create: 'Create', cancel: 'Cancel',
+  creatingQuote: 'Creating Quote', requiredField: 'This field is required.', quoteCreateError: 'Quote could not be created',
+  quoteConflict: 'Quote could not be created because the request conflicts with the current service-order state.',
+  offlineCreate: 'Quote creation currently requires a connection.', quoteCreated: 'Quote created successfully',
+  quoteCreatedMessage: 'The new draft quote is now visible in this list.',
 };
 
 @Injectable({ providedIn: 'root' })

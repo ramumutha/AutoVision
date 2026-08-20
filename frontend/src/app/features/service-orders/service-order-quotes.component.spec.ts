@@ -39,7 +39,6 @@ describe('ServiceOrderQuotesComponent', () => {
     expect(text).toContain('EUR');
     expect(text).toContain('Sep 1, 2026');
     expect(text).toContain('—');
-    expect(text).not.toContain('Create Quote');
     expect(text).not.toContain('Cancel');
   });
 
@@ -47,7 +46,7 @@ describe('ServiceOrderQuotesComponent', () => {
     await create(of([]));
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('No quotes have been created for this service order.');
-    expect(text).not.toContain('Create Quote');
+    expect(text).toContain('Create Quote');
   });
 
   it('renders a safe error and retries the GET locally', async () => {

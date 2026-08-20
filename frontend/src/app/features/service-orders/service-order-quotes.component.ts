@@ -9,6 +9,7 @@ import { LocalizationService } from '../../core/localization/localization.servic
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { ServiceQuoteApiService } from './service-quote-api.service';
+import { ServiceQuoteCreateComponent } from './service-quote-create.component';
 import { ServiceQuoteStatus, ServiceQuoteSummary } from './service-quote.models';
 
 interface QuoteListState {
@@ -19,7 +20,7 @@ interface QuoteListState {
 
 @Component({
   selector: 'app-service-order-quotes',
-  imports: [AsyncPipe, DatePipe, AvFeedbackComponent, AvStatusComponent],
+  imports: [AsyncPipe, DatePipe, AvFeedbackComponent, AvStatusComponent, ServiceQuoteCreateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state$ | async; as state) {
@@ -28,8 +29,6 @@ interface QuoteListState {
       } @else if (state.error; as error) {
         <av-feedback kind="error" [title]="errorTitle(error)" [message]="errorMessage(error)" />
         <button class="retry" type="button" (click)="retry()">{{ localization.text('retry') }}</button>
-      } @else if (state.quotes.length === 0) {
-        <av-feedback [title]="localization.text('quotes')" [message]="localization.text('noQuotes')" />
       } @else {
         <section aria-labelledby="quotes-title">
           <div class="list-heading">
@@ -37,9 +36,12 @@ interface QuoteListState {
               <p class="eyebrow">{{ localization.text('serviceOrder') }}</p>
               <h2 id="quotes-title">{{ localization.text('quotes') }}</h2>
             </div>
-            <span class="count">{{ state.quotes.length }}</span>
+            <div class="heading-actions"><span class="count">{{ state.quotes.length }}</span><button class="create-action" type="button" (click)="openCreate()">{{ localization.text('createQuote') }}</button></div>
           </div>
-          <div class="quote-table-wrap">
+          @if (showCreate()) { <app-service-quote-create [orderId]="orderId" (cancel)="closeCreate()" (created)="handleCreated($event)" /> }
+          @if (success()) { <av-feedback kind="success" [title]="localization.text('quoteCreated')" [message]="localization.text('quoteCreatedMessage')" /> }
+          @if (state.quotes.length === 0) { <av-feedback [title]="localization.text('quotes')" [message]="localization.text('noQuotes')" /> }
+          @else { <div class="quote-table-wrap">
             <table class="quote-table">
               <caption class="sr-only">{{ localization.text('quotes') }}</caption>
               <thead>
@@ -71,7 +73,7 @@ interface QuoteListState {
                 <dl><div><dt>{{ localization.text('currency') }}</dt><dd>{{ quote.currencyCode }}</dd></div><div><dt>{{ localization.text('created') }}</dt><dd>{{ quote.createdAt | date:'mediumDate' }}</dd></div><div><dt>{{ localization.text('validUntil') }}</dt><dd>{{ quote.validUntil ? (quote.validUntil | date:'mediumDate') : '—' }}</dd></div></dl>
               </li>
             }
-          </ul>
+          </ul> }
         </section>
       }
     }
@@ -80,9 +82,11 @@ interface QuoteListState {
     :host { display: block; }
     .loading { padding: 2rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); background: var(--av-color-surface); color: var(--av-color-muted); }
     .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .heading-actions { display: flex; align-items: center; gap: .75rem; }
     .eyebrow { margin: 0 0 .3rem; color: var(--av-color-brand); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
     h2 { margin: 0; color: var(--av-color-ink); font-size: 1.35rem; }
     .count { display: grid; place-items: center; min-inline-size: 2rem; min-block-size: 2rem; border-radius: 50%; background: var(--av-color-canvas); color: var(--av-color-muted); font-weight: 800; }
+    .create-action { min-block-size: 2.75rem; padding: .65rem 1rem; border: 0; border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font-weight: 800; }
     .quote-table-wrap { overflow-x: auto; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); background: var(--av-color-surface); }
     .quote-table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: .9rem 1rem; border-bottom: 1px solid var(--av-color-border); vertical-align: middle; white-space: nowrap; }
@@ -106,6 +110,13 @@ export class ServiceOrderQuotesComponent {
   protected readonly connectivity = inject(ConnectivityService);
   protected readonly localization = inject(LocalizationService);
   protected readonly retryVersion = signal(0);
+  protected readonly showCreate = signal(false);
+  protected readonly success = signal(false);
+  protected orderId = '';
+
+  constructor() {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.orderId = params.get('orderId') ?? '');
+  }
 
   readonly state$ = combineLatest([this.route.paramMap, toObservable(this.retryVersion)]).pipe(
     switchMap(([params]) => {
@@ -121,6 +132,13 @@ export class ServiceOrderQuotesComponent {
   );
 
   retry(): void { this.retryVersion.update((value) => value + 1); }
+  openCreate(): void { this.success.set(false); this.showCreate.set(true); }
+  closeCreate(): void { this.showCreate.set(false); }
+  handleCreated(quote: ServiceQuoteSummary): void {
+      this.showCreate.set(false);
+      this.success.set(true);
+    this.retryVersion.update((value) => value + 1);
+    }
   protected statusLabel(status: ServiceQuoteStatus): string { return status.replaceAll('_', ' '); }
   protected statusTone(status: ServiceQuoteStatus): AvStatusTone {
     const tones: Record<ServiceQuoteStatus, AvStatusTone> = { DRAFT: 'neutral', ISSUED: 'info', ACCEPTED: 'success', DECLINED: 'danger', CANCELLED: 'neutral', EXPIRED: 'warning', SUPERSEDED: 'neutral' };
