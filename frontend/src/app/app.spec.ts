@@ -1,12 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { OidcAdapter } from './core/auth/oidc-adapter';
 import { App } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        { provide: OidcAdapter, useValue: { logout: () => ({ subscribe: () => undefined }) } },
+      ],
     })
       .compileComponents();
   });

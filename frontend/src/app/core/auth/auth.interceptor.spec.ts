@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { authInterceptor } from '../api/auth.interceptor';
 import { TokenProvider } from './token-provider';
+import { AuthService } from './auth.service';
 
 describe('authInterceptor', () => {
   let http: HttpClient;
@@ -10,7 +11,11 @@ describe('authInterceptor', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: { handleUnauthorized: () => undefined } },
+      ],
     });
     http = TestBed.inject(HttpClient);
     controller = TestBed.inject(HttpTestingController);

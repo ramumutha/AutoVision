@@ -1,6 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { SessionService } from '../session/session.service';
 import { TokenProvider } from './token-provider';
+import { OidcAdapter } from './oidc-adapter';
+import { LoginResponse } from 'angular-auth-oidc-client';
+import { firstValueFrom } from 'rxjs';
 
 export interface AuthState {
   status: 'UNAUTHENTICATED' | 'AUTHENTICATED' | 'REFRESHING';
@@ -20,9 +23,27 @@ export class AuthService {
   constructor(
     private readonly tokenProvider: TokenProvider,
     private readonly sessionService: SessionService,
+    private readonly oidcAdapter: OidcAdapter,
   ) {}
 
-  beginLogin(): void {}
+  login(returnUrl = '/'): void {
+    this.oidcAdapter.authorize(this.internalReturnUrl(returnUrl));
+  }
+
+  beginLogin(): void { this.login('/'); }
+
+  establishFromProvider(result: LoginResponse): void {
+    const claims = (result.userData ?? {}) as Record<string, unknown>;
+    const expiresAt = typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
+    this.establishSession({
+      subject: typeof claims['sub'] === 'string' ? claims['sub'] : undefined,
+      displayName: typeof claims['name'] === 'string' ? claims['name'] : undefined,
+      username: typeof claims['preferred_username'] === 'string' ? claims['preferred_username'] : undefined,
+      email: typeof claims['email'] === 'string' ? claims['email'] : undefined,
+      expiresAt,
+      roles: Array.isArray(claims['roles']) ? claims['roles'].filter((role): role is string => typeof role === 'string') : [],
+    }, result.accessToken, expiresAt);
+  }
 
   establishSession(state: Omit<AuthState, 'status'>, accessToken: string, expiresAt?: number): void {
     this.tokenProvider.setToken({ accessToken, expiresAt });
@@ -39,9 +60,18 @@ export class AuthService {
   }
 
   logout(): void {
+    this.clearLocalState();
+    void firstValueFrom(this.oidcAdapter.logout()).catch(() => undefined);
+  }
+
+  private clearLocalState(): void {
     this.tokenProvider.clear();
     this.state.set({ status: 'UNAUTHENTICATED', roles: [] });
     this.isAuthenticated.set(false);
     this.sessionService.clear();
+  }
+
+  private internalReturnUrl(value: string): string {
+    return value.startsWith('/') && !value.startsWith('//') ? value : '/';
   }
 }
