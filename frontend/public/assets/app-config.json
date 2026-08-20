@@ -1,0 +1,12 @@
+{
+  "environment": "development",
+  "apiBaseUrl": "/api",
+  "productName": "AutoVision",
+  "locale": "en",
+  "oidc": {
+    "issuer": "",
+    "realm": "",
+    "clientId": ""
+  },
+  "featureFlags": {}
+}

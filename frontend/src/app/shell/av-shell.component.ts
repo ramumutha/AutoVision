@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ConnectivityService } from '../core/connectivity/connectivity.service';
+import { BrandingService } from '../core/branding/branding.service';
+import { AuthService } from '../core/auth/auth.service';
 import { LocalizationService } from '../core/localization/localization.service';
+import { SessionService } from '../core/session/session.service';
+import { ThemeService } from '../core/theme/theme.service';
 import { AvStatusComponent } from '../shared/design-system/av-status.component';
 
 @Component({
@@ -12,11 +16,11 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
     <header class="topbar">
       <a class="brand" routerLink="/" aria-label="AutoVision home">
         <span class="brand-mark" aria-hidden="true">AV</span>
-        <span>{{ localization.text('appName') }}</span>
+        <span>{{ branding.branding().organizationName }}</span>
       </a>
       <div class="session" aria-label="Session status">
         <av-status [label]="connectivity.isOnline() ? localization.text('online') : localization.text('offline')" [tone]="connectivity.isOnline() ? 'success' : 'warning'" />
-        <span class="user">{{ localization.text('signedOut') }}</span>
+        <span class="user">{{ auth.isAuthenticated() ? (session.session()?.userDisplayName ?? branding.branding().organizationName) : localization.text('signedOut') }}</span>
       </div>
     </header>
     <div class="shell">
@@ -46,5 +50,9 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
 })
 export class AvShellComponent {
   protected readonly connectivity = inject(ConnectivityService);
+  protected readonly branding = inject(BrandingService);
+  protected readonly auth = inject(AuthService);
   protected readonly localization = inject(LocalizationService);
+  protected readonly session = inject(SessionService);
+  protected readonly theme = inject(ThemeService);
 }
