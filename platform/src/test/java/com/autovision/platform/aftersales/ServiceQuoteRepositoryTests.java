@@ -45,7 +45,7 @@ class ServiceQuoteRepositoryTests {
                     tenant_id UUID NOT NULL,
                     dealer_id UUID,
                     branch_id UUID,
-                    after_sales_case_id UUID NOT NULL,
+                    after_sales_case_id UUID,
                     service_order_id UUID NOT NULL,
                     quote_number VARCHAR(80) NOT NULL,
                     status VARCHAR(32) NOT NULL,
@@ -110,6 +110,22 @@ class ServiceQuoteRepositoryTests {
                 afterSalesCase.getId(), order.getTenantId()).size());
     }
 
+        @Test
+        void persistsQuoteWithoutAfterSalesCase() {
+        ServiceOrder order = persistOrder("SO-QUOTE-NO-CASE");
+        ServiceQuote quote = ServiceQuote.create(
+            UUID.randomUUID(), order.getTenantId(), null, null,
+            null, order.getId(), "Q-NO-CASE", "USD", null, null, null,
+            UUID.randomUUID(), OffsetDateTime.now());
+
+        quoteRepository.saveAndFlush(quote);
+
+        ServiceQuote persisted = quoteRepository.findByIdAndTenantId(
+            quote.getId(), order.getTenantId()).orElseThrow();
+        assertEquals(null, persisted.getAfterSalesCaseId());
+        assertEquals(order.getId(), persisted.getServiceOrderId());
+        }
+
     @Test
     void allowsMultipleQuotesPerServiceOrderAndEnforcesTenantNumberScope() {
         ServiceOrder order = persistOrder("SO-QUOTE-2");
@@ -156,7 +172,8 @@ class ServiceQuoteRepositoryTests {
     private ServiceQuote newQuote(ServiceOrder order, AfterSalesCase afterSalesCase, String number) {
         return ServiceQuote.create(
                 UUID.randomUUID(), order.getTenantId(), null, null,
-                afterSalesCase.getId(), order.getId(), number, "USD",
+            afterSalesCase == null ? null : afterSalesCase.getId(),
+            order.getId(), number, "USD",
                 OffsetDateTime.now().plusDays(30), "Terms", "Disclaimer",
                 UUID.randomUUID(), OffsetDateTime.now());
     }

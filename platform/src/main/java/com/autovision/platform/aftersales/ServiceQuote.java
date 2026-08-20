@@ -27,7 +27,7 @@ public class ServiceQuote {
     @Column(name = "branch_id")
     private UUID branchId;
 
-    @Column(name = "after_sales_case_id", nullable = false)
+    @Column(name = "after_sales_case_id")
     private UUID afterSalesCaseId;
 
     @Column(name = "service_order_id", nullable = false)
@@ -106,7 +106,6 @@ public class ServiceQuote {
     ) {
         requireId(id, "Service quote ID is required");
         requireId(tenantId, "Tenant ID is required");
-        requireId(afterSalesCaseId, "After-sales case ID is required");
         requireId(serviceOrderId, "Service order ID is required");
         requireText(quoteNumber, "Quote number is required");
         requireText(currencyCode, "Currency code is required");

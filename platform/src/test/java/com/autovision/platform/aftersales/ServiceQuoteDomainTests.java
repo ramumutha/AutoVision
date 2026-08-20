@@ -44,6 +44,18 @@ class ServiceQuoteDomainTests {
         assertEquals(now, quote.getUpdatedAt());
     }
 
+        @Test
+        void createsValidDraftQuoteWithoutAfterSalesCase() {
+                ServiceQuote quote = ServiceQuote.create(
+                                UUID.randomUUID(), UUID.randomUUID(), null, null, null,
+                                UUID.randomUUID(), "Q-NO-CASE", "USD", null, null, null,
+                                UUID.randomUUID(), OffsetDateTime.now()
+                );
+
+                assertEquals(null, quote.getAfterSalesCaseId());
+                assertEquals(ServiceQuoteStatus.DRAFT, quote.getStatus());
+        }
+
     @Test
         void supportsConfigurableStatusChangesWithoutHardCodedGraph() {
                 ServiceQuote quote = newQuote();
@@ -142,9 +154,6 @@ class ServiceQuoteDomainTests {
                 "Q-1", "EUR", null, null, null, principalId, now));
         assertThrows(IllegalArgumentException.class, () -> ServiceQuote.create(
                 id, null, null, null, caseId, orderId,
-                "Q-1", "EUR", null, null, null, principalId, now));
-        assertThrows(IllegalArgumentException.class, () -> ServiceQuote.create(
-                id, tenantId, null, null, null, orderId,
                 "Q-1", "EUR", null, null, null, principalId, now));
         assertThrows(IllegalArgumentException.class, () -> ServiceQuote.create(
                 id, tenantId, null, null, caseId, null,
