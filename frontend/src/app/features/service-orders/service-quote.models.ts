@@ -24,3 +24,26 @@ export interface ServiceQuoteSummary {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ServiceQuoteLine {
+  id: string;
+  serviceQuoteId: string;
+  serviceLineId: string;
+  serviceJobId?: string | null;
+  descriptionSnapshot: string;
+  quantity: number;
+  unitPrice: number;
+  currencyCode: string;
+  netAmount: number;
+  taxAmount: number;
+  grossAmount: number;
+  sequence: number;
+  createdAt: string;
+}
+
+export interface ServiceQuoteDetail extends ServiceQuoteSummary {
+  afterSalesCaseId?: string | null;
+  termsSnapshot?: string | null;
+  disclaimerSnapshot?: string | null;
+  lines: ServiceQuoteLine[];
+}

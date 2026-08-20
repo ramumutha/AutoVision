@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../core/api/api-client.service';
-import { CreateServiceQuoteRequest, ServiceQuoteSummary } from './service-quote.models';
+import { CreateServiceQuoteRequest, ServiceQuoteDetail, ServiceQuoteSummary } from './service-quote.models';
 
 @Injectable({ providedIn: 'root' })
 export class ServiceQuoteApiService {
@@ -17,6 +17,12 @@ export class ServiceQuoteApiService {
     return this.api.post<ServiceQuoteSummary>(
       `/v1/aftersales/service-orders/${encodeURIComponent(orderId)}/quotes`,
       request,
+    );
+  }
+
+  getQuote(orderId: string, quoteId: string): Observable<ServiceQuoteDetail> {
+    return this.api.get<ServiceQuoteDetail>(
+      `/v1/aftersales/service-orders/${encodeURIComponent(orderId)}/quotes/${encodeURIComponent(quoteId)}`,
     );
   }
 }

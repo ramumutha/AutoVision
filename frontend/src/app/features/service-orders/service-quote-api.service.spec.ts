@@ -36,4 +36,16 @@ describe('ServiceQuoteApiService', () => {
     request.flush({});
     controller.verify();
   });
+
+  it('loads Quote detail from the order-scoped detail endpoint', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(ServiceQuoteApiService);
+    const controller = TestBed.inject(HttpTestingController);
+    service.getQuote('order-1', 'quote-1').subscribe((detail) => expect(detail.lines).toEqual([]));
+
+    const request = controller.expectOne('/api/v1/aftersales/service-orders/order-1/quotes/quote-1');
+    expect(request.request.method).toBe('GET');
+    request.flush({ lines: [] });
+    controller.verify();
+  });
 });

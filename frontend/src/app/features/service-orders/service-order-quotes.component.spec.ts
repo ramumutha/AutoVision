@@ -21,7 +21,10 @@ describe('ServiceOrderQuotesComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ServiceQuoteApiService, useValue: api },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ orderId: 'order-1' })) } },
+        { provide: ActivatedRoute, useValue: {
+          paramMap: of(convertToParamMap({ orderId: 'order-1' })),
+          queryParamMap: of(convertToParamMap({ section: 'quotes' })),
+        } },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ServiceOrderQuotesComponent);

@@ -1,7 +1,7 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, combineLatest, map, of, startWith, switchMap } from 'rxjs';
 import { ConnectivityService } from '../../core/connectivity/connectivity.service';
 import { ApiError } from '../../core/error/api-error';
@@ -10,6 +10,7 @@ import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-s
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { ServiceQuoteApiService } from './service-quote-api.service';
 import { ServiceQuoteCreateComponent } from './service-quote-create.component';
+import { ServiceQuoteDetailComponent } from './service-quote-detail.component';
 import { ServiceQuoteStatus, ServiceQuoteSummary } from './service-quote.models';
 
 interface QuoteListState {
@@ -20,7 +21,7 @@ interface QuoteListState {
 
 @Component({
   selector: 'app-service-order-quotes',
-  imports: [AsyncPipe, DatePipe, AvFeedbackComponent, AvStatusComponent, ServiceQuoteCreateComponent],
+  imports: [AsyncPipe, DatePipe, AvFeedbackComponent, AvStatusComponent, ServiceQuoteCreateComponent, ServiceQuoteDetailComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state$ | async; as state) {
@@ -56,7 +57,7 @@ interface QuoteListState {
               <tbody>
                 @for (quote of state.quotes; track quote.id) {
                   <tr>
-                    <th scope="row">{{ quote.quoteNumber }}</th>
+                    <th scope="row"><button class="quote-open" type="button" [attr.aria-current]="selectedQuoteId() === quote.id ? 'page' : null" (click)="selectQuote(quote.id)">{{ quote.quoteNumber }}</button></th>
                     <td><av-status [label]="statusLabel(quote.status)" [tone]="statusTone(quote.status)" /></td>
                     <td>{{ quote.currencyCode }}</td>
                     <td>{{ quote.createdAt | date:'mediumDate' }}</td>
@@ -69,11 +70,12 @@ interface QuoteListState {
           <ul class="quote-cards" aria-label="Quote summaries">
             @for (quote of state.quotes; track quote.id) {
               <li class="quote-card">
-                <div class="card-heading"><strong>{{ quote.quoteNumber }}</strong><av-status [label]="statusLabel(quote.status)" [tone]="statusTone(quote.status)" /></div>
+                <div class="card-heading"><button class="quote-open" type="button" [attr.aria-current]="selectedQuoteId() === quote.id ? 'page' : null" (click)="selectQuote(quote.id)">{{ quote.quoteNumber }}</button><av-status [label]="statusLabel(quote.status)" [tone]="statusTone(quote.status)" /></div>
                 <dl><div><dt>{{ localization.text('currency') }}</dt><dd>{{ quote.currencyCode }}</dd></div><div><dt>{{ localization.text('created') }}</dt><dd>{{ quote.createdAt | date:'mediumDate' }}</dd></div><div><dt>{{ localization.text('validUntil') }}</dt><dd>{{ quote.validUntil ? (quote.validUntil | date:'mediumDate') : '—' }}</dd></div></dl>
               </li>
             }
           </ul> }
+          @if (selectedQuoteId(); as quoteId) { <app-service-quote-detail class="detail-panel" [orderId]="orderId" [quoteId]="quoteId" (back)="clearSelection()" /> }
         </section>
       }
     }
@@ -87,6 +89,8 @@ interface QuoteListState {
     h2 { margin: 0; color: var(--av-color-ink); font-size: 1.35rem; }
     .count { display: grid; place-items: center; min-inline-size: 2rem; min-block-size: 2rem; border-radius: 50%; background: var(--av-color-canvas); color: var(--av-color-muted); font-weight: 800; }
     .create-action { min-block-size: 2.75rem; padding: .65rem 1rem; border: 0; border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font-weight: 800; }
+    .quote-open { padding: .35rem .5rem; border: 0; border-radius: var(--av-radius-sm); background: transparent; color: var(--av-color-brand-strong); cursor: pointer; font-weight: 800; text-decoration: underline; text-underline-offset: .18em; }
+    .detail-panel { display: block; margin-top: 1.25rem; }
     .quote-table-wrap { overflow-x: auto; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); background: var(--av-color-surface); }
     .quote-table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: .9rem 1rem; border-bottom: 1px solid var(--av-color-border); vertical-align: middle; white-space: nowrap; }
@@ -112,10 +116,14 @@ export class ServiceOrderQuotesComponent {
   protected readonly retryVersion = signal(0);
   protected readonly showCreate = signal(false);
   protected readonly success = signal(false);
+  protected readonly selectedQuoteId = signal<string | null>(null);
   protected orderId = '';
+
+  private readonly router = inject(Router);
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.orderId = params.get('orderId') ?? '');
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.selectedQuoteId.set(params.get('quoteId')));
   }
 
   readonly state$ = combineLatest([this.route.paramMap, toObservable(this.retryVersion)]).pipe(
@@ -144,6 +152,8 @@ export class ServiceOrderQuotesComponent {
     const tones: Record<ServiceQuoteStatus, AvStatusTone> = { DRAFT: 'neutral', ISSUED: 'info', ACCEPTED: 'success', DECLINED: 'danger', CANCELLED: 'neutral', EXPIRED: 'warning', SUPERSEDED: 'neutral' };
     return tones[status];
   }
+  selectQuote(quoteId: string): void { void this.router.navigate([], { relativeTo: this.route, queryParams: { section: 'quotes', quoteId }, queryParamsHandling: 'merge' }); }
+  clearSelection(): void { void this.router.navigate([], { relativeTo: this.route, queryParams: { section: 'quotes', quoteId: null }, queryParamsHandling: 'merge' }); }
   protected errorTitle(error: ApiError): string { return error.status === 404 ? this.localization.text('quotesUnavailable') : this.localization.text('unableToLoadQuotes'); }
   protected errorMessage(error: ApiError): string {
     if (error.status === 403) return this.localization.text('notAuthorized');
