@@ -37,6 +37,10 @@ yarn-error.log
 /libpeerconnection.log
 testem.log
 /typings
+/playwright-report
+/test-results
+/blob-report
+playwright/.cache/
 __screenshots__/
 
 # System files
