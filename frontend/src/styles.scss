@@ -1,0 +1,14 @@
+@use './styles/tokens';
+
+:root {
+	color-scheme: light;
+	font-family: var(--av-font-family);
+	background: var(--av-color-canvas);
+	color: var(--av-color-ink);
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; margin: 0; }
+body { background: var(--av-color-canvas); }
+button, a, input { font: inherit; }
+:focus-visible { outline: 3px solid var(--av-color-focus); outline-offset: 3px; }
