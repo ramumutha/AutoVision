@@ -1,53 +1,52 @@
 # AutoVision Engineering Instructions
 
-AutoVision is an Adaptive Vehicle Service Intelligence Platform.
+Read [README.md](../README.md) and [docs/README.md](../docs/README.md) before
+scanning. Then read the relevant architecture or development document for the
+requested task and inspect only the bounded module first. Avoid repository-wide
+scans unless the change genuinely crosses boundaries.
 
-Core lifecycle:
-Observe -> Predict -> Decide -> Execute -> Verify -> Learn.
+## Current architecture
 
-Architecture:
-- Frontend: Next.js + TypeScript
-- Backend: FastAPI + Python
-- Database: PostgreSQL
-- Media: object storage abstraction
-- Async processing: queue + worker abstraction
-- AI: provider-independent AI Gateway
-- Safety: deterministic safety-policy engine
-- Integration: DMS-neutral canonical adapter
+- Angular frontend with `core`, `features`, `shared`, and `shell` separation.
+- Java/Spring Boot core platform with domain-oriented packages and PostgreSQL.
+- Keycloak with OAuth2/OIDC Authorization Code + PKCE and a public SPA client.
+- Python/FastAPI retained for AI/ML, prediction, and vision services only.
+- Same-origin browser `/api` traffic through the frontend proxy.
+- Server-side authorization and tenant isolation are authoritative.
 
-Engineering principles:
-1. Use a modular monolith for the POC. Do not introduce microservices unless explicitly requested.
-2. Never couple domain objects to a specific DMS, OEM or AI provider.
-3. Preserve tenant isolation and server-side authorization.
-4. Never place secrets in source code.
-5. AI outputs are untrusted until schema validated.
-6. Generative AI must never be the sole authority for safety decisions.
-7. Safety-blocked actions cannot be re-enabled by normal user override.
-8. Preserve recommendation and actual repair as separate historical records.
-9. Prefer simple, maintainable implementations over unnecessary frameworks.
-10. Add tests for authorization, validation and negative paths.
-11. Do not invent new product requirements. Ask before changing the frozen architecture.
-12. All POC simulated predictive outputs must be clearly identifiable as simulated.
-13. Follow the canonical API/data model.
-14. Produce accessible responsive UI.
-15. Do not change architecture merely because another pattern is more fashionable.
+Preserve DMS-neutral canonical contracts and provider portability. Use the
+existing modular monolith boundaries; do not introduce microservices or change
+architecture for fashion.
 
-Sprint 0 scope:
-- Repository foundation
-- Development environment
-- Authentication/demo roles foundation
-- PostgreSQL
-- Vehicle canonical entity
-- Vehicle Search
-- Vehicle 360 foundation screen
-- CI/CD
-- Correlation IDs / structured logging
+## Frozen business boundaries
 
-Do not implement yet:
-- vehicle inspection AI
-- predictive maintenance
-- NBSA
-- safety rules
-- customer approval
-- DMS synchronization
-- SOE
+- Quote, Appointment, ServiceOrder, and Invoice are core DMS transactions.
+- Inspection/AI is optional and is not a prerequisite for ServiceOrder.
+- AfterSalesCase is durable case context.
+- CustomerAuthorization is an auditable business record.
+- ServiceOrder, ServiceJob, and ServiceLine naming is frozen.
+- ServiceLine belongs to ServiceOrder and may optionally belong to ServiceJob.
+- Do not conflate lifecycle timestamps with mechanic time clocking.
+
+## Coding and maintainability
+
+Use meaningful domain-oriented package and folder names, cohesive classes and
+components, thin controllers, business-focused services, persistence
+repositories, and explicit DTOs/contracts. Extract responsibilities when files
+grow materially. Add tests for authorization, validation, and negative paths.
+Avoid speculative abstractions, broad refactors, and invented requirements.
+
+## Development workflow
+
+- Inspect before editing and make the smallest scoped change.
+- Run focused tests or validation before broad quality gates.
+- Use existing scripts under `scripts/dev` and preserve their quiet success output.
+- Do not close the terminal from provided PowerShell examples; keep failures visible.
+- Do not stage, commit, or push unless explicitly requested; preserve clean Git boundaries.
+- Never place secrets in source, documentation, logs, or test fixtures.
+
+## Documentation maintenance
+
+Update the relevant docs when changing architecture boundaries, runtime setup,
+security/identity behavior, developer workflow, or repository ownership. Trivial
+internal refactors that do not change a contract do not require documentation.

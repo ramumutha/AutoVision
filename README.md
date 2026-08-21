@@ -1,127 +1,38 @@
-# AutoVision Sprint 0
+# AutoVision
 
-## Local developer setup
+AutoVision is an adaptive vehicle service intelligence platform. The current
+enterprise runtime combines an Angular application, a Java/Spring Boot core
+platform, PostgreSQL, and Keycloak identity. Python/FastAPI remains a boundary
+for AI/ML, prediction, and vision services; it is not the core backend.
 
-### 1. Clone and create Python environment
+## Repository at a glance
 
-```bash
-cd AutoVision
-python -m venv api/.venv
-```
+- `frontend/`: Angular browser application and feature workflows.
+- `platform/`: Java/Spring Boot domain APIs, security, tenant context, and persistence.
+- `infra/`: Keycloak realm and local runtime configuration.
+- `contracts/`: portable integration contract area.
+- `scripts/`: validation and developer workflow checks.
+- `api/`, `web/`, `worker/`, and AI support directories: retained POC/support areas; see the [repository map](docs/architecture/repository-map.md).
 
-On Windows PowerShell:
+## Local runtime
 
-```powershell
-cd AutoVision
-py -m venv api\.venv
-```
+The containerized local entry point is [http://localhost:8080](http://localhost:8080).
+Keycloak is available at [http://localhost:8081](http://localhost:8081). The
+authenticated proof endpoint is `/api/v1/me`.
 
-Activate the environment and install backend dependencies:
+For prerequisites, environment setup, local-user bootstrap, login, and
+shutdown, follow the [local runtime runbook](docs/development/local-runtime.md).
 
-```bash
-cd api
-. .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+## Documentation
 
-On Windows PowerShell:
+Start at the [documentation index](docs/README.md). It links the architecture
+contract, ownership map, authentication and tenant model, validation workflow,
+and troubleshooting guide.
 
-```powershell
-cd api
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+## Prerequisites
 
-### 2. Configure local environment files
+Docker Desktop with Compose, a supported JDK, the checked-in Maven wrapper, and
+Node.js/npm are required for the current runtime and validation workflows.
 
-Copy the project examples and fill in local values:
-
-```bash
-cp .env.example .env
-cp web/.env.example web/.env.local
-```
-
-For Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item web/.env.example web/.env.local
-```
-
-Required values include:
-
-- DATABASE_URL for the development database (`autovision`)
-- TEST_DATABASE_URL for the isolated pytest database (`autovision_test`)
-- CORS_ALLOWED_ORIGINS for the local frontend origin
-- NEXT_PUBLIC_API_BASE_URL for the local API URL
-- NEXT_PUBLIC_DEMO_TENANT_ID for Sprint 0 demo mode
-
-### 3. Start PostgreSQL
-
-```bash
-docker compose up -d postgres
-```
-
-### 4. Run database migration
-
-```bash
-cd api
-python -m alembic upgrade head
-```
-
-### 5. Seed Sprint 0 demo data
-
-```bash
-cd api
-python -m scripts.seed_demo
-```
-
-### 6. Run backend
-
-```bash
-cd api
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 7. Install frontend dependencies
-
-```bash
-cd web
-npm install
-```
-
-### 8. Run frontend
-
-```bash
-cd web
-npm run dev
-```
-
-Open:
-
-- http://localhost:3000
-- http://localhost:8000/health
-
-### 9. Run tests
-
-```bash
-cd api
-python -m pytest -q
-```
-
-## Sprint 0 scope
-
-This repository is intentionally scoped to the Sprint 0 foundation for AutoVision:
-
-- backend foundation
-- PostgreSQL and migration setup
-- deterministic demo seed
-- tenant-scoped vehicle queries
-- vehicle search/list
-- vehicle 360 detail
-- frontend demo integration
-- isolated pytest database
-
-No Sprint 1+ functionality is included.
+Do not commit `.env`, credentials, tokens, or other local secrets. See
+[SECURITY.md](SECURITY.md) for repository handling rules.
