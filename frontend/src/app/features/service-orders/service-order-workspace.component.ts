@@ -13,10 +13,11 @@ import { ServiceOrderOverviewComponent } from './service-order-overview.componen
 import { ServiceOrderQuotesComponent } from './service-order-quotes.component';
 import { ServiceOrderLinesComponent } from './service-order-lines.component';
 import { ServiceOrderSection } from './service-order.models';
+import { ServiceJobOperationalAuthorizationComponent } from './service-job-operational-authorization.component';
 
 @Component({
   selector: 'app-service-order-workspace',
-  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent, ServiceOrderQuotesComponent, ServiceOrderLinesComponent],
+  imports: [AsyncPipe, RouterLink, RouterLinkActive, AvFeedbackComponent, AvStatusComponent, ServiceOrderOverviewComponent, ServiceOrderQuotesComponent, ServiceOrderLinesComponent, ServiceJobOperationalAuthorizationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state$ | async; as state) {
@@ -40,7 +41,7 @@ import { ServiceOrderSection } from './service-order.models';
           <a routerLink="." [queryParams]="{ section: 'quotes' }" queryParamsHandling="merge" routerLinkActive="active">{{ localization.text('quotes') }}</a>
         </nav>
         @if (section() === 'overview') {
-          <app-service-order-overview [order]="aggregate.order" />
+          <app-service-order-overview [order]="aggregate.order" /><app-service-job-operational-authorization [orderId]="aggregate.order.id" [jobs]="aggregate.jobs" />
         } @else if (section() === 'quotes') {
           <app-service-order-quotes />
         } @else if (section() === 'lines') {

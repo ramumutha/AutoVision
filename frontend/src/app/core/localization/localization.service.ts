@@ -40,6 +40,10 @@ const ENGLISH = {
   line: 'Line', lineType: 'Line Type', unitOfMeasure: 'Unit of Measure', jobContext: 'Job Context', commercialData: 'Commercial Data',
   commercialAvailable: 'Commercial data available', commercialIncomplete: 'Commercial data incomplete', notAvailable: 'Not available',
   noServiceLines: 'No service lines have been added to this service order.',
+  serviceJobs: 'Service Jobs', operationalAuthorization: 'Operational Authorization', noServiceJobs: 'No service jobs are available.',
+  loadingAuthorizationEvaluation: 'Loading authorization evaluation', unableToLoadAuthorizationEvaluation: 'Unable to load authorization evaluation',
+  authorizationEvaluationUnavailable: 'Authorization evaluation unavailable', authorizationNotRequired: 'Authorization is not required for this job.',
+  totalJobLines: 'Total Job Lines', authorizedLines: 'Authorized Lines', pendingLines: 'Pending Lines', notAuthorizedLines: 'Not Authorized Lines',
 };
 
 @Injectable({ providedIn: 'root' })
