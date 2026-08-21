@@ -10,7 +10,9 @@ import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +43,12 @@ class CustomerAuthorizationServiceTests {
     private final ServiceQuoteRepository quoteRepository =
             mock(ServiceQuoteRepository.class);
 
+    private final ServiceQuoteLineRepository quoteLineRepository =
+            mock(ServiceQuoteLineRepository.class);
+
+    private final ServiceQuoteAuthorizationSnapshotFactory snapshotFactory =
+            new ServiceQuoteAuthorizationSnapshotFactory(OBJECT_MAPPER);
+
     private final AuthorizationService authorizationService =
             mock(AuthorizationService.class);
 
@@ -49,6 +57,8 @@ class CustomerAuthorizationServiceTests {
                     repository,
                     caseRepository,
                     quoteRepository,
+                    quoteLineRepository,
+                    snapshotFactory,
                     authorizationService
             );
 
@@ -698,6 +708,211 @@ class CustomerAuthorizationServiceTests {
     }
 
     @Test
+    void issuedQuoteCreatesAuthorizationWithDeterministicEvidence()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        UUID serviceOrderId = UUID.randomUUID();
+        UUID firstLineId = UUID.randomUUID();
+        UUID secondLineId = UUID.randomUUID();
+        UUID firstServiceLineId = UUID.randomUUID();
+        UUID secondServiceLineId = UUID.randomUUID();
+        UUID serviceJobId = UUID.randomUUID();
+
+        ServiceQuote quote = quoteRecord(
+                quoteId,
+                tenantId,
+                caseId,
+                serviceOrderId,
+                "QUOTE-ISSUED-1"
+        );
+        quote.issue(principalId, OffsetDateTime.now());
+
+        ServiceQuoteLine firstLine = ServiceQuoteLine.create(
+                firstLineId,
+                quoteId,
+                firstServiceLineId,
+                null,
+                "Front brake pad",
+                new BigDecimal("2.0000"),
+                new BigDecimal("125.1250"),
+                "INR",
+                new BigDecimal("250.2500"),
+                new BigDecimal("45.0450"),
+                new BigDecimal("295.2950"),
+                1,
+                principalId,
+                OffsetDateTime.now()
+        );
+        ServiceQuoteLine secondLine = ServiceQuoteLine.create(
+                secondLineId,
+                quoteId,
+                secondServiceLineId,
+                serviceJobId,
+                "Brake inspection",
+                new BigDecimal("1.0000"),
+                new BigDecimal("99.9999"),
+                "INR",
+                new BigDecimal("99.9999"),
+                new BigDecimal("18.0000"),
+                new BigDecimal("117.9999"),
+                2,
+                principalId,
+                OffsetDateTime.now()
+        );
+
+        prepareRequestCase(caseId);
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quote));
+        when(quoteLineRepository.findByServiceQuoteIdOrderBySequenceAsc(quoteId))
+                .thenReturn(List.of(firstLine, secondLine));
+        when(repository.save(any(CustomerAuthorization.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomerAuthorization result = service.requestFromServiceQuote(
+                context,
+                caseId,
+                quoteId,
+                "AUTH-FROM-QUOTE-1",
+                "CUSTOMER-1",
+                "Test Customer",
+                "Authorize quoted work"
+        );
+
+        assertEquals(CustomerAuthorizationStatus.REQUESTED,
+                result.getAuthorizationStatus());
+        assertEquals(quoteId, result.getServiceQuoteId());
+        assertEquals(quote.getTermsSnapshot(), result.getTermsSnapshot());
+        assertEquals(quote.getDisclaimerSnapshot(), result.getDisclaimerSnapshot());
+        assertEquals("\"SERVICE_QUOTE\"",
+                result.getAuthorizationScopeSnapshot().get("sourceType").toString());
+        assertEquals(List.of(
+                        "\"" + firstLineId + "\"",
+                        "\"" + secondLineId + "\""
+                ),
+                result.getAuthorizationScopeSnapshot().get("quoteLineIds")
+                        .valueStream()
+                        .map(node -> node.toString())
+                        .toList());
+
+        JsonNode commercial = result.getCommercialSnapshot();
+        assertEquals("\"INR\"", commercial.get("currencyCode").toString());
+        assertEquals("99.9999",
+                commercial.get("lines").get(1).get("unitPrice").toString());
+        assertEquals("117.9999",
+                commercial.get("lines").get(1).get("grossAmount").toString());
+        assertEquals("\"" + serviceJobId + "\"",
+                commercial.get("lines").get(1).get("serviceJobId").toString());
+        assertEquals(ServiceQuoteStatus.ISSUED, quote.getStatus());
+    }
+
+    @Test
+    void rejectsEveryNonIssuedQuoteStatusWithoutMutatingQuote()
+            throws Exception {
+        for (ServiceQuoteStatus status : List.of(
+                ServiceQuoteStatus.DRAFT,
+                ServiceQuoteStatus.ACCEPTED,
+                ServiceQuoteStatus.DECLINED,
+                ServiceQuoteStatus.CANCELLED,
+                ServiceQuoteStatus.EXPIRED,
+                ServiceQuoteStatus.SUPERSEDED
+        )) {
+            UUID caseId = UUID.randomUUID();
+            UUID quoteId = UUID.randomUUID();
+            ServiceQuote quote = quoteRecord(quoteId, tenantId, caseId);
+            if (status != ServiceQuoteStatus.DRAFT) {
+                quote.changeStatus(status, principalId, OffsetDateTime.now());
+            }
+
+            prepareRequestCase(caseId);
+            when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                    .thenReturn(Optional.of(quote));
+
+            ResponseStatusException exception = assertThrows(
+                    ResponseStatusException.class,
+                    () -> service.requestFromServiceQuote(
+                            context,
+                            caseId,
+                            quoteId,
+                            "AUTH-STATUS-" + status,
+                            null,
+                            null,
+                            "Authorize quoted work"
+                    )
+            );
+
+            assertEquals(409, exception.getStatusCode().value());
+            assertEquals(status, quote.getStatus());
+            verify(repository, never()).save(any(CustomerAuthorization.class));
+        }
+    }
+
+    @Test
+    void existingRequestedAuthorizationBlocksOnlyOutstandingQuoteRequest()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        ServiceQuote quote = quoteRecord(quoteId, tenantId, caseId);
+        quote.issue(principalId, OffsetDateTime.now());
+        prepareRequestCase(caseId);
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quote));
+        when(repository.existsByTenantIdAndServiceQuoteIdAndAuthorizationStatus(
+                tenantId,
+                quoteId,
+                CustomerAuthorizationStatus.REQUESTED
+        )).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.requestFromServiceQuote(
+                        context,
+                        caseId,
+                        quoteId,
+                        "AUTH-DUPLICATE-QUOTE",
+                        null,
+                        null,
+                        "Authorize quoted work"
+                )
+        );
+
+        assertEquals(409, exception.getStatusCode().value());
+        assertEquals(ServiceQuoteStatus.ISSUED, quote.getStatus());
+        verify(quoteLineRepository, never())
+                .findByServiceQuoteIdOrderBySequenceAsc(quoteId);
+        verify(repository, never()).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
+    void historicalNonRequestedAuthorizationDoesNotBlockQuoteRequest()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        ServiceQuote quote = quoteRecord(quoteId, tenantId, caseId);
+        quote.issue(principalId, OffsetDateTime.now());
+        prepareRequestCase(caseId);
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quote));
+        when(quoteLineRepository.findByServiceQuoteIdOrderBySequenceAsc(quoteId))
+                .thenReturn(List.of());
+        when(repository.save(any(CustomerAuthorization.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomerAuthorization result = service.requestFromServiceQuote(
+                context,
+                caseId,
+                quoteId,
+                "AUTH-HISTORICAL-1",
+                null,
+                null,
+                "Authorize quoted work"
+        );
+
+        assertEquals(CustomerAuthorizationStatus.REQUESTED,
+                result.getAuthorizationStatus());
+    }
+
+    @Test
     void parentCaseLookupIsScopedToAuthenticatedTenant() {
         UUID caseId = UUID.randomUUID();
         UUID authorizationId = UUID.randomUUID();
@@ -1020,23 +1235,14 @@ class CustomerAuthorizationServiceTests {
             UUID caseId,
             UUID serviceQuoteId
     ) throws Exception {
-        return service.request(
+        return service.requestFromServiceQuote(
                 context,
                 caseId,
                 serviceQuoteId,
                 "AUTH-QUOTE-REJECTED",
                 null,
                 null,
-                "Authorize quoted work",
-                json("""
-                        {
-                          "scopeVersion": 1,
-                          "items": []
-                        }
-                        """),
-                null,
-                null,
-                null
+                "Authorize quoted work"
         );
     }
 
@@ -1068,26 +1274,42 @@ class CustomerAuthorizationServiceTests {
         );
     }
 
-        private ServiceQuote quoteRecord(
-                        UUID quoteId,
-                        UUID quoteTenantId,
-                        UUID caseId
-        ) {
-                return ServiceQuote.create(
-                                quoteId,
-                                quoteTenantId,
-                                null,
-                                null,
-                                caseId,
-                                UUID.randomUUID(),
-                                "QUOTE-" + quoteId,
-                                "INR",
-                                null,
-                                null,
-                                null,
-                                principalId,
-                                OffsetDateTime.now()
-                );
+    private ServiceQuote quoteRecord(
+            UUID quoteId,
+            UUID quoteTenantId,
+            UUID caseId
+    ) {
+        return quoteRecord(
+                quoteId,
+                quoteTenantId,
+                caseId,
+                UUID.randomUUID(),
+                "QUOTE-" + quoteId
+        );
+    }
+
+    private ServiceQuote quoteRecord(
+            UUID quoteId,
+            UUID quoteTenantId,
+            UUID caseId,
+            UUID serviceOrderId,
+            String quoteNumber
+    ) {
+        return ServiceQuote.create(
+                quoteId,
+                quoteTenantId,
+                null,
+                null,
+                caseId,
+                serviceOrderId,
+                quoteNumber,
+                "INR",
+                null,
+                null,
+                null,
+                principalId,
+                OffsetDateTime.now()
+        );
         }
 
     private CustomerAuthorization authorizationRecord(

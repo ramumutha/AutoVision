@@ -37,4 +37,10 @@ public interface CustomerAuthorizationRepository
             UUID tenantId,
             String authorizationNumber
     );
+
+    boolean existsByTenantIdAndServiceQuoteIdAndAuthorizationStatus(
+            UUID tenantId,
+            UUID serviceQuoteId,
+            CustomerAuthorizationStatus authorizationStatus
+    );
 }

@@ -47,7 +47,7 @@ public class CustomerAuthorizationController {
                 caseId
         )
         .stream()
-        .map(this::toResponse)
+        .map(CustomerAuthorizationController::toResponse)
         .toList();
     }
 
@@ -180,7 +180,7 @@ public class CustomerAuthorizationController {
         );
     }
 
-    private CustomerAuthorizationResponse toResponse(
+        static CustomerAuthorizationResponse toResponse(
             CustomerAuthorization authorization
     ) {
         return new CustomerAuthorizationResponse(

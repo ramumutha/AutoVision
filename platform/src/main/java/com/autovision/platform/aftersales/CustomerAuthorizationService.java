@@ -28,17 +28,23 @@ public class CustomerAuthorizationService {
     private final CustomerAuthorizationRepository repository;
     private final AfterSalesCaseRepository caseRepository;
         private final ServiceQuoteRepository quoteRepository;
+        private final ServiceQuoteLineRepository quoteLineRepository;
+        private final ServiceQuoteAuthorizationSnapshotFactory snapshotFactory;
     private final AuthorizationService authorizationService;
 
     public CustomerAuthorizationService(
             CustomerAuthorizationRepository repository,
             AfterSalesCaseRepository caseRepository,
             ServiceQuoteRepository quoteRepository,
+            ServiceQuoteLineRepository quoteLineRepository,
+            ServiceQuoteAuthorizationSnapshotFactory snapshotFactory,
             AuthorizationService authorizationService
     ) {
         this.repository = repository;
         this.caseRepository = caseRepository;
         this.quoteRepository = quoteRepository;
+        this.quoteLineRepository = quoteLineRepository;
+        this.snapshotFactory = snapshotFactory;
         this.authorizationService = authorizationService;
     }
 
@@ -204,6 +210,84 @@ public class CustomerAuthorizationService {
     }
 
     @Transactional
+    public CustomerAuthorization requestFromServiceQuote(
+            AuthenticatedTenantContext tenantContext,
+            UUID caseId,
+            UUID quoteId,
+            String authorizationNumber,
+            String customerReference,
+            String customerDisplayNameSnapshot,
+            String authorizationSummary
+    ) {
+        requireCasePermission(
+                tenantContext,
+                caseId,
+                AfterSalesPermissions.CUSTOMER_AUTHORIZATION_CREATE
+        );
+
+        AfterSalesCase afterSalesCase = requireCase(tenantContext, caseId);
+        ServiceQuote quote = requireQuoteForCase(
+                tenantContext,
+                caseId,
+                quoteId
+        );
+
+        if (quote.getStatus() != ServiceQuoteStatus.ISSUED) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "Service quote is not eligible for authorization"
+            );
+        }
+
+        if (repository.existsByTenantIdAndServiceQuoteIdAndAuthorizationStatus(
+                tenantContext.tenantId(),
+                quoteId,
+                CustomerAuthorizationStatus.REQUESTED
+        )) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "A customer authorization request already exists for this service quote"
+            );
+        }
+
+        ServiceQuoteAuthorizationSnapshotFactory.Snapshots snapshots =
+                snapshotFactory.create(
+                        quote,
+                        quoteLineRepository.findByServiceQuoteIdOrderBySequenceAsc(
+                                quoteId
+                        )
+                );
+
+        CustomerAuthorization authorization = CustomerAuthorization.request(
+                UUID.randomUUID(),
+                tenantContext.tenantId(),
+                afterSalesCase.getDealerId(),
+                afterSalesCase.getBranchId(),
+                afterSalesCase.getId(),
+                quoteId,
+                authorizationNumber,
+                customerReference,
+                customerDisplayNameSnapshot,
+                authorizationSummary,
+                snapshots.authorizationScopeSnapshot(),
+                snapshots.commercialSnapshot(),
+                quote.getTermsSnapshot(),
+                quote.getDisclaimerSnapshot(),
+                tenantContext.userRefId(),
+                OffsetDateTime.now()
+        );
+
+        CustomerAuthorization saved = repository.save(authorization);
+        logLifecycleEvent(
+                "customer_authorization.requested",
+                saved,
+                tenantContext,
+                null
+        );
+        return saved;
+    }
+
+    @Transactional
     public CustomerAuthorization authorize(
             AuthenticatedTenantContext tenantContext,
             UUID caseId,
@@ -341,6 +425,30 @@ public class CustomerAuthorizationService {
                 NOT_FOUND,
                 "AfterSales case not found"
         ));
+    }
+
+    private ServiceQuote requireQuoteForCase(
+            AuthenticatedTenantContext tenantContext,
+            UUID caseId,
+            UUID quoteId
+    ) {
+        ServiceQuote quote = quoteRepository.findByIdAndTenantId(
+                quoteId,
+                tenantContext.tenantId()
+        ).orElseThrow(() -> new ResponseStatusException(
+                NOT_FOUND,
+                "Service quote not found"
+        ));
+
+        if (quote.getAfterSalesCaseId() == null
+                || !caseId.equals(quote.getAfterSalesCaseId())) {
+            throw new ResponseStatusException(
+                    NOT_FOUND,
+                    "Service quote not found"
+            );
+        }
+
+        return quote;
     }
 
     private CustomerAuthorization requireAuthorization(

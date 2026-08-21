@@ -340,6 +340,53 @@ class CustomerAuthorizationControllerIntegrationTests {
     }
 
     @Test
+    void quoteRequestEndpointDoesNotAcceptServerGeneratedEvidenceFields()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+        when(service.requestFromServiceQuote(
+                context,
+                caseId,
+                quoteId,
+                "AUTH-QUOTE-VALIDATION",
+                null,
+                null,
+                "Authorize quoted work"
+        )).thenReturn(
+                authorizationRecord(
+                        UUID.randomUUID(),
+                        caseId,
+                        "AUTH-QUOTE-VALIDATION"
+                )
+        );
+
+        mockMvc.perform(
+                post(
+                        "/api/v1/aftersales-cases/{caseId}/service-quotes/{quoteId}/customer-authorization",
+                        caseId,
+                        quoteId
+                )
+                .with(authenticatedJwt())
+                .contentType("application/json")
+                .content("""
+                        {
+                          "authorizationNumber": "AUTH-QUOTE-VALIDATION",
+                          "authorizationSummary": "Authorize quoted work",
+                          "serviceQuoteId": "00000000-0000-0000-0000-000000000001",
+                          "authorizationScopeSnapshot": {},
+                          "commercialSnapshot": {},
+                          "termsSnapshot": "client supplied terms",
+                          "disclaimerSnapshot": "client supplied disclaimer"
+                        }
+                        """)
+        )
+        .andExpect(status().isCreated());
+    }
+
+    @Test
     void requestRejectsBlankAuthorizationNumber()
             throws Exception {
 
