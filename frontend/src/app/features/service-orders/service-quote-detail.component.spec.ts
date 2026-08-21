@@ -9,7 +9,14 @@ import { ServiceQuoteDetail, ServiceQuoteStatus } from './service-quote.models';
 describe('ServiceQuoteDetailComponent', () => {
   let fixture: ComponentFixture<ServiceQuoteDetailComponent>;
   let api: { getQuote: ReturnType<typeof vi.fn> };
-  type AuthorizationApiMock = { requestFromServiceQuote: ReturnType<typeof vi.fn>; listForServiceQuote: ReturnType<typeof vi.fn> };
+  type AuthorizationApiMock = {
+    requestFromServiceQuote: ReturnType<typeof vi.fn>;
+    listForServiceQuote: ReturnType<typeof vi.fn>;
+    authorize?: ReturnType<typeof vi.fn>;
+    decline?: ReturnType<typeof vi.fn>;
+    defer?: ReturnType<typeof vi.fn>;
+    cancel?: ReturnType<typeof vi.fn>;
+  };
   let authorizationApi: AuthorizationApiMock;
   const detail: ServiceQuoteDetail = {
     id: 'quote-1', serviceOrderId: 'order-1', quoteNumber: 'Q-100', status: 'ACCEPTED',
@@ -23,9 +30,23 @@ describe('ServiceQuoteDetailComponent', () => {
     return { ...detail, status, afterSalesCaseId };
   }
 
+  function authorizationRecord(status: CustomerAuthorization['authorizationStatus'], id = 'authorization-1'): CustomerAuthorization {
+    return {
+      id, tenantId: 'tenant-1', dealerId: null, branchId: null, aftersalesCaseId: 'case-1', serviceQuoteId: 'quote-1',
+      authorizationNumber: `AUTH-${id}`, authorizationStatus: status, customerReference: null, customerDisplayNameSnapshot: null,
+      authorizationSummary: `${status} work`, authorizationScopeSnapshot: {}, commercialSnapshot: null, termsSnapshot: null, disclaimerSnapshot: null,
+      requestedAt: '2026-08-21T10:00:00Z', decidedAt: status === 'REQUESTED' ? null : '2026-08-21T11:00:00Z',
+      decisionChannel: status === 'REQUESTED' ? null : 'EMAIL', decisionReference: status === 'REQUESTED' ? null : 'DEC-1', version: 0,
+      createdByPrincipalId: null, updatedByPrincipalId: null, createdAt: '2026-08-21T10:00:00Z', updatedAt: '2026-08-21T11:00:00Z',
+    };
+  }
+
   async function create(result: Observable<ServiceQuoteDetail> = of(detail), authorizationApiMock?: AuthorizationApiMock): Promise<void> {
     api = { getQuote: vi.fn().mockReturnValue(result) };
-    authorizationApi = authorizationApiMock ?? { requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([])) };
+    authorizationApi = authorizationApiMock ?? {
+      requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([])),
+      authorize: vi.fn(), decline: vi.fn(), defer: vi.fn(), cancel: vi.fn(),
+    };
     await TestBed.configureTestingModule({
       imports: [ServiceQuoteDetailComponent],
       providers: [
@@ -142,6 +163,67 @@ describe('ServiceQuoteDetailComponent', () => {
     expect(authorizationApi.listForServiceQuote).toHaveBeenCalledTimes(2);
     expect(api.getQuote).toHaveBeenCalledTimes(1);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No customer authorization history.');
+  });
+
+  it('shows decision controls only for REQUESTED history entries', async () => {
+    const requested = authorizationRecord('REQUESTED');
+    await create(of(withStatus('ISSUED', 'case-1')), { requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([requested])) });
+    expect(fixture.nativeElement.querySelectorAll('.decision-actions').length).toBe(1);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Record Customer Authorization');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Record Customer Decline');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Record Customer Deferral');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Withdraw Authorization Request');
+  });
+
+  it.each(['AUTHORIZED', 'DECLINED', 'DEFERRED', 'CANCELLED'] as CustomerAuthorization['authorizationStatus'][])(
+    'hides decision controls for %s history entries', async (status) => {
+      await create(of(withStatus('ISSUED', 'case-1')), { requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([authorizationRecord(status)])) });
+      expect(fixture.nativeElement.querySelectorAll('.decision-actions').length).toBe(0);
+    },
+  );
+
+  it('opens each action and keeps only one decision panel open', async () => {
+    const requested = authorizationRecord('REQUESTED');
+    await create(of(withStatus('ISSUED', 'case-1')), { requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([requested])) });
+    const buttons = fixture.nativeElement.querySelectorAll('.decision-actions button');
+    for (let index = 0; index < 4; index += 1) {
+      (buttons[index] as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('app-service-quote-authorization-decision').length).toBe(1);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(index === 0 ? 'Record Customer Authorization' : index === 1 ? 'Record Customer Decline' : index === 2 ? 'Record Customer Deferral' : 'Withdraw Authorization Request');
+    }
+  });
+
+  it('cancels the decision panel without changing quote or history', async () => {
+    const requested = authorizationRecord('REQUESTED');
+    await create(of(withStatus('ISSUED', 'case-1')), { requestFromServiceQuote: vi.fn(), listForServiceQuote: vi.fn().mockReturnValue(of([requested])) });
+    (fixture.nativeElement.querySelector('.decision-actions button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.decision-panel .secondary') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('app-service-quote-authorization-decision').length).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Q-100');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('AUTH-authorization-1');
+  });
+
+  it('refreshes canonical history after a decision without reloading the quote', async () => {
+    const requested = authorizationRecord('REQUESTED');
+    const authorized = authorizationRecord('AUTHORIZED');
+    const listForServiceQuote = vi.fn().mockReturnValueOnce(of([requested])).mockReturnValueOnce(of([authorized]));
+    const authorize = vi.fn().mockReturnValue(of(authorized));
+    await create(of(withStatus('ISSUED', 'case-1')), { requestFromServiceQuote: vi.fn(), listForServiceQuote, authorize });
+    (fixture.nativeElement.querySelector('.decision-actions button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.decision-panel form') as HTMLFormElement).dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+    expect(authorize).toHaveBeenCalledWith('case-1', 'authorization-1', { decisionChannel: null, decisionReference: null });
+    expect(listForServiceQuote).toHaveBeenCalledTimes(2);
+    expect(api.getQuote).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.querySelectorAll('.decision-actions').length).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('AUTHORIZED');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Customer authorization decision recorded');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('ISSUED');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Q-100');
   });
 
   it('opens and cancels the inline authorization request without changing quote detail', async () => {
