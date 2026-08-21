@@ -11,6 +11,7 @@ public record CustomerAuthorizationResponse(
         UUID dealerId,
         UUID branchId,
         UUID aftersalesCaseId,
+        UUID serviceQuoteId,
         String authorizationNumber,
         CustomerAuthorizationStatus authorizationStatus,
         String customerReference,

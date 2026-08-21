@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,6 +38,9 @@ class CustomerAuthorizationServiceTests {
     private final AfterSalesCaseRepository caseRepository =
             mock(AfterSalesCaseRepository.class);
 
+    private final ServiceQuoteRepository quoteRepository =
+            mock(ServiceQuoteRepository.class);
+
     private final AuthorizationService authorizationService =
             mock(AuthorizationService.class);
 
@@ -44,6 +48,7 @@ class CustomerAuthorizationServiceTests {
             new CustomerAuthorizationService(
                     repository,
                     caseRepository,
+                    quoteRepository,
                     authorizationService
             );
 
@@ -124,6 +129,7 @@ class CustomerAuthorizationServiceTests {
                 principalId,
                 result.getCreatedByPrincipalId()
         );
+        assertNull(result.getServiceQuoteId());
 
         verify(authorizationService).requirePermission(
                 new AuthorizationRequest(
@@ -565,6 +571,133 @@ class CustomerAuthorizationServiceTests {
     }
 
     @Test
+    void requestsAuthorizationWithSameTenantAndCaseQuote() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+
+        when(caseRepository.findByIdAndTenantId(caseId, tenantId))
+                .thenReturn(Optional.of(caseRecord(caseId, null, null)));
+        when(quoteRepository.findByIdAndTenantId(serviceQuoteId, tenantId))
+                .thenReturn(Optional.of(quoteRecord(
+                        serviceQuoteId,
+                        tenantId,
+                        caseId
+                )));
+        when(repository.save(any(CustomerAuthorization.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomerAuthorization result = service.request(
+                context,
+                caseId,
+                serviceQuoteId,
+                "AUTH-QUOTE-1",
+                null,
+                null,
+                "Authorize quoted work",
+                json("""
+                        {
+                          "scopeVersion": 1,
+                          "items": []
+                        }
+                        """),
+                null,
+                "Terms",
+                "Disclaimer"
+        );
+
+        assertEquals(serviceQuoteId, result.getServiceQuoteId());
+        verify(repository).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
+    void rejectsUnknownServiceQuoteWithoutLeakingTenantInformation()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(serviceQuoteId, tenantId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> requestWithQuote(caseId, serviceQuoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+        verify(repository, never()).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
+    void rejectsServiceQuoteFromAnotherCaseWithoutLeakingItsIdentity()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+        UUID otherCaseId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(serviceQuoteId, tenantId))
+                .thenReturn(Optional.of(quoteRecord(
+                        serviceQuoteId,
+                        tenantId,
+                        otherCaseId
+                )));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> requestWithQuote(caseId, serviceQuoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+        verify(repository, never()).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
+    void rejectsCrossTenantServiceQuoteWithoutLeakingTenantInformation()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(serviceQuoteId, tenantId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> requestWithQuote(caseId, serviceQuoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+        verify(repository, never()).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
+    void rejectsServiceQuoteWithoutAfterSalesCase() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(serviceQuoteId, tenantId))
+                .thenReturn(Optional.of(quoteRecord(
+                        serviceQuoteId,
+                        tenantId,
+                        null
+                )));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> requestWithQuote(caseId, serviceQuoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+        verify(repository, never()).save(any(CustomerAuthorization.class));
+    }
+
+    @Test
     void parentCaseLookupIsScopedToAuthenticatedTenant() {
         UUID caseId = UUID.randomUUID();
         UUID authorizationId = UUID.randomUUID();
@@ -878,6 +1011,35 @@ class CustomerAuthorizationServiceTests {
         )).thenReturn(Optional.of(authorization));
     }
 
+    private void prepareRequestCase(UUID caseId) {
+        when(caseRepository.findByIdAndTenantId(caseId, tenantId))
+                .thenReturn(Optional.of(caseRecord(caseId, null, null)));
+    }
+
+    private CustomerAuthorization requestWithQuote(
+            UUID caseId,
+            UUID serviceQuoteId
+    ) throws Exception {
+        return service.request(
+                context,
+                caseId,
+                serviceQuoteId,
+                "AUTH-QUOTE-REJECTED",
+                null,
+                null,
+                "Authorize quoted work",
+                json("""
+                        {
+                          "scopeVersion": 1,
+                          "items": []
+                        }
+                        """),
+                null,
+                null,
+                null
+        );
+    }
+
     private void verifyDecisionPermission(UUID caseId) {
         verify(authorizationService).requirePermission(
                 new AuthorizationRequest(
@@ -905,6 +1067,28 @@ class CustomerAuthorizationServiceTests {
                 OffsetDateTime.now()
         );
     }
+
+        private ServiceQuote quoteRecord(
+                        UUID quoteId,
+                        UUID quoteTenantId,
+                        UUID caseId
+        ) {
+                return ServiceQuote.create(
+                                quoteId,
+                                quoteTenantId,
+                                null,
+                                null,
+                                caseId,
+                                UUID.randomUUID(),
+                                "QUOTE-" + quoteId,
+                                "INR",
+                                null,
+                                null,
+                                null,
+                                principalId,
+                                OffsetDateTime.now()
+                );
+        }
 
     private CustomerAuthorization authorizationRecord(
             UUID authorizationId,

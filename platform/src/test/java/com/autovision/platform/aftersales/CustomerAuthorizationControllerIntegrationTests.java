@@ -207,6 +207,7 @@ class CustomerAuthorizationControllerIntegrationTests {
         when(service.request(
                 context,
                 caseId,
+                null,
                 "AUTH-4003",
                 "CUSTOMER-1",
                 "Test Customer",
@@ -257,6 +258,84 @@ class CustomerAuthorizationControllerIntegrationTests {
         .andExpect(
                 jsonPath("$.authorizationStatus")
                         .value("REQUESTED")
+        );
+    }
+
+    @Test
+    void requestReturnsLinkedServiceQuoteId() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID authorizationId = UUID.randomUUID();
+        UUID serviceQuoteId = UUID.randomUUID();
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        when(service.request(
+                context,
+                caseId,
+                serviceQuoteId,
+                "AUTH-4003-QUOTE",
+                null,
+                null,
+                "Authorize quoted work",
+                json("""
+                        {
+                          "scopeVersion": 1,
+                          "items": []
+                        }
+                        """),
+                null,
+                null,
+                null
+        )).thenReturn(
+                CustomerAuthorization.request(
+                        authorizationId,
+                        tenantId,
+                        null,
+                        null,
+                        caseId,
+                        serviceQuoteId,
+                        "AUTH-4003-QUOTE",
+                        null,
+                        null,
+                        "Authorize quoted work",
+                        json("""
+                                {
+                                  "scopeVersion": 1,
+                                  "items": []
+                                }
+                                """),
+                        null,
+                        null,
+                        null,
+                        userRefId,
+                        OffsetDateTime.now()
+                )
+        );
+
+        mockMvc.perform(
+                post(
+                        "/api/v1/aftersales-cases/{caseId}/customer-authorizations",
+                        caseId
+                )
+                .with(authenticatedJwt())
+                .contentType("application/json")
+                .content("""
+                        {
+                          "authorizationNumber": "AUTH-4003-QUOTE",
+                          "authorizationSummary": "Authorize quoted work",
+                          "authorizationScopeSnapshot": {
+                            "scopeVersion": 1,
+                            "items": []
+                          },
+                          "serviceQuoteId": "%s"
+                        }
+                        """.formatted(serviceQuoteId))
+        )
+        .andExpect(status().isCreated())
+        .andExpect(
+                jsonPath("$.serviceQuoteId")
+                        .value(serviceQuoteId.toString())
         );
     }
 

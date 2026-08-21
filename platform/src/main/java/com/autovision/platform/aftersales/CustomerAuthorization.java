@@ -47,6 +47,9 @@ public class CustomerAuthorization {
     @Column(name = "aftersales_case_id", nullable = false)
     private UUID aftersalesCaseId;
 
+    @Column(name = "service_quote_id")
+    private UUID serviceQuoteId;
+
     @Column(name = "authorization_number", nullable = false, length = 80)
     private String authorizationNumber;
 
@@ -114,6 +117,7 @@ public class CustomerAuthorization {
             UUID dealerId,
             UUID branchId,
             UUID aftersalesCaseId,
+            UUID serviceQuoteId,
             String authorizationNumber,
             String customerReference,
             String customerDisplayNameSnapshot,
@@ -132,6 +136,7 @@ public class CustomerAuthorization {
         authorization.dealerId = dealerId;
         authorization.branchId = branchId;
         authorization.aftersalesCaseId = aftersalesCaseId;
+        authorization.serviceQuoteId = serviceQuoteId;
         authorization.authorizationNumber = authorizationNumber;
         authorization.authorizationStatus =
                 CustomerAuthorizationStatus.REQUESTED;
@@ -151,6 +156,43 @@ public class CustomerAuthorization {
         authorization.updatedAt = now;
 
         return authorization;
+    }
+
+    public static CustomerAuthorization request(
+            UUID id,
+            UUID tenantId,
+            UUID dealerId,
+            UUID branchId,
+            UUID aftersalesCaseId,
+            String authorizationNumber,
+            String customerReference,
+            String customerDisplayNameSnapshot,
+            String authorizationSummary,
+            JsonNode authorizationScopeSnapshot,
+            JsonNode commercialSnapshot,
+            String termsSnapshot,
+            String disclaimerSnapshot,
+            UUID principalId,
+            OffsetDateTime now
+    ) {
+        return request(
+                id,
+                tenantId,
+                dealerId,
+                branchId,
+                aftersalesCaseId,
+                null,
+                authorizationNumber,
+                customerReference,
+                customerDisplayNameSnapshot,
+                authorizationSummary,
+                authorizationScopeSnapshot,
+                commercialSnapshot,
+                termsSnapshot,
+                disclaimerSnapshot,
+                principalId,
+                now
+        );
     }
 
     public void authorize(
@@ -252,6 +294,10 @@ public class CustomerAuthorization {
 
     public UUID getAftersalesCaseId() {
         return aftersalesCaseId;
+    }
+
+    public UUID getServiceQuoteId() {
+        return serviceQuoteId;
     }
 
     public String getAuthorizationNumber() {

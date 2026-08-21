@@ -83,6 +83,7 @@ public class CustomerAuthorizationController {
                 service.request(
                         context,
                         caseId,
+                        request.serviceQuoteId(),
                         request.authorizationNumber(),
                         request.customerReference(),
                         request.customerDisplayNameSnapshot(),
@@ -188,6 +189,7 @@ public class CustomerAuthorizationController {
                 authorization.getDealerId(),
                 authorization.getBranchId(),
                 authorization.getAftersalesCaseId(),
+                authorization.getServiceQuoteId(),
                 authorization.getAuthorizationNumber(),
                 authorization.getAuthorizationStatus(),
                 authorization.getCustomerReference(),

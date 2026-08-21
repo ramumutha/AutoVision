@@ -27,15 +27,18 @@ public class CustomerAuthorizationService {
 
     private final CustomerAuthorizationRepository repository;
     private final AfterSalesCaseRepository caseRepository;
+        private final ServiceQuoteRepository quoteRepository;
     private final AuthorizationService authorizationService;
 
     public CustomerAuthorizationService(
             CustomerAuthorizationRepository repository,
             AfterSalesCaseRepository caseRepository,
+            ServiceQuoteRepository quoteRepository,
             AuthorizationService authorizationService
     ) {
         this.repository = repository;
         this.caseRepository = caseRepository;
+        this.quoteRepository = quoteRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -96,6 +99,35 @@ public class CustomerAuthorizationService {
             String termsSnapshot,
             String disclaimerSnapshot
     ) {
+        return request(
+                tenantContext,
+                caseId,
+                null,
+                authorizationNumber,
+                customerReference,
+                customerDisplayNameSnapshot,
+                authorizationSummary,
+                authorizationScopeSnapshot,
+                commercialSnapshot,
+                termsSnapshot,
+                disclaimerSnapshot
+        );
+    }
+
+    @Transactional
+    public CustomerAuthorization request(
+            AuthenticatedTenantContext tenantContext,
+            UUID caseId,
+            UUID serviceQuoteId,
+            String authorizationNumber,
+            String customerReference,
+            String customerDisplayNameSnapshot,
+            String authorizationSummary,
+            JsonNode authorizationScopeSnapshot,
+            JsonNode commercialSnapshot,
+            String termsSnapshot,
+            String disclaimerSnapshot
+    ) {
         requireCasePermission(
                 tenantContext,
                 caseId,
@@ -118,6 +150,24 @@ public class CustomerAuthorizationService {
             );
         }
 
+        if (serviceQuoteId != null) {
+            ServiceQuote serviceQuote = quoteRepository.findByIdAndTenantId(
+                    serviceQuoteId,
+                    tenantContext.tenantId()
+            ).orElseThrow(() -> new ResponseStatusException(
+                    NOT_FOUND,
+                    "Service quote not found"
+            ));
+
+            if (serviceQuote.getAfterSalesCaseId() == null
+                    || !caseId.equals(serviceQuote.getAfterSalesCaseId())) {
+                throw new ResponseStatusException(
+                        NOT_FOUND,
+                        "Service quote not found"
+                );
+            }
+        }
+
         OffsetDateTime now = OffsetDateTime.now();
 
         CustomerAuthorization authorization =
@@ -127,6 +177,7 @@ public class CustomerAuthorizationService {
                         afterSalesCase.getDealerId(),
                         afterSalesCase.getBranchId(),
                         afterSalesCase.getId(),
+                        serviceQuoteId,
                         authorizationNumber,
                         customerReference,
                         customerDisplayNameSnapshot,

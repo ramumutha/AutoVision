@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import tools.jackson.databind.JsonNode;
 
+import java.util.UUID;
+
 public record CreateCustomerAuthorizationRequest(
         @NotBlank
         @Size(max = 80)
@@ -22,6 +24,8 @@ public record CreateCustomerAuthorizationRequest(
 
         @NotNull
         JsonNode authorizationScopeSnapshot,
+
+        UUID serviceQuoteId,
 
         JsonNode commercialSnapshot,
 
