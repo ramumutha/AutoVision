@@ -44,6 +44,10 @@ const ENGLISH = {
   loadingAuthorizationEvaluation: 'Loading authorization evaluation', unableToLoadAuthorizationEvaluation: 'Unable to load authorization evaluation',
   authorizationEvaluationUnavailable: 'Authorization evaluation unavailable', authorizationNotRequired: 'Authorization is not required for this job.',
   totalJobLines: 'Total Job Lines', authorizedLines: 'Authorized Lines', pendingLines: 'Pending Lines', notAuthorizedLines: 'Not Authorized Lines',
+  loadingAuthorizationReadiness: 'Loading authorization readiness', unableToLoadAuthorizationReadiness: 'Unable to load authorization readiness',
+  authorizationReadinessUnavailable: 'Authorization readiness unavailable', ready: 'Ready', blocked: 'Blocked',
+  authorizationReadinessNotRequired: 'Authorization not required', authorizationReadinessFullyAuthorized: 'Fully authorized',
+  authorizationReadinessPartial: 'Partial authorization', authorizationReadinessPending: 'Authorization pending', authorizationReadinessMissing: 'Authorization missing',
 };
 
 @Injectable({ providedIn: 'root' })
