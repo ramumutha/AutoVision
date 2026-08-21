@@ -24,6 +24,11 @@ public interface CustomerAuthorizationRepository
             UUID serviceQuoteId
     );
 
+    List<CustomerAuthorization> findAllByTenantIdAndServiceQuoteIdIn(
+            UUID tenantId,
+            List<UUID> serviceQuoteIds
+    );
+
     List<CustomerAuthorization> findAllByTenantIdAndAuthorizationStatus(
             UUID tenantId,
             CustomerAuthorizationStatus authorizationStatus

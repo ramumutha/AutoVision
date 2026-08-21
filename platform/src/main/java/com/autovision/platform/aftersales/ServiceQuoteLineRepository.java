@@ -15,6 +15,11 @@ public interface ServiceQuoteLineRepository
             UUID serviceQuoteId
     );
 
+    List<ServiceQuoteLine>
+    findAllByServiceQuoteIdInOrderByServiceQuoteIdAscSequenceAsc(
+            List<UUID> serviceQuoteIds
+    );
+
     Optional<ServiceQuoteLine> findByIdAndServiceQuoteId(
             UUID id,
             UUID serviceQuoteId
