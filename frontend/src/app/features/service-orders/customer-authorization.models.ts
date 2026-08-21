@@ -38,3 +38,8 @@ export interface RequestQuoteCustomerAuthorizationRequest {
   customerDisplayNameSnapshot: string | null;
   authorizationSummary: string;
 }
+
+export interface CustomerAuthorizationDecisionRequest {
+  decisionChannel: string | null;
+  decisionReference: string | null;
+}

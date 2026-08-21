@@ -91,4 +91,26 @@ describe('CustomerAuthorizationApiService', () => {
     expect(result).toEqual([]);
     controller.verify();
   });
+
+  it.each([
+    ['authorize', 'authorize'],
+    ['decline', 'decline'],
+    ['defer', 'defer'],
+    ['cancel', 'cancel'],
+  ] as const)('%s decision uses the exact bounded endpoint and payload', (method, action) => {
+    const { service, controller } = setup();
+    const body = { decisionChannel: 'EMAIL', decisionReference: 'DEC-1' };
+    const decision = service[method]('case/1', 'authorization/1', body);
+
+    decision.subscribe((result) => expect(result).toEqual(authorization));
+
+    const request = controller.expectOne(
+      `/api/v1/aftersales-cases/case%2F1/customer-authorizations/authorization%2F1/${action}`,
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    expect(Object.keys(request.request.body)).toEqual(['decisionChannel', 'decisionReference']);
+    request.flush(authorization);
+    controller.verify();
+  });
 });
