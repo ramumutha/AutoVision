@@ -1,18 +1,24 @@
 import { AsyncPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, combineLatest, map, of, startWith, switchMap } from 'rxjs';
+import { catchError, combineLatest, map, of, startWith, switchMap, tap } from 'rxjs';
 import { ConnectivityService } from '../../core/connectivity/connectivity.service';
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { CustomerAuthorization } from './customer-authorization.models';
+import { CustomerAuthorizationApiService } from './customer-authorization-api.service';
 import { ServiceQuoteAuthorizationRequestComponent } from './service-quote-authorization-request.component';
 import { ServiceQuoteApiService } from './service-quote-api.service';
 import { ServiceQuoteDetail, ServiceQuoteStatus } from './service-quote.models';
 
 const LIFECYCLE_KEYS = ['issuedAt', 'acceptedAt', 'declinedAt', 'cancelledAt', 'expiredAt', 'supersededAt'] as const;
+
+interface AuthorizationHistoryContext {
+  caseId: string;
+  quoteId: string;
+}
 
 @Component({
   selector: 'app-service-quote-detail',
@@ -26,8 +32,15 @@ const LIFECYCLE_KEYS = ['issuedAt', 'acceptedAt', 'declinedAt', 'cancelledAt', '
         <article class="detail" aria-labelledby="quote-detail-title">
           <div class="detail-heading"><div><p class="eyebrow">{{ localization.text('quoteDetails') }}</p><h2 id="quote-detail-title">{{ detail.quoteNumber }}</h2></div><div class="heading-actions"><av-status [label]="statusLabel(detail.status)" [tone]="statusTone(detail.status)" /><button class="back" type="button" (click)="back.emit()">{{ localization.text('backToQuotes') }}</button></div></div>
           @if (canRequestAuthorization(detail)) { <button class="request-authorization" type="button" (click)="requestAuthorizationOpen.set(true)">{{ localization.text('requestCustomerAuthorization') }}</button> }
-          @if (requestAuthorizationOpen() && detail.afterSalesCaseId) { <app-service-quote-authorization-request [caseId]="detail.afterSalesCaseId" [quoteId]="detail.id" (cancel)="closeAuthorizationRequest()" (requested)="authorizationRequested($event)" /> }
+          @if (requestAuthorizationOpen() && detail.afterSalesCaseId) { <app-service-quote-authorization-request [caseId]="detail.afterSalesCaseId" [quoteId]="detail.id" (cancel)="closeAuthorizationRequest()" (requested)="authorizationRequested($event, detail)" /> }
           @if (requestedAuthorization(); as authorization) { <av-feedback kind="success" [title]="localization.text('customerAuthorizationRequested')" [message]="localization.text('customerAuthorizationPending')" /><div class="authorization-status"><span>{{ localization.text('status') }}</span><av-status [label]="authorization.authorizationStatus" tone="info" /></div> }
+          <section class="authorization-history" aria-labelledby="authorization-history-title">
+            <h3 id="authorization-history-title">{{ localization.text('customerAuthorizationHistory') }}</h3>
+            @if (authorizationHistoryLoading()) { <div class="history-loading" role="status" aria-live="polite">{{ localization.text('loadingCustomerAuthorizationHistory') }}</div> }
+            @else if (authorizationHistoryError(); as error) { <av-feedback kind="error" [title]="historyErrorTitle(error)" [message]="historyErrorMessage(error)" /><button class="retry history-retry" type="button" (click)="retryAuthorizationHistory()">{{ localization.text('retry') }}</button> }
+            @else if (authorizationHistory().length === 0) { <p class="history-empty">{{ localization.text('noCustomerAuthorizationHistory') }}</p> }
+            @else { <div class="history-list">@for (authorization of authorizationHistory(); track authorization.id) { <article class="history-entry"><div class="history-heading"><h4>{{ authorization.authorizationNumber }}</h4><av-status [label]="authorization.authorizationStatus" [tone]="authorizationStatusTone(authorization.authorizationStatus)" /></div><p class="history-summary">{{ authorization.authorizationSummary }}</p><dl class="history-facts"><div><dt>{{ localization.text('requestedAt') }}</dt><dd>{{ authorization.requestedAt | date:'medium' }}</dd></div>@if (authorization.customerReference) { <div><dt>{{ localization.text('customerReference') }}</dt><dd>{{ authorization.customerReference }}</dd></div> }@if (authorization.customerDisplayNameSnapshot) { <div><dt>{{ localization.text('customerDisplayName') }}</dt><dd>{{ authorization.customerDisplayNameSnapshot }}</dd></div> }@if (authorization.decidedAt) { <div><dt>{{ localization.text('decidedAt') }}</dt><dd>{{ authorization.decidedAt | date:'medium' }}</dd></div> }@if (authorization.decisionChannel) { <div><dt>{{ localization.text('decisionChannel') }}</dt><dd>{{ authorization.decisionChannel }}</dd></div> }@if (authorization.decisionReference) { <div><dt>{{ localization.text('decisionReference') }}</dt><dd>{{ authorization.decisionReference }}</dd></div> }</dl></article> }</div> }
+          </section>
           <dl class="facts"><div><dt>{{ localization.text('status') }}</dt><dd>{{ statusLabel(detail.status) }}</dd></div><div><dt>{{ localization.text('currency') }}</dt><dd>{{ detail.currencyCode }}</dd></div><div><dt>{{ localization.text('validUntil') }}</dt><dd>{{ detail.validUntil ? (detail.validUntil | date:'medium') : '—' }}</dd></div><div><dt>{{ localization.text('created') }}</dt><dd>{{ detail.createdAt | date:'medium' }}</dd></div><div><dt>{{ localization.text('updated') }}</dt><dd>{{ detail.updatedAt | date:'medium' }}</dd></div></dl>
           <dl class="lifecycle">@for (event of lifecycle(detail); track event.label) { <div><dt>{{ event.label }}</dt><dd>{{ event.value | date:'medium' }}</dd></div> }</dl>
           <div class="disclosures"><details><summary>{{ localization.text('terms') }}</summary><p>{{ detail.termsSnapshot || '—' }}</p></details><details><summary>{{ localization.text('disclaimer') }}</summary><p>{{ detail.disclaimerSnapshot || '—' }}</p></details></div>
@@ -41,10 +54,11 @@ const LIFECYCLE_KEYS = ['issuedAt', 'acceptedAt', 'declinedAt', 'cancelledAt', '
     .detail { padding: 1.25rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); background: var(--av-color-surface); }
     .detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }.heading-actions { display: flex; align-items: center; gap: .75rem; }.eyebrow { margin: 0 0 .3rem; color: var(--av-color-brand); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }h2 { margin: 0; color: var(--av-color-ink); font-size: 1.5rem; }.back { min-block-size: 2.75rem; padding: .6rem .85rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); color: var(--av-color-ink); cursor: pointer; font-weight: 800; }
     .request-authorization { margin: 0 0 1.25rem; min-block-size: 2.75rem; padding: .65rem 1rem; border: 0; border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font-weight: 800; }.authorization-status { display: flex; align-items: center; gap: .75rem; margin: 1rem 0 1.25rem; color: var(--av-color-muted); font-weight: 700; }
+    .authorization-history { margin: 1.5rem 0; }.history-loading, .history-empty { padding: 1rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); color: var(--av-color-muted); }.history-list { display: grid; gap: .75rem; }.history-entry { padding: 1rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-canvas); }.history-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }.history-heading h4 { margin: 0; color: var(--av-color-ink); }.history-summary { margin: .75rem 0; color: var(--av-color-ink); }.history-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0; }.history-facts div { min-width: 0; }.history-facts dd { overflow-wrap: anywhere; }.history-retry { margin-top: .75rem; }
     .facts, .lifecycle { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1.25rem; }.facts div, .lifecycle div { padding: .75rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-canvas); }dt { color: var(--av-color-muted); font-size: .75rem; font-weight: 700; }dd { margin: .3rem 0 0; color: var(--av-color-ink); font-weight: 700; }
     .disclosures { display: grid; gap: .5rem; margin-bottom: 1.5rem; }details { border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); padding: .8rem 1rem; }summary { cursor: pointer; color: var(--av-color-ink); font-weight: 800; }details p { margin: .75rem 0 0; white-space: pre-wrap; color: var(--av-color-muted); }
     h3 { margin: 0 0 .75rem; color: var(--av-color-ink); }.line-table-wrap { overflow-x: auto; }table { width: 100%; border-collapse: collapse; text-align: left; }th, td { padding: .8rem .75rem; border-bottom: 1px solid var(--av-color-border); white-space: nowrap; }thead th { color: var(--av-color-muted); font-size: .75rem; text-transform: uppercase; }tbody th { color: var(--av-color-ink); }.line-cards { display: none; padding: 0; margin: 0; list-style: none; }.line-cards li { display: grid; gap: .45rem; padding: 1rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); }.line-cards span { color: var(--av-color-muted); }.loading { padding: 2rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); color: var(--av-color-muted); }.retry { margin-top: 1rem; min-block-size: 2.75rem; padding: .6rem 1rem; border: 0; border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font-weight: 800; }.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    @media (max-width: 800px) { .facts, .lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 800px) { .facts, .lifecycle, .history-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 620px) { .detail-heading { flex-direction: column; }.heading-actions { width: 100%; justify-content: space-between; }.line-table-wrap { display: none; }.line-cards { display: grid; gap: .75rem; } }
   `],
 })
@@ -53,23 +67,45 @@ export class ServiceQuoteDetailComponent {
   readonly quoteId = input.required<string>();
   readonly back = output<void>();
   private readonly api = inject(ServiceQuoteApiService);
+  private readonly authorizationApi = inject(CustomerAuthorizationApiService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly connectivity = inject(ConnectivityService);
   protected readonly localization = inject(LocalizationService);
   protected readonly retryVersion = signal(0);
   protected readonly requestAuthorizationOpen = signal(false);
   protected readonly requestedAuthorization = signal<CustomerAuthorization | null>(null);
+  protected readonly authorizationHistory = signal<CustomerAuthorization[]>([]);
+  protected readonly authorizationHistoryLoading = signal(false);
+  protected readonly authorizationHistoryError = signal<ApiError | null>(null);
+  private readonly authorizationHistoryContext = signal<AuthorizationHistoryContext | null>(null);
   readonly state$ = combineLatest([toObservable(this.orderId), toObservable(this.quoteId), toObservable(this.retryVersion)]).pipe(
-    switchMap(([orderId, quoteId]) => this.api.getQuote(orderId, quoteId).pipe(map((detail) => ({ loading: false, detail, error: null })), startWith({ loading: true, detail: null, error: null }), catchError((error: ApiError) => of({ loading: false, detail: null, error })))), takeUntilDestroyed(this.destroyRef),
+    switchMap(([orderId, quoteId]) => this.api.getQuote(orderId, quoteId).pipe(tap((detail) => this.handleLoadedQuote(detail)), map((detail) => ({ loading: false, detail, error: null })), startWith({ loading: true, detail: null, error: null }), catchError((error: ApiError) => of({ loading: false, detail: null, error })))), takeUntilDestroyed(this.destroyRef),
   );
   retry(): void { this.retryVersion.update((value) => value + 1); }
   protected canRequestAuthorization(detail: ServiceQuoteDetail): boolean { return detail.status === 'ISSUED' && !!detail.afterSalesCaseId?.trim(); }
   protected closeAuthorizationRequest(): void { this.requestAuthorizationOpen.set(false); }
-  protected authorizationRequested(authorization: CustomerAuthorization): void { this.requestedAuthorization.set(authorization); this.requestAuthorizationOpen.set(false); }
+  protected authorizationRequested(authorization: CustomerAuthorization, detail: ServiceQuoteDetail): void { this.requestedAuthorization.set(authorization); this.requestAuthorizationOpen.set(false); this.handleLoadedQuote(detail); }
+  protected retryAuthorizationHistory(): void { const context = this.authorizationHistoryContext(); if (context) this.loadAuthorizationHistory(context); }
+  private handleLoadedQuote(detail: ServiceQuoteDetail): void {
+    const caseId = detail.afterSalesCaseId?.trim();
+    if (!caseId) { this.authorizationHistoryContext.set(null); this.authorizationHistory.set([]); this.authorizationHistoryError.set(null); this.authorizationHistoryLoading.set(false); return; }
+    this.loadAuthorizationHistory({ caseId, quoteId: detail.id });
+  }
+  private loadAuthorizationHistory(context: AuthorizationHistoryContext): void {
+    this.authorizationHistoryContext.set(context);
+    this.authorizationHistoryLoading.set(true); this.authorizationHistoryError.set(null);
+    this.authorizationApi.listForServiceQuote(context.caseId, context.quoteId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (history) => { this.authorizationHistory.set(history); this.authorizationHistoryLoading.set(false); },
+      error: (error: ApiError) => { this.authorizationHistoryLoading.set(false); this.authorizationHistoryError.set(error); },
+    });
+  }
   protected statusLabel(status: ServiceQuoteStatus): string { return status.replaceAll('_', ' '); }
   protected statusTone(status: ServiceQuoteStatus): AvStatusTone { const tones: Record<ServiceQuoteStatus, AvStatusTone> = { DRAFT: 'neutral', ISSUED: 'info', ACCEPTED: 'success', DECLINED: 'danger', CANCELLED: 'neutral', EXPIRED: 'warning', SUPERSEDED: 'neutral' }; return tones[status]; }
   protected money(amount: number, currency: string): string { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount); } catch { return `${amount} ${currency}`; } }
   protected lifecycle(detail: ServiceQuoteDetail): { label: string; value: string }[] { return LIFECYCLE_KEYS.map((key) => [key, detail[key]] as const).filter((event): event is [typeof LIFECYCLE_KEYS[number], string] => !!event[1]).map(([key, value]) => ({ label: this.localization.text(key), value })); }
   protected errorTitle(error: ApiError): string { return error.status === 404 ? this.localization.text('quoteUnavailable') : this.localization.text('unableToLoadQuoteDetails'); }
   protected errorMessage(error: ApiError): string { if (error.status === 403) return this.localization.text('notAuthorized'); if (!this.connectivity.isOnline()) return this.localization.text('offlineRetry'); return error.status >= 500 || error.status === 0 ? this.localization.text('tryAgain') : error.message; }
+  protected authorizationStatusTone(status: CustomerAuthorization['authorizationStatus']): AvStatusTone { const tones: Record<CustomerAuthorization['authorizationStatus'], AvStatusTone> = { REQUESTED: 'info', AUTHORIZED: 'success', DECLINED: 'danger', DEFERRED: 'warning', CANCELLED: 'neutral' }; return tones[status]; }
+  protected historyErrorTitle(error: ApiError): string { return error.status === 404 ? this.localization.text('authorizationHistoryUnavailable') : this.localization.text('unableToLoadCustomerAuthorizationHistory'); }
+  protected historyErrorMessage(error: ApiError): string { if (!this.connectivity.isOnline() || error.status === 0) return this.localization.text('offlineRetry'); if (error.status === 403) return this.localization.text('notAuthorized'); return error.status >= 500 ? this.localization.text('tryAgain') : error.message; }
 }
