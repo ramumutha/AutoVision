@@ -913,6 +913,167 @@ class CustomerAuthorizationServiceTests {
     }
 
     @Test
+    void findsCompleteQuoteAuthorizationHistoryNewestFirst()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        ServiceQuote quote = quoteRecord(quoteId, tenantId, caseId);
+        CustomerAuthorization newest = authorizationRecord(
+                UUID.randomUUID(),
+                caseId
+        );
+        CustomerAuthorization historical = authorizationRecord(
+                UUID.randomUUID(),
+                caseId
+        );
+        historical.decline("EMAIL", "declined-1", principalId,
+                OffsetDateTime.now());
+
+        prepareRequestCase(caseId);
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quote));
+        when(repository
+                .findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+                        tenantId,
+                        quoteId
+                )).thenReturn(List.of(newest, historical));
+
+        List<CustomerAuthorization> result = service.findAllForServiceQuote(
+                context,
+                caseId,
+                quoteId
+        );
+
+        assertEquals(List.of(newest, historical), result);
+        assertEquals(CustomerAuthorizationStatus.REQUESTED,
+                result.getFirst().getAuthorizationStatus());
+        assertEquals(CustomerAuthorizationStatus.DECLINED,
+                result.get(1).getAuthorizationStatus());
+        verify(repository)
+                .findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+                        tenantId,
+                        quoteId
+                );
+        verify(authorizationService).requirePermission(
+                new AuthorizationRequest(
+                        context,
+                        AfterSalesPermissions.CUSTOMER_AUTHORIZATION_READ,
+                        AuthorizationResourceType.AFTERSALES_CASE,
+                        caseId
+                )
+        );
+    }
+
+    @Test
+    void returnsEmptyQuoteAuthorizationHistory() {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quoteRecord(quoteId, tenantId, caseId)));
+        when(repository
+                .findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+                        tenantId,
+                        quoteId
+                )).thenReturn(List.of());
+
+        assertEquals(List.of(), service.findAllForServiceQuote(
+                context,
+                caseId,
+                quoteId
+        ));
+    }
+
+    @Test
+    void rejectsMissingCaseBeforeQuoteHistoryLookup() {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        when(caseRepository.findByIdAndTenantId(caseId, tenantId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findAllForServiceQuote(context, caseId, quoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("AfterSales case not found", exception.getReason());
+        verifyNoInteractions(quoteRepository);
+        verify(repository, never())
+                .findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+                        any(UUID.class),
+                        any(UUID.class)
+                );
+    }
+
+    @Test
+    void rejectsUnknownOrMiscontainedQuoteWithUniformNotFound() {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findAllForServiceQuote(context, caseId, quoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+    }
+
+    @Test
+    void rejectsCrossTenantQuoteWithUniformNotFound() {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findAllForServiceQuote(context, caseId, quoteId)
+        );
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Service quote not found", exception.getReason());
+        verify(quoteRepository)
+                .findByIdAndTenantId(quoteId, tenantId);
+    }
+
+    @Test
+    void rejectsDifferentCaseAndNullCaseQuoteWithUniformNotFound() {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        prepareRequestCase(caseId);
+
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(
+                        quoteRecord(quoteId, tenantId, UUID.randomUUID())
+                ));
+
+        ResponseStatusException differentCase = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findAllForServiceQuote(context, caseId, quoteId)
+        );
+        assertEquals(404, differentCase.getStatusCode().value());
+        assertEquals("Service quote not found", differentCase.getReason());
+
+        when(quoteRepository.findByIdAndTenantId(quoteId, tenantId))
+                .thenReturn(Optional.of(quoteRecord(quoteId, tenantId, null)));
+
+        ResponseStatusException nullCase = assertThrows(
+                ResponseStatusException.class,
+                () -> service.findAllForServiceQuote(context, caseId, quoteId)
+        );
+        assertEquals(404, nullCase.getStatusCode().value());
+        assertEquals("Service quote not found", nullCase.getReason());
+    }
+
+    @Test
     void parentCaseLookupIsScopedToAuthenticatedTenant() {
         UUID caseId = UUID.randomUUID();
         UUID authorizationId = UUID.randomUUID();

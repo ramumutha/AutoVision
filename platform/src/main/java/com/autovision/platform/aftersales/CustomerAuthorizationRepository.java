@@ -18,6 +18,12 @@ public interface CustomerAuthorizationRepository
             UUID aftersalesCaseId
     );
 
+    List<CustomerAuthorization>
+    findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+            UUID tenantId,
+            UUID serviceQuoteId
+    );
+
     List<CustomerAuthorization> findAllByTenantIdAndAuthorizationStatus(
             UUID tenantId,
             CustomerAuthorizationStatus authorizationStatus

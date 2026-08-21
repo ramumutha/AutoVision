@@ -340,6 +340,61 @@ class CustomerAuthorizationControllerIntegrationTests {
     }
 
     @Test
+    void quoteAuthorizationHistoryUsesExactQuoteScopedRoute()
+            throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+        UUID authorizationId = UUID.randomUUID();
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+        when(service.findAllForServiceQuote(context, caseId, quoteId))
+                .thenReturn(List.of(
+                        authorizationRecord(
+                                authorizationId,
+                                caseId,
+                                "AUTH-HISTORY-1"
+                        )
+                ));
+
+        mockMvc.perform(
+                get(
+                        "/api/v1/aftersales-cases/{caseId}/service-quotes/{quoteId}/customer-authorizations",
+                        caseId,
+                        quoteId
+                )
+                .with(authenticatedJwt())
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id")
+                .value(authorizationId.toString()))
+        .andExpect(jsonPath("$[0].authorizationNumber")
+                .value("AUTH-HISTORY-1"));
+    }
+
+    @Test
+    void quoteAuthorizationHistoryReturnsEmptyList() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        UUID quoteId = UUID.randomUUID();
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+        when(service.findAllForServiceQuote(context, caseId, quoteId))
+                .thenReturn(List.of());
+
+        mockMvc.perform(
+                get(
+                        "/api/v1/aftersales-cases/{caseId}/service-quotes/{quoteId}/customer-authorizations",
+                        caseId,
+                        quoteId
+                )
+                .with(authenticatedJwt())
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void quoteRequestEndpointDoesNotAcceptServerGeneratedEvidenceFields()
             throws Exception {
         UUID caseId = UUID.randomUUID();

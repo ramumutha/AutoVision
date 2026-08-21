@@ -69,6 +69,27 @@ public class CustomerAuthorizationService {
         );
     }
 
+    public List<CustomerAuthorization> findAllForServiceQuote(
+            AuthenticatedTenantContext tenantContext,
+            UUID caseId,
+            UUID quoteId
+    ) {
+        requireCasePermission(
+                tenantContext,
+                caseId,
+                AfterSalesPermissions.CUSTOMER_AUTHORIZATION_READ
+        );
+
+        requireCase(tenantContext, caseId);
+        requireQuoteForCase(tenantContext, caseId, quoteId);
+
+        return repository
+                .findAllByTenantIdAndServiceQuoteIdOrderByRequestedAtDescIdDesc(
+                        tenantContext.tenantId(),
+                        quoteId
+                );
+    }
+
     public CustomerAuthorization findById(
             AuthenticatedTenantContext tenantContext,
             UUID caseId,
