@@ -3,6 +3,11 @@ import { authenticatedGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
 	{
+		path: 'service-profit',
+		canActivate: [authenticatedGuard],
+		loadComponent: () => import('./features/service-profit/service-profit-manager.component').then((m) => m.ServiceProfitManagerComponent),
+	},
+	{
 		path: 'service-orders/:orderId',
 		canActivate: [authenticatedGuard],
 		loadComponent: () => import('./features/service-orders/service-order-workspace.component').then((m) => m.ServiceOrderWorkspaceComponent),

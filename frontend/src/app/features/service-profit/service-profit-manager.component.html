@@ -1,0 +1,148 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">{{ localization.text('serviceProfit') }}</p>
+    <h1>{{ localization.text('serviceProfitManager') }}</h1>
+    <p class="context">{{ localization.text('serviceProfitContext') }}</p>
+  </div>
+  <button class="primary-action" type="button" (click)="refresh()" [disabled]="loading()">
+    {{ localization.text('refresh') }}
+  </button>
+</header>
+
+@if (loading()) {
+  <div class="loading" role="status" aria-live="polite">{{ localization.text('loadingServiceProfit') }}</div>
+} @else if (loadError()) {
+  <av-feedback kind="error" [title]="localization.text('unableToLoadServiceProfit')" [message]="localization.text('tryAgain')" />
+  <button class="primary-action retry" type="button" (click)="refresh()">{{ localization.text('retry') }}</button>
+} @else if (summary(); as managerSummary) {
+  <section aria-labelledby="commercial-value-heading">
+    <h2 id="commercial-value-heading" class="section-title">{{ localization.text('recoverableCommercialValue') }}</h2>
+    <div class="kpis">
+      <article class="kpi kpi-primary">
+        <h3>{{ localization.text('recoverablePotential') }}</h3>
+        @if (managerSummary.potentialByCurrency.length) {
+          <div class="currency-values">
+            @for (potential of managerSummary.potentialByCurrency; track potential.currencyCode) {
+              <p><strong>{{ potential.amount | number:'1.0-2' }}</strong> <span>{{ potential.currencyCode }}</span></p>
+            }
+          </div>
+        } @else {
+          <p class="kpi-value">{{ localization.text('notAvailable') }}</p>
+        }
+      </article>
+      <article class="kpi"><h3>{{ localization.text('totalOpportunities') }}</h3><p class="kpi-value">{{ managerSummary.totalOpportunities }}</p></article>
+      <article class="kpi"><h3>{{ localization.text('highPriority') }}</h3><p class="kpi-value danger-value">{{ managerSummary.highPriorityCount }}</p></article>
+      <article class="kpi"><h3>{{ localization.text('reviewRequired') }}</h3><p class="kpi-value warning-value">{{ managerSummary.reviewRequiredCount }}</p></article>
+      <article class="kpi"><h3>{{ localization.text('readyToAction') }}</h3><p class="kpi-value success-value">{{ managerSummary.readyCount }}</p></article>
+    </div>
+  </section>
+
+  <section class="queue-section" aria-labelledby="opportunity-queue-heading">
+    <div class="section-heading">
+      <div>
+        <h2 id="opportunity-queue-heading">{{ localization.text('opportunitiesNeedingAttention') }}</h2>
+        <p>{{ localization.text('opportunityQueueContext') }}</p>
+      </div>
+      <div class="filters" aria-label="Opportunity filters">
+        <label>{{ localization.text('priority') }}
+          <select (change)="updateFilter('priority', $any($event.target).value)">
+            <option value="">{{ localization.text('all') }}</option>
+            @for (priority of priorities; track priority) { <option [value]="priority">{{ label(priority) }}</option> }
+          </select>
+        </label>
+        <label>{{ localization.text('opportunityType') }}
+          <select (change)="updateFilter('opportunityType', $any($event.target).value)">
+            <option value="">{{ localization.text('all') }}</option>
+            @for (type of opportunityTypes; track type) { <option [value]="type">{{ label(type) }}</option> }
+          </select>
+        </label>
+        <label>{{ localization.text('actionability') }}
+          <select (change)="updateFilter('actionability', $any($event.target).value)">
+            <option value="">{{ localization.text('all') }}</option>
+            @for (actionability of actionabilities; track actionability) { <option [value]="actionability">{{ label(actionability) }}</option> }
+          </select>
+        </label>
+      </div>
+    </div>
+
+    @if (queue().length) {
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th scope="col">{{ localization.text('opportunity') }}</th>
+            <th scope="col">{{ localization.text('opportunityType') }}</th>
+            <th scope="col">{{ localization.text('priority') }}</th>
+            <th scope="col">{{ localization.text('evidenceStrength') }}</th>
+            <th scope="col">{{ localization.text('potential') }}</th>
+            <th scope="col">{{ localization.text('actionability') }}</th>
+            <th scope="col">{{ localization.text('detected') }}</th>
+          </tr></thead>
+          <tbody>
+            @for (opportunity of queue(); track opportunity.id) {
+              <tr [class.selected]="selected()?.id === opportunity.id">
+                <td><button class="opportunity-button" type="button" (click)="loadDetail(opportunity.id)" [attr.aria-pressed]="selected()?.id === opportunity.id">{{ opportunity.title }}</button></td>
+                <td>{{ label(opportunity.opportunityType) }}</td>
+                <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
+                <td>{{ label(opportunity.evidenceStrength) }}</td>
+                <td class="amount">{{ opportunity.potentialAmount | number:'1.0-2' }} {{ opportunity.currencyCode }}</td>
+                <td><av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" /></td>
+                <td>{{ opportunity.detectedAt | date:'medium' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <av-feedback [title]="localization.text('noOpportunities')" [message]="localization.text('noOpportunitiesContext')" />
+    }
+  </section>
+}
+
+@if (detailLoading()) {
+  <div class="detail-loading" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
+} @else if (detailError()) {
+  <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')" [message]="localization.text('tryAgain')" />
+} @else if (selected(); as opportunity) {
+  <section class="detail" aria-labelledby="opportunity-detail-heading">
+    <header class="detail-header">
+      <div><p class="eyebrow">{{ localization.text('opportunityDetail') }}</p><h2 id="opportunity-detail-heading">{{ opportunity.title }}</h2></div>
+      <div class="detail-statuses">
+        <av-status [label]="label(opportunity.status)" [tone]="isSuppressed(opportunity) ? 'neutral' : 'info'" />
+        <av-status [label]="isSuppressed(opportunity) ? localization.text('suppressed') : label(opportunity.actionability)" [tone]="isSuppressed(opportunity) ? 'neutral' : actionabilityTone(opportunity.actionability)" />
+      </div>
+    </header>
+    <dl class="detail-facts">
+      <div><dt>{{ localization.text('opportunityType') }}</dt><dd>{{ label(opportunity.opportunityType) }}</dd></div>
+      <div><dt>{{ localization.text('priority') }}</dt><dd>{{ label(opportunity.priority) }}</dd></div>
+      <div><dt>{{ localization.text('potential') }}</dt><dd>{{ opportunity.potentialAmount | number:'1.0-2' }} {{ opportunity.currencyCode }}</dd></div>
+      <div><dt>{{ localization.text('detected') }}</dt><dd>{{ opportunity.detectedAt | date:'medium' }}</dd></div>
+    </dl>
+    @if (isSuppressed(opportunity)) {
+      <aside class="suppression" aria-label="Suppression details">
+        <strong>{{ localization.text('suppressedOpportunity') }}</strong>
+        <span>{{ opportunity.suppressionReason ? label(opportunity.suppressionReason) : localization.text('suppressed') }}</span>
+        @if (opportunity.suppressedAt) { <time [attr.datetime]="opportunity.suppressedAt">{{ opportunity.suppressedAt | date:'medium' }}</time> }
+      </aside>
+    }
+    <div class="explanation">
+      <div>
+        <p class="eyebrow">{{ localization.text('whyAutoVisionFoundThis') }}</p>
+        <h3>{{ opportunity.explanation.headline }}</h3>
+        <p>{{ opportunity.explanation.rationale }}</p>
+      </div>
+      <dl>
+        <div><dt>{{ localization.text('evidenceBasis') }}</dt><dd>{{ opportunity.explanation.evidenceBasis }}</dd></div>
+        <div><dt>{{ localization.text('recommendedAction') }}</dt><dd>{{ opportunity.explanation.recommendedAction }}</dd></div>
+      </dl>
+    </div>
+    <section class="provenance" aria-labelledby="provenance-heading">
+      <h3 id="provenance-heading">{{ localization.text('sourceAndProvenance') }}</h3>
+      <dl>
+        <div><dt>{{ localization.text('sourceSystem') }}</dt><dd>{{ opportunity.sourceSystem }}</dd></div>
+        <div><dt>{{ localization.text('sourceEntityType') }}</dt><dd>{{ opportunity.sourceEntityType }}</dd></div>
+        <div><dt>{{ localization.text('sourceEntityId') }}</dt><dd>{{ opportunity.sourceEntityId }}</dd></div>
+        <div><dt>{{ localization.text('policyVersion') }}</dt><dd>{{ opportunity.policyVersion }}</dd></div>
+      </dl>
+    </section>
+  </section>
+}

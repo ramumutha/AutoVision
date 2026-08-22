@@ -3,6 +3,7 @@ import { expect, Page } from '@playwright/test';
 export const ORDER_ID = '11111111-1111-4111-8111-111111111111';
 export const QUOTE_ID = '22222222-2222-4222-8222-222222222222';
 export const CREATED_QUOTE_ID = '33333333-3333-4333-8333-333333333333';
+export const SERVICE_PROFIT_OPPORTUNITY_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const orderAggregate = {
   order: {
@@ -103,4 +104,34 @@ export async function openQuotes(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'SO-QUALITY-001' })).toBeVisible({ timeout: 15_000 });
   await page.getByRole('link', { name: 'Quotes' }).click();
   await expect(page.getByRole('heading', { name: 'Quotes' })).toBeVisible();
+}
+
+export async function installServiceProfitFixtures(page: Page): Promise<void> {
+  const queueItem = {
+    id: SERVICE_PROFIT_OPPORTUNITY_ID,
+    tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    dealerId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    branchId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    locationId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    opportunityKey: 'declined-brakes-1', opportunityType: 'DECLINED_WORK', status: 'SUPPRESSED',
+    evidenceClass: 'SOURCE_CONFIRMED', evidenceStrength: 'STRONG', priority: 'HIGH', actionability: 'SUPPRESSED',
+    title: 'Recover declined brake work', potentialAmount: 320, currencyCode: 'USD', detectedAt: '2026-08-20T10:00:00Z',
+  };
+  const summary = {
+    totalOpportunities: 3, highPriorityCount: 1, reviewRequiredCount: 1, readyCount: 1, suppressedCount: 1,
+    potentialByCurrency: [{ currencyCode: 'USD', amount: 320 }, { currencyCode: 'EUR', amount: 180 }],
+    byOpportunityType: [], byPriority: [], byActionability: [],
+  };
+  const detail = {
+    ...queueItem, customerId: 'ffffffff-ffff-4fff-8fff-ffffffffffff', vehicleId: '11111111-2222-4333-8444-555555555555',
+    summary: 'Previously declined brake work.', sourceSystem: 'DMS', sourceEntityType: 'SERVICE_LINE', sourceEntityId: 'line-42',
+    sourceServiceOrderId: ORDER_ID, sourceServiceJobId: null, sourceServiceLineId: null, sourceQuoteId: null,
+    policyVersion: 'service-profit-r1', suppressionReason: 'WORK_ALREADY_COMPLETED', suppressedAt: '2026-08-21T10:00:00Z',
+    explanation: { headline: 'Previously declined work was identified', rationale: 'The source service line records a customer decline.', evidenceBasis: 'Confirmed DMS service history.', recommendedAction: 'No action while suppression remains active.' },
+    version: 1, createdAt: '2026-08-20T10:00:00Z', updatedAt: '2026-08-21T10:00:00Z',
+  };
+
+  await page.route('**/api/v1/service-profit/opportunities/summary', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(summary) }));
+  await page.route(`**/api/v1/service-profit/opportunities/${SERVICE_PROFIT_OPPORTUNITY_ID}`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(detail) }));
+  await page.route('**/api/v1/service-profit/opportunities?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [queueItem], page: 0, size: 25, totalElements: 1, totalPages: 1 }) }));
 }

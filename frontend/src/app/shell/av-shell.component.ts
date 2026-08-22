@@ -32,6 +32,7 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
       <nav class="nav" [attr.aria-label]="localization.text('navigation')">
         <p class="nav-label">{{ localization.text('workspace') }}</p>
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">{{ localization.text('overview') }}</a>
+        <a routerLink="/service-profit" routerLinkActive="active">{{ localization.text('serviceProfit') }}</a>
       </nav>
       <main class="main" id="main-content" tabindex="-1"><router-outlet /></main>
     </div>

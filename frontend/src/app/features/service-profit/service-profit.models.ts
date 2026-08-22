@@ -1,0 +1,131 @@
+export type ServiceProfitOpportunityStatus =
+  | 'DETECTED'
+  | 'QUALIFIED'
+  | 'ASSIGNED'
+  | 'CONTACTED'
+  | 'CLOSED'
+  | 'REJECTED'
+  | 'INVALID'
+  | 'DUPLICATE'
+  | 'SUPPRESSED'
+  | 'EXPIRED';
+
+export type ServiceProfitOpportunityType =
+  | 'DECLINED_WORK'
+  | 'DEFERRED_WORK'
+  | 'DUE_SERVICE'
+  | 'OVERDUE_SERVICE'
+  | 'INACTIVE_CUSTOMER';
+
+export type ServiceProfitPriority = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type ServiceProfitActionability =
+  | 'READY'
+  | 'REVIEW_REQUIRED'
+  | 'CONTACT_DATA_MISSING'
+  | 'BLOCKED'
+  | 'SUPPRESSED';
+
+export type ServiceProfitEvidenceClass = 'SOURCE_CONFIRMED' | 'EVIDENCE_DERIVED' | 'POLICY_DERIVED';
+export type ServiceProfitEvidenceStrength = 'STRONG' | 'MODERATE' | 'WEAK';
+export type ServiceProfitOpportunitySort = 'DETECTED_DESC' | 'DETECTED_ASC' | 'POTENTIAL_DESC' | 'POTENTIAL_ASC';
+
+export type ServiceProfitSuppressionReason =
+  | 'WORK_ALREADY_COMPLETED'
+  | 'ALREADY_INVOICED'
+  | 'AUTHORITATIVE_COMPLETION_EVIDENCE'
+  | 'DUPLICATE_OPPORTUNITY';
+
+export interface ServiceProfitCurrencyPotential {
+  currencyCode: string;
+  amount: number;
+}
+
+export interface ServiceProfitOpportunityCount {
+  key: string;
+  count: number;
+}
+
+export interface ServiceProfitOpportunitySummary {
+  totalOpportunities: number;
+  highPriorityCount: number;
+  reviewRequiredCount: number;
+  readyCount: number;
+  suppressedCount: number;
+  potentialByCurrency: ServiceProfitCurrencyPotential[];
+  byOpportunityType: ServiceProfitOpportunityCount[];
+  byPriority: ServiceProfitOpportunityCount[];
+  byActionability: ServiceProfitOpportunityCount[];
+}
+
+export interface ServiceProfitOpportunityQueueItem {
+  id: string;
+  tenantId: string;
+  dealerId: string;
+  branchId: string;
+  locationId: string;
+  opportunityKey: string;
+  opportunityType: ServiceProfitOpportunityType;
+  status: ServiceProfitOpportunityStatus;
+  evidenceClass: ServiceProfitEvidenceClass;
+  evidenceStrength: ServiceProfitEvidenceStrength;
+  priority: ServiceProfitPriority;
+  actionability: ServiceProfitActionability;
+  title: string;
+  potentialAmount: number;
+  currencyCode: string;
+  detectedAt: string;
+}
+
+export interface ServiceProfitOpportunityPage {
+  items: ServiceProfitOpportunityQueueItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface ServiceProfitOpportunityExplanation {
+  headline: string;
+  rationale: string;
+  evidenceBasis: string;
+  recommendedAction: string;
+}
+
+export interface ServiceProfitOpportunityResponse extends ServiceProfitOpportunityQueueItem {
+  customerId: string;
+  vehicleId: string;
+  summary: string;
+  sourceSystem: string;
+  sourceEntityType: string;
+  sourceEntityId: string;
+  sourceServiceOrderId: string | null;
+  sourceServiceJobId: string | null;
+  sourceServiceLineId: string | null;
+  sourceQuoteId: string | null;
+  policyVersion: string;
+  suppressionReason: ServiceProfitSuppressionReason | null;
+  suppressedAt: string | null;
+  explanation: ServiceProfitOpportunityExplanation;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceProfitOpportunityFilters {
+  status?: ServiceProfitOpportunityStatus;
+  priority?: ServiceProfitPriority;
+  opportunityType?: ServiceProfitOpportunityType;
+  evidenceClass?: ServiceProfitEvidenceClass;
+  evidenceStrength?: ServiceProfitEvidenceStrength;
+  actionability?: ServiceProfitActionability;
+  dealerId?: string;
+  branchId?: string;
+  locationId?: string;
+}
+
+export interface ServiceProfitOpportunityQuery extends ServiceProfitOpportunityFilters {
+  page?: number;
+  size?: number;
+  sort?: ServiceProfitOpportunitySort;
+}
