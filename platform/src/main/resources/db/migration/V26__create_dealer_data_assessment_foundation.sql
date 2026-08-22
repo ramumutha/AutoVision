@@ -71,7 +71,7 @@ CREATE TABLE platform.dealer_data_assessments (
 
     CONSTRAINT fk_dealer_data_assessment_tenant
         FOREIGN KEY (tenant_id)
-        REFERENCES platform.tenants(id),
+        REFERENCES public.tenants(id),
 
     CONSTRAINT fk_dealer_data_assessment_dealer
         FOREIGN KEY (dealer_id)
@@ -145,3 +145,4 @@ CREATE INDEX idx_dealer_data_capability_assessment_parent
     ON platform.dealer_data_capability_assessments (
         assessment_id
     );
+
