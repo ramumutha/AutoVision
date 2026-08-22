@@ -123,6 +123,88 @@ class ServiceProfitOpportunityQueryServiceTests {
                 );
     }
 
+    @Test
+    void deniesSummaryWhenNoReadGrantExists() {
+
+        when(
+                authorizationRepository
+                        .findActivePermissionGrants(
+                                context.userRefId(),
+                                context.tenantId(),
+                                ServiceProfitPermissions.OPPORTUNITY_READ
+                        )
+        ).thenReturn(List.of());
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.findSummary(
+                        context,
+                        query()
+                )
+        );
+    }
+
+    @Test
+    void delegatesAuthorizedSummaryToDatabaseRepository() {
+
+        AuthorizationGrant grant =
+                new AuthorizationGrant(
+                        AuthorizationScopeType.TENANT,
+                        context.tenantId()
+                );
+
+        List<AuthorizationGrant> grants =
+                List.of(grant);
+
+        ServiceProfitOpportunityQuery query =
+                query();
+
+        ServiceProfitOpportunitySummary expected =
+                new ServiceProfitOpportunitySummary(
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of()
+                );
+
+        when(
+                authorizationRepository
+                        .findActivePermissionGrants(
+                                context.userRefId(),
+                                context.tenantId(),
+                                ServiceProfitPermissions.OPPORTUNITY_READ
+                        )
+        ).thenReturn(grants);
+
+        when(
+                queryRepository.findAuthorizedSummary(
+                        context.tenantId(),
+                        grants,
+                        query
+                )
+        ).thenReturn(expected);
+
+        ServiceProfitOpportunitySummary actual =
+                service.findSummary(
+                        context,
+                        query
+                );
+
+        assertSame(expected, actual);
+
+        verify(queryRepository)
+                .findAuthorizedSummary(
+                        context.tenantId(),
+                        grants,
+                        query
+                );
+    }
+
     private ServiceProfitOpportunityQuery query() {
         return new ServiceProfitOpportunityQuery(
                 null,

@@ -45,7 +45,7 @@ public class ServiceProfitOpportunityQueryRepository {
         String from = """
                 FROM platform.service_profit_opportunities spo
                 WHERE
-                """ + predicate;
+                """ + predicate + System.lineSeparator();
 
         Long total = jdbcClient.sql(
                         "SELECT COUNT(*) " + from
@@ -105,6 +105,196 @@ public class ServiceProfitOpportunityQueryRepository {
                 query.size(),
                 total
         );
+    }
+
+    public ServiceProfitOpportunitySummary findAuthorizedSummary(
+            UUID authenticatedTenantId,
+            List<AuthorizationGrant> grants,
+            ServiceProfitOpportunityQuery query
+    ) {
+        Map<String, Object> params = new HashMap<>();
+
+        params.put(
+                "authenticatedTenantId",
+                authenticatedTenantId
+        );
+
+        String predicate = buildPredicate(
+                authenticatedTenantId,
+                grants,
+                query,
+                params
+        );
+
+        String from = """
+                FROM platform.service_profit_opportunities spo
+                WHERE
+                """ + predicate + System.lineSeparator();
+
+        Long total = queryCount(
+                "SELECT COUNT(*) " + from,
+                params
+        );
+
+        if (total == 0) {
+            return new ServiceProfitOpportunitySummary(
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of()
+            );
+        }
+
+        Long highPriorityCount = queryCount(
+                """
+                SELECT COUNT(*)
+                """ + from + """
+                 AND spo.priority = 'HIGH'
+                """,
+                params
+        );
+
+        Long reviewRequiredCount = queryCount(
+                """
+                SELECT COUNT(*)
+                """ + from + """
+                 AND spo.actionability = 'REVIEW_REQUIRED'
+                """,
+                params
+        );
+
+        Long readyCount = queryCount(
+                """
+                SELECT COUNT(*)
+                """ + from + """
+                 AND spo.actionability = 'READY'
+                """,
+                params
+        );
+
+        Long suppressedCount = queryCount(
+                """
+                SELECT COUNT(*)
+                """ + from + """
+                 AND spo.status = 'SUPPRESSED'
+                """,
+                params
+        );
+
+        List<ServiceProfitCurrencyPotential> potentialByCurrency =
+                jdbcClient.sql(
+                                """
+                                SELECT
+                                    spo.currency_code,
+                                    SUM(spo.potential_amount) AS amount
+                                """ + from + """
+                                 AND spo.potential_amount IS NOT NULL
+                                 AND spo.currency_code IS NOT NULL
+                                GROUP BY spo.currency_code
+                                ORDER BY spo.currency_code
+                                """
+                        )
+                        .params(params)
+                        .query(
+                                (rs, rowNum) ->
+                                        new ServiceProfitCurrencyPotential(
+                                                rs.getString(
+                                                        "currency_code"
+                                                ),
+                                                rs.getBigDecimal(
+                                                        "amount"
+                                                )
+                                        )
+                        )
+                        .list();
+
+        List<ServiceProfitOpportunityCount> byOpportunityType =
+                queryGroupedCounts(
+                        """
+                        SELECT
+                            spo.opportunity_type AS summary_key,
+                            COUNT(*) AS summary_count
+                        """ + from + """
+                        GROUP BY spo.opportunity_type
+                        ORDER BY spo.opportunity_type
+                        """,
+                        params
+                );
+
+        List<ServiceProfitOpportunityCount> byPriority =
+                queryGroupedCounts(
+                        """
+                        SELECT
+                            spo.priority AS summary_key,
+                            COUNT(*) AS summary_count
+                        """ + from + """
+                        GROUP BY spo.priority
+                        ORDER BY spo.priority
+                        """,
+                        params
+                );
+
+        List<ServiceProfitOpportunityCount> byActionability =
+                queryGroupedCounts(
+                        """
+                        SELECT
+                            spo.actionability AS summary_key,
+                            COUNT(*) AS summary_count
+                        """ + from + """
+                        GROUP BY spo.actionability
+                        ORDER BY spo.actionability
+                        """,
+                        params
+                );
+
+        return new ServiceProfitOpportunitySummary(
+                total,
+                highPriorityCount,
+                reviewRequiredCount,
+                readyCount,
+                suppressedCount,
+                potentialByCurrency,
+                byOpportunityType,
+                byPriority,
+                byActionability
+        );
+    }
+
+    private Long queryCount(
+            String sql,
+            Map<String, Object> params
+    ) {
+        Long count = jdbcClient.sql(sql)
+                .params(params)
+                .query(Long.class)
+                .single();
+
+        return count == null ? 0L : count;
+    }
+
+    private List<ServiceProfitOpportunityCount> queryGroupedCounts(
+            String sql,
+            Map<String, Object> params
+    ) {
+        return jdbcClient.sql(sql)
+                .params(params)
+                .query(
+                        (rs, rowNum) ->
+                                new ServiceProfitOpportunityCount(
+                                        rs.getString(
+                                                "summary_key"
+                                        ),
+                                        rs.getLong(
+                                                "summary_count"
+                                        )
+                                )
+                )
+                .list();
     }
 
     private String buildPredicate(

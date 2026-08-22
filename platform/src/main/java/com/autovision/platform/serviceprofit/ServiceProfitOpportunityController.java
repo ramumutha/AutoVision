@@ -115,6 +115,53 @@ public class ServiceProfitOpportunityController {
         }
     }
 
+    @GetMapping("/summary")
+    public ServiceProfitOpportunitySummary findSummary(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false)
+            ServiceProfitOpportunityStatus status,
+            @RequestParam(required = false)
+            ServiceProfitPriority priority,
+            @RequestParam(required = false)
+            ServiceProfitOpportunityType opportunityType,
+            @RequestParam(required = false)
+            ServiceProfitEvidenceClass evidenceClass,
+            @RequestParam(required = false)
+            ServiceProfitEvidenceStrength evidenceStrength,
+            @RequestParam(required = false)
+            ServiceProfitActionability actionability,
+            @RequestParam(required = false)
+            UUID dealerId,
+            @RequestParam(required = false)
+            UUID branchId,
+            @RequestParam(required = false)
+            UUID locationId
+    ) {
+        AuthenticatedTenantContext tenantContext =
+                tenantContextResolver.resolve(jwt);
+
+        ServiceProfitOpportunityQuery query =
+                new ServiceProfitOpportunityQuery(
+                        status,
+                        priority,
+                        opportunityType,
+                        evidenceClass,
+                        evidenceStrength,
+                        actionability,
+                        dealerId,
+                        branchId,
+                        locationId,
+                        0,
+                        1,
+                        ServiceProfitOpportunitySort.DETECTED_DESC
+                );
+
+        return queryService.findSummary(
+                tenantContext,
+                query
+        );
+    }
+
     @GetMapping("/{opportunityId}")
     public ServiceProfitOpportunityResponse get(
             @PathVariable UUID opportunityId,

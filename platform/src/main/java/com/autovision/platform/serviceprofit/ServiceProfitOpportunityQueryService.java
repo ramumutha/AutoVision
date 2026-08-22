@@ -32,6 +32,33 @@ public class ServiceProfitOpportunityQueryService {
             ServiceProfitOpportunityQuery query
     ) {
         List<AuthorizationGrant> grants =
+                requireReadGrants(context);
+
+        return queryRepository.findAuthorizedPage(
+                context.tenantId(),
+                grants,
+                query
+        );
+    }
+
+    public ServiceProfitOpportunitySummary findSummary(
+            AuthenticatedTenantContext context,
+            ServiceProfitOpportunityQuery query
+    ) {
+        List<AuthorizationGrant> grants =
+                requireReadGrants(context);
+
+        return queryRepository.findAuthorizedSummary(
+                context.tenantId(),
+                grants,
+                query
+        );
+    }
+
+    private List<AuthorizationGrant> requireReadGrants(
+            AuthenticatedTenantContext context
+    ) {
+        List<AuthorizationGrant> grants =
                 authorizationRepository
                         .findActivePermissionGrants(
                                 context.userRefId(),
@@ -45,10 +72,6 @@ public class ServiceProfitOpportunityQueryService {
             );
         }
 
-        return queryRepository.findAuthorizedPage(
-                context.tenantId(),
-                grants,
-                query
-        );
+        return grants;
     }
 }
