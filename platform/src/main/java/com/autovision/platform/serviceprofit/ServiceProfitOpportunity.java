@@ -118,6 +118,13 @@ public class ServiceProfitOpportunity {
     @Column(name = "detected_at", nullable = false)
     private OffsetDateTime detectedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "suppression_reason", length = 64)
+    private ServiceProfitSuppressionReason suppressionReason;
+
+    @Column(name = "suppressed_at")
+    private OffsetDateTime suppressedAt;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -347,6 +354,51 @@ public class ServiceProfitOpportunity {
         }
 
         return value.trim();
+    }
+
+    public void suppress(
+            ServiceProfitSuppressionReason reason,
+            UUID principalId,
+            OffsetDateTime suppressedAt
+    ) {
+        requireValue(
+                reason,
+                "Service profit suppression reason is required"
+        );
+
+        if (suppressedAt == null) {
+            throw new IllegalArgumentException(
+                    "Service profit suppression time is required"
+            );
+        }
+
+        if (status == ServiceProfitOpportunityStatus.SUPPRESSED) {
+            return;
+        }
+
+        if (status == ServiceProfitOpportunityStatus.CLOSED
+                || status == ServiceProfitOpportunityStatus.REJECTED
+                || status == ServiceProfitOpportunityStatus.INVALID
+                || status == ServiceProfitOpportunityStatus.EXPIRED) {
+            throw new IllegalStateException(
+                    "Terminal service profit opportunity cannot be suppressed"
+            );
+        }
+
+        status = ServiceProfitOpportunityStatus.SUPPRESSED;
+        actionability = ServiceProfitActionability.SUPPRESSED;
+        suppressionReason = reason;
+        this.suppressedAt = suppressedAt;
+        updatedByPrincipalId = principalId;
+        updatedAt = suppressedAt;
+    }
+
+    public ServiceProfitSuppressionReason getSuppressionReason() {
+        return suppressionReason;
+    }
+
+    public OffsetDateTime getSuppressedAt() {
+        return suppressedAt;
     }
 
     public UUID getId() {

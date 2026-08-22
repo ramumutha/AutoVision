@@ -1,4 +1,4 @@
-﻿package com.autovision.platform.serviceprofit.detection;
+package com.autovision.platform.serviceprofit.detection;
 
 import com.autovision.platform.serviceprofit.ServiceProfitActionability;
 import com.autovision.platform.serviceprofit.ServiceProfitEvidenceClass;
