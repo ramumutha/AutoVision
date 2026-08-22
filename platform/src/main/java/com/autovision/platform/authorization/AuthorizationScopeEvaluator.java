@@ -102,6 +102,11 @@ public class AuthorizationScopeEvaluator {
                             resourceId,
                             tenantGroupId
                     );
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToActiveTenantGroup(
+                            resourceId,
+                            tenantGroupId
+                    );
         };
     }
 
@@ -136,6 +141,11 @@ public class AuthorizationScopeEvaluator {
                     );
             case SERVICE_WORKFLOW ->
                     scopeRepository.serviceWorkflowBelongsToTenant(
+                            resourceId,
+                            grantTenantId
+                    );
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToTenant(
                             resourceId,
                             grantTenantId
                     );
@@ -179,6 +189,12 @@ public class AuthorizationScopeEvaluator {
                     );
             case SERVICE_WORKFLOW ->
                     scopeRepository.serviceWorkflowBelongsToDealerGroup(
+                            resourceId,
+                            dealerGroupId,
+                            authenticatedTenantId
+                    );
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToDealerGroup(
                             resourceId,
                             dealerGroupId,
                             authenticatedTenantId
@@ -227,6 +243,12 @@ public class AuthorizationScopeEvaluator {
                             grantDealerId,
                             authenticatedTenantId
                     );
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToDealer(
+                            resourceId,
+                            grantDealerId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -267,6 +289,12 @@ public class AuthorizationScopeEvaluator {
                             grantBranchId,
                             authenticatedTenantId
                     );
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToBranch(
+                            resourceId,
+                            grantBranchId,
+                            authenticatedTenantId
+                    );
         };
     }
 
@@ -287,7 +315,13 @@ public class AuthorizationScopeEvaluator {
                     );
             case AFTERSALES_CASE -> false;
             case SERVICE_ORDER -> false;
-                        case SERVICE_WORKFLOW -> false;
+            case SERVICE_WORKFLOW -> false;
+            case SERVICE_PROFIT_OPPORTUNITY ->
+                    scopeRepository.serviceProfitOpportunityBelongsToLocation(
+                            resourceId,
+                            grantLocationId,
+                            authenticatedTenantId
+                    );
         };
     }
 }

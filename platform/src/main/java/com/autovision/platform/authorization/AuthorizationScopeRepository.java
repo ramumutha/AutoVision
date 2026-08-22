@@ -607,6 +607,119 @@ public class AuthorizationScopeRepository {
         );
     }
 
+
+    public boolean serviceProfitOpportunityBelongsToTenant(
+            UUID opportunityId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities
+                 WHERE id = :opportunityId
+                   AND tenant_id = :tenantId
+                """,
+                "opportunityId", opportunityId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceProfitOpportunityBelongsToDealer(
+            UUID opportunityId,
+            UUID dealerId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities
+                 WHERE id = :opportunityId
+                   AND dealer_id = :dealerId
+                   AND tenant_id = :tenantId
+                """,
+                "opportunityId", opportunityId,
+                "dealerId", dealerId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceProfitOpportunityBelongsToBranch(
+            UUID opportunityId,
+            UUID branchId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities
+                 WHERE id = :opportunityId
+                   AND branch_id = :branchId
+                   AND tenant_id = :tenantId
+                """,
+                "opportunityId", opportunityId,
+                "branchId", branchId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceProfitOpportunityBelongsToLocation(
+            UUID opportunityId,
+            UUID locationId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities
+                 WHERE id = :opportunityId
+                   AND location_id = :locationId
+                   AND tenant_id = :tenantId
+                """,
+                "opportunityId", opportunityId,
+                "locationId", locationId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceProfitOpportunityBelongsToDealerGroup(
+            UUID opportunityId,
+            UUID dealerGroupId,
+            UUID tenantId
+    ) {
+        return exists("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities spo
+                  JOIN platform.dealer_group_memberships m
+                    ON m.dealer_id = spo.dealer_id
+                   AND m.tenant_id = spo.tenant_id
+                 WHERE spo.id = :opportunityId
+                   AND m.dealer_group_id = :dealerGroupId
+                   AND spo.tenant_id = :tenantId
+                """,
+                "opportunityId", opportunityId,
+                "dealerGroupId", dealerGroupId,
+                "tenantId", tenantId
+        );
+    }
+
+    public boolean serviceProfitOpportunityBelongsToActiveTenantGroup(
+            UUID opportunityId,
+            UUID tenantGroupId
+    ) {
+        Integer matchCount = jdbcClient.sql("""
+                SELECT COUNT(*)
+                  FROM platform.service_profit_opportunities spo
+                  JOIN platform.tenant_group_memberships m
+                    ON m.tenant_id = spo.tenant_id
+                  JOIN platform.tenant_groups tg
+                    ON tg.id = m.tenant_group_id
+                 WHERE spo.id = :opportunityId
+                   AND tg.id = :tenantGroupId
+                   AND tg.status = 'ACTIVE'
+                """)
+                .param("opportunityId", opportunityId)
+                .param("tenantGroupId", tenantGroupId)
+                .query(Integer.class)
+                .single();
+
+        return matchCount != null && matchCount > 0;
+    }
     private boolean exists(
             String sql,
             String param1Name,
@@ -642,3 +755,4 @@ public class AuthorizationScopeRepository {
                 return matchCount != null && matchCount > 0;
         }
 }
+

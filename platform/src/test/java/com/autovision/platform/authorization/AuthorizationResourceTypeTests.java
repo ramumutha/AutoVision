@@ -8,6 +8,7 @@ class AuthorizationResourceTypeTests {
 
     @Test
     void containsExactlyExpectedValues() {
+
         assertArrayEquals(
                 new AuthorizationResourceType[] {
                         AuthorizationResourceType.TENANT,
@@ -16,7 +17,8 @@ class AuthorizationResourceTypeTests {
                         AuthorizationResourceType.LOCATION,
                         AuthorizationResourceType.AFTERSALES_CASE,
                         AuthorizationResourceType.SERVICE_ORDER,
-                        AuthorizationResourceType.SERVICE_WORKFLOW
+                        AuthorizationResourceType.SERVICE_WORKFLOW,
+                        AuthorizationResourceType.SERVICE_PROFIT_OPPORTUNITY
                 },
                 AuthorizationResourceType.values()
         );
