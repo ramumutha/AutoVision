@@ -37,15 +37,20 @@ class DealerDataAssessmentRepositoryTests {
 
         UUID tenantId = UUID.randomUUID();
         UUID principalId = UUID.randomUUID();
+
         OffsetDateTime now =
-                OffsetDateTime.parse("2026-08-22T08:00:00Z");
+                OffsetDateTime.parse(
+                        "2026-08-22T08:00:00Z"
+                );
 
         DealerDataAssessment assessment =
                 assessmentRepository.saveAndFlush(
                         newAssessment(
                                 tenantId,
                                 principalId,
-                                now
+                                now,
+                                null,
+                                null
                         )
                 );
 
@@ -82,9 +87,70 @@ class DealerDataAssessmentRepositoryTests {
                         );
 
         assertEquals(1, results.size());
+
         assertEquals(
                 DealerDataCapability.REVENUE_ATTRIBUTION,
                 results.getFirst().getCapability()
+        );
+    }
+
+    @Test
+    void persistsAndFindsDatasetIdentity() {
+
+        UUID tenantId = UUID.randomUUID();
+
+        DealerDataAssessment assessment =
+                assessmentRepository.saveAndFlush(
+                        newAssessment(
+                                tenantId,
+                                UUID.randomUUID(),
+                                OffsetDateTime.now(),
+                                "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                                "1.0.0"
+                        )
+                );
+
+        DealerDataAssessment found =
+                assessmentRepository
+                        .findByTenantIdAndSourceDatasetIdAndSourceDatasetVersion(
+                                tenantId,
+                                "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                                "1.0.0"
+                        )
+                        .orElseThrow();
+
+        assertEquals(
+                assessment.getId(),
+                found.getId()
+        );
+    }
+
+    @Test
+    void sameDatasetVersionCannotBeStoredTwiceForTenant() {
+
+        UUID tenantId = UUID.randomUUID();
+
+        assessmentRepository.saveAndFlush(
+                newAssessment(
+                        tenantId,
+                        UUID.randomUUID(),
+                        OffsetDateTime.now(),
+                        "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                        "1.0.0"
+                )
+        );
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> assessmentRepository.saveAndFlush(
+                        newAssessment(
+                                tenantId,
+                                UUID.randomUUID(),
+                                OffsetDateTime.now(),
+                                "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                                "1.0.0"
+                        )
+                )
         );
     }
 
@@ -100,7 +166,9 @@ class DealerDataAssessmentRepositoryTests {
                         newAssessment(
                                 tenantId,
                                 principalId,
-                                now
+                                now,
+                                null,
+                                null
                         )
                 );
 
@@ -145,7 +213,9 @@ class DealerDataAssessmentRepositoryTests {
                         newAssessment(
                                 tenantId,
                                 UUID.randomUUID(),
-                                OffsetDateTime.now()
+                                OffsetDateTime.now(),
+                                null,
+                                null
                         )
                 );
 
@@ -167,7 +237,9 @@ class DealerDataAssessmentRepositoryTests {
     private DealerDataAssessment newAssessment(
             UUID tenantId,
             UUID principalId,
-            OffsetDateTime now
+            OffsetDateTime now,
+            String sourceDatasetId,
+            String sourceDatasetVersion
     ) {
         DealerDataCoverage coverage =
                 new DealerDataCoverage(
@@ -191,6 +263,8 @@ class DealerDataAssessmentRepositoryTests {
                 null,
                 "Dealer extract",
                 "LEGACY_DMS",
+                sourceDatasetId,
+                sourceDatasetVersion,
                 coverage,
                 policy.calculateOverallScore(coverage),
                 policy.policyVersion(),

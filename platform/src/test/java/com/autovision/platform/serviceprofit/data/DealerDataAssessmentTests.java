@@ -16,6 +16,7 @@ class DealerDataAssessmentTests {
     @Test
     void createsExplainableDraftAssessment() {
         UUID principalId = UUID.randomUUID();
+
         OffsetDateTime now =
                 OffsetDateTime.parse(
                         "2026-08-22T08:00:00Z"
@@ -29,6 +30,8 @@ class DealerDataAssessmentTests {
                         null,
                         "Dealer R1 extract",
                         "LEGACY_DMS",
+                        null,
+                        null,
                         coverage(),
                         new BigDecimal("78.25"),
                         "R1-DATA-READINESS-1",
@@ -52,6 +55,79 @@ class DealerDataAssessmentTests {
         );
 
         assertNull(assessment.getAssessedAt());
+        assertNull(assessment.getSourceDatasetId());
+        assertNull(assessment.getSourceDatasetVersion());
+    }
+
+    @Test
+    void createsAssessmentWithDatasetIdentity() {
+        DealerDataAssessment assessment =
+                DealerDataAssessment.createDraft(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        null,
+                        null,
+                        "AutoVision Service Profit R1 Demo",
+                        "SYNTHETIC_DEMO",
+                        "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                        "1.0.0",
+                        coverage(),
+                        new BigDecimal("78.25"),
+                        "R1-DATA-READINESS-1",
+                        UUID.randomUUID(),
+                        OffsetDateTime.now()
+                );
+
+        assertEquals(
+                "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+                assessment.getSourceDatasetId()
+        );
+
+        assertEquals(
+                "1.0.0",
+                assessment.getSourceDatasetVersion()
+        );
+    }
+
+    @Test
+    void rejectsIncompleteDatasetIdentityPair() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DealerDataAssessment.createDraft(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        null,
+                        null,
+                        "Dealer extract",
+                        "LEGACY_DMS",
+                        "DATASET-1",
+                        null,
+                        coverage(),
+                        new BigDecimal("70.00"),
+                        "R1-DATA-READINESS-1",
+                        UUID.randomUUID(),
+                        OffsetDateTime.now()
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DealerDataAssessment.createDraft(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        null,
+                        null,
+                        "Dealer extract",
+                        "LEGACY_DMS",
+                        null,
+                        "1.0.0",
+                        coverage(),
+                        new BigDecimal("70.00"),
+                        "R1-DATA-READINESS-1",
+                        UUID.randomUUID(),
+                        OffsetDateTime.now()
+                )
+        );
     }
 
     @Test
@@ -66,6 +142,8 @@ class DealerDataAssessmentTests {
                         null,
                         null,
                         "Dealer extract",
+                        null,
+                        null,
                         null,
                         coverage(),
                         new BigDecimal("70.00"),
@@ -115,6 +193,8 @@ class DealerDataAssessmentTests {
                         UUID.randomUUID(),
                         "Dealer extract",
                         null,
+                        null,
+                        null,
                         coverage(),
                         new BigDecimal("70.00"),
                         "R1-DATA-READINESS-1",
@@ -133,6 +213,8 @@ class DealerDataAssessmentTests {
                         null,
                         null,
                         "Dealer extract",
+                        null,
+                        null,
                         null,
                         coverage(),
                         new BigDecimal("70.00"),

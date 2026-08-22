@@ -24,4 +24,11 @@ public interface DealerDataAssessmentRepository
             UUID tenantId,
             UUID dealerId
     );
-}
+
+    Optional<DealerDataAssessment>
+    findByTenantIdAndSourceDatasetIdAndSourceDatasetVersion(
+            UUID tenantId,
+            String sourceDatasetId,
+            String sourceDatasetVersion
+    );}
+

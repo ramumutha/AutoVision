@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
@@ -13,7 +14,20 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "dealer_data_assessments", schema = "platform")
+@Table(
+        name = "dealer_data_assessments",
+        schema = "platform",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_dealer_data_assessment_tenant_dataset_version",
+                        columnNames = {
+                                "tenant_id",
+                                "source_dataset_id",
+                                "source_dataset_version"
+                        }
+                )
+        }
+)
 public class DealerDataAssessment {
 
     @Id
@@ -33,6 +47,12 @@ public class DealerDataAssessment {
 
     @Column(name = "source_system", length = 100)
     private String sourceSystem;
+
+    @Column(name = "source_dataset_id", length = 160)
+    private String sourceDatasetId;
+
+    @Column(name = "source_dataset_version", length = 80)
+    private String sourceDatasetVersion;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -97,6 +117,8 @@ public class DealerDataAssessment {
             UUID branchId,
             String sourceName,
             String sourceSystem,
+            String sourceDatasetId,
+            String sourceDatasetVersion,
             DealerDataCoverage coverage,
             BigDecimal overallScore,
             String assessmentPolicyVersion,
@@ -106,6 +128,23 @@ public class DealerDataAssessment {
         requireId(id, "Dealer data assessment ID is required");
         requireId(tenantId, "Tenant ID is required");
         requireText(sourceName, "Source name is required");
+
+        if ((sourceDatasetId == null) != (sourceDatasetVersion == null)) {
+            throw new IllegalArgumentException(
+                    "Source dataset ID and version must be provided together"
+            );
+        }
+
+        if (sourceDatasetId != null) {
+            requireText(
+                    sourceDatasetId,
+                    "Source dataset ID must not be blank"
+            );
+            requireText(
+                    sourceDatasetVersion,
+                    "Source dataset version must not be blank"
+            );
+        }
 
         if (coverage == null) {
             throw new IllegalArgumentException(
@@ -141,6 +180,8 @@ public class DealerDataAssessment {
         assessment.branchId = branchId;
         assessment.sourceName = sourceName;
         assessment.sourceSystem = sourceSystem;
+        assessment.sourceDatasetId = sourceDatasetId;
+        assessment.sourceDatasetVersion = sourceDatasetVersion;
         assessment.status = DealerDataAssessmentStatus.DRAFT;
 
         assessment.identityCoverage = coverage.identity();
@@ -230,6 +271,8 @@ public class DealerDataAssessment {
     public UUID getBranchId() { return branchId; }
     public String getSourceName() { return sourceName; }
     public String getSourceSystem() { return sourceSystem; }
+    public String getSourceDatasetId() { return sourceDatasetId; }
+    public String getSourceDatasetVersion() { return sourceDatasetVersion; }
     public DealerDataAssessmentStatus getStatus() { return status; }
     public BigDecimal getIdentityCoverage() { return identityCoverage; }
     public BigDecimal getVehicleLinkageCoverage() { return vehicleLinkageCoverage; }
@@ -248,3 +291,5 @@ public class DealerDataAssessment {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }
+
+
