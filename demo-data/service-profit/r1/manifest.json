@@ -1,137 +1,144 @@
 {
-  "datasetId": "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
-  "version": "1.0.0",
-  "classification": "SYNTHETIC_DEMO_ONLY",
-  "market": "IN",
-  "defaultCurrency": "INR",
-  "tenantId": "10000000-0000-4000-8000-000000000001",
-  "assessmentPolicyVersion": "R1-DATA-READINESS-1",
-
-  "expectedCoverage": {
-    "identity": 90.00,
-    "vehicleLinkage": 96.00,
-    "serviceTransaction": 100.00,
-    "recommendationEvidence": 88.00,
-    "disposition": 55.00,
-    "mileage": 82.00,
-    "invoiceLinkage": 85.00,
-    "cost": 62.00
-  },
-
-  "expectedCapabilities": {
-    "DECLINED_WORK_EXPLICIT": "PARTIAL",
-    "DECLINED_WORK_RECONSTRUCTION": "AVAILABLE",
-    "DEFERRED_WORK": "AVAILABLE",
-    "DUE_OVERDUE_SERVICE": "AVAILABLE",
-    "INACTIVE_CUSTOMER": "AVAILABLE",
-    "REVENUE_ATTRIBUTION": "AVAILABLE",
-    "GROSS_PROFIT_ATTRIBUTION": "PARTIAL"
-  },
-
-  "scenarios": [
-    {
-      "id": "SP-DEMO-001",
-      "name": "Explicit declined brake work",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "SOURCE_CONFIRMED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "READY",
-      "expectedPotentialAmount": 12400.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-002",
-      "name": "Deferred tyre replacement",
-      "expectedOpportunityType": "DEFERRED_WORK",
-      "expectedEvidenceClass": "SOURCE_CONFIRMED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "READY",
-      "expectedPotentialAmount": 28000.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-003",
-      "name": "Note-derived declined brake work",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "EVIDENCE_DERIVED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "READY",
-      "expectedPotentialAmount": 9800.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-004",
-      "name": "Previously declined work subsequently completed",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "SOURCE_CONFIRMED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "SUPPRESSED",
-      "expectedPotentialAmount": 8500.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "SUPPRESS_ALREADY_COMPLETED"
-    },
-    {
-      "id": "SP-DEMO-005",
-      "name": "Due scheduled service",
-      "expectedOpportunityType": "DUE_SERVICE",
-      "expectedEvidenceClass": "POLICY_DERIVED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "READY",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-006",
-      "name": "Overdue scheduled service",
-      "expectedOpportunityType": "OVERDUE_SERVICE",
-      "expectedEvidenceClass": "POLICY_DERIVED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedActionability": "READY",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-007",
-      "name": "Inactive customer",
-      "expectedOpportunityType": "INACTIVE_CUSTOMER",
-      "expectedEvidenceClass": "POLICY_DERIVED",
-      "expectedEvidenceStrength": "MODERATE",
-      "expectedActionability": "READY",
-      "expectedOutcome": "OPPORTUNITY"
-    },
-    {
-      "id": "SP-DEMO-008",
-      "name": "Partial conversion",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "SOURCE_CONFIRMED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedPotentialAmount": 6200.00,
-      "expectedConvertedAmount": 4000.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "PARTIAL_CONVERSION"
-    },
-    {
-      "id": "SP-DEMO-009",
-      "name": "Revenue attributable with incomplete cost data",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "SOURCE_CONFIRMED",
-      "expectedEvidenceStrength": "STRONG",
-      "expectedPotentialAmount": 14500.00,
-      "expectedConvertedAmount": 14500.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "REVENUE_ONLY"
-    },
-    {
-      "id": "SP-DEMO-010",
-      "name": "Ambiguous customer identity",
-      "expectedOpportunityType": "DECLINED_WORK",
-      "expectedEvidenceClass": "EVIDENCE_DERIVED",
-      "expectedEvidenceStrength": "MODERATE",
-      "expectedActionability": "REVIEW_REQUIRED",
-      "expectedPotentialAmount": 18000.00,
-      "currencyCode": "INR",
-      "expectedOutcome": "REVIEW_REQUIRED"
-    }
-  ]
+    "datasetId":  "AUTOVISION-SERVICE-PROFIT-R1-DEMO",
+    "version":  "1.0.0",
+    "classification":  "SYNTHETIC_DEMO_ONLY",
+    "market":  "IN",
+    "defaultCurrency":  "INR",
+    "tenantId":  "10000000-0000-4000-8000-000000000001",
+    "assessmentPolicyVersion":  "R1-DATA-READINESS-1",
+    "expectedCoverage":  {
+                             "identity":  90.00,
+                             "vehicleLinkage":  96.00,
+                             "serviceTransaction":  100.00,
+                             "recommendationEvidence":  88.00,
+                             "disposition":  55.00,
+                             "mileage":  82.00,
+                             "invoiceLinkage":  85.00,
+                             "cost":  62.00
+                         },
+    "featureProfile":  {
+                           "structuredDisposition":  "PARTIAL",
+                           "technicianAdvisorNotes":  "AVAILABLE",
+                           "recommendationHistory":  "AVAILABLE",
+                           "serviceHistory":  "AVAILABLE",
+                           "mileageHistory":  "AVAILABLE",
+                           "customerActivityHistory":  "AVAILABLE",
+                           "invoiceLinkage":  "AVAILABLE",
+                           "costData":  "PARTIAL"
+                       },
+    "expectedCapabilities":  {
+                                 "DECLINED_WORK_EXPLICIT":  "PARTIAL",
+                                 "DECLINED_WORK_RECONSTRUCTION":  "AVAILABLE",
+                                 "DEFERRED_WORK":  "AVAILABLE",
+                                 "DUE_OVERDUE_SERVICE":  "AVAILABLE",
+                                 "INACTIVE_CUSTOMER":  "AVAILABLE",
+                                 "REVENUE_ATTRIBUTION":  "AVAILABLE",
+                                 "GROSS_PROFIT_ATTRIBUTION":  "PARTIAL"
+                             },
+    "scenarios":  [
+                      {
+                          "id":  "SP-DEMO-001",
+                          "name":  "Explicit declined brake work",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "SOURCE_CONFIRMED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "READY",
+                          "expectedPotentialAmount":  12400.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-002",
+                          "name":  "Deferred tyre replacement",
+                          "expectedOpportunityType":  "DEFERRED_WORK",
+                          "expectedEvidenceClass":  "SOURCE_CONFIRMED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "READY",
+                          "expectedPotentialAmount":  28000.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-003",
+                          "name":  "Note-derived declined brake work",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "EVIDENCE_DERIVED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "READY",
+                          "expectedPotentialAmount":  9800.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-004",
+                          "name":  "Previously declined work subsequently completed",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "SOURCE_CONFIRMED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "SUPPRESSED",
+                          "expectedPotentialAmount":  8500.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "SUPPRESS_ALREADY_COMPLETED"
+                      },
+                      {
+                          "id":  "SP-DEMO-005",
+                          "name":  "Due scheduled service",
+                          "expectedOpportunityType":  "DUE_SERVICE",
+                          "expectedEvidenceClass":  "POLICY_DERIVED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "READY",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-006",
+                          "name":  "Overdue scheduled service",
+                          "expectedOpportunityType":  "OVERDUE_SERVICE",
+                          "expectedEvidenceClass":  "POLICY_DERIVED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedActionability":  "READY",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-007",
+                          "name":  "Inactive customer",
+                          "expectedOpportunityType":  "INACTIVE_CUSTOMER",
+                          "expectedEvidenceClass":  "POLICY_DERIVED",
+                          "expectedEvidenceStrength":  "MODERATE",
+                          "expectedActionability":  "READY",
+                          "expectedOutcome":  "OPPORTUNITY"
+                      },
+                      {
+                          "id":  "SP-DEMO-008",
+                          "name":  "Partial conversion",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "SOURCE_CONFIRMED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedPotentialAmount":  6200.00,
+                          "expectedConvertedAmount":  4000.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "PARTIAL_CONVERSION"
+                      },
+                      {
+                          "id":  "SP-DEMO-009",
+                          "name":  "Revenue attributable with incomplete cost data",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "SOURCE_CONFIRMED",
+                          "expectedEvidenceStrength":  "STRONG",
+                          "expectedPotentialAmount":  14500.00,
+                          "expectedConvertedAmount":  14500.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "REVENUE_ONLY"
+                      },
+                      {
+                          "id":  "SP-DEMO-010",
+                          "name":  "Ambiguous customer identity",
+                          "expectedOpportunityType":  "DECLINED_WORK",
+                          "expectedEvidenceClass":  "EVIDENCE_DERIVED",
+                          "expectedEvidenceStrength":  "MODERATE",
+                          "expectedActionability":  "REVIEW_REQUIRED",
+                          "expectedPotentialAmount":  18000.00,
+                          "currencyCode":  "INR",
+                          "expectedOutcome":  "REVIEW_REQUIRED"
+                      }
+                  ]
 }
