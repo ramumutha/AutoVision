@@ -16,6 +16,7 @@ public class ServiceProfitDemoLoaderRunner
         implements ApplicationRunner {
 
     private final ServiceProfitDemoLoader loader;
+        private final ServiceProfitDemoMaterializer materializer;
 
     @Value(
             "${autovision.service-profit.demo-load.enabled:false}"
@@ -33,9 +34,11 @@ public class ServiceProfitDemoLoaderRunner
     private UUID principalId;
 
     public ServiceProfitDemoLoaderRunner(
-            ServiceProfitDemoLoader loader
+                        ServiceProfitDemoLoader loader,
+                        ServiceProfitDemoMaterializer materializer
     ) {
         this.loader = loader;
+                this.materializer = materializer;
     }
 
     @Override
@@ -46,13 +49,26 @@ public class ServiceProfitDemoLoaderRunner
             return;
         }
 
+        Path root =
+                Path.of(datasetRoot)
+                        .toAbsolutePath()
+                        .normalize();
+
+        OffsetDateTime startupTime =
+                OffsetDateTime.now();
+
         ServiceProfitDemoLoadResult result =
                 loader.load(
-                        Path.of(datasetRoot)
-                                .toAbsolutePath()
-                                .normalize(),
+                        root,
                         principalId,
-                        OffsetDateTime.now()
+                        startupTime
+                );
+
+        ServiceProfitDemoMaterializationResult materializationResult =
+                materializer.materialize(
+                        root,
+                        principalId,
+                        startupTime
                 );
 
         if (result.loaded()) {
@@ -70,5 +86,11 @@ public class ServiceProfitDemoLoaderRunner
                             + result.datasetVersion()
             );
         }
+
+                System.out.println(
+                                "PASS: Service Profit demo opportunities materialized "
+                                                + materializationResult.totalScenariosEvaluated()
+                                                + " scenarios"
+                );
     }
 }

@@ -5,16 +5,20 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.mockito.ArgumentCaptor;
 
 class ServiceProfitDemoLoaderRunnerTests {
 
@@ -49,9 +53,13 @@ class ServiceProfitDemoLoaderRunnerTests {
         ServiceProfitDemoLoader loader =
                 mock(ServiceProfitDemoLoader.class);
 
+        ServiceProfitDemoMaterializer materializer =
+                mock(ServiceProfitDemoMaterializer.class);
+
         ServiceProfitDemoLoaderRunner runner =
                 new ServiceProfitDemoLoaderRunner(
-                        loader
+                        loader,
+                        materializer
                 );
 
         ReflectionTestUtils.setField(
@@ -88,6 +96,15 @@ class ServiceProfitDemoLoaderRunnerTests {
                 any(UUID.class),
                 any()
         );
+
+        verify(
+                materializer,
+                never()
+        ).materialize(
+                any(Path.class),
+                any(UUID.class),
+                any()
+        );
     }
 
     @Test
@@ -97,9 +114,13 @@ class ServiceProfitDemoLoaderRunnerTests {
         ServiceProfitDemoLoader loader =
                 mock(ServiceProfitDemoLoader.class);
 
+        ServiceProfitDemoMaterializer materializer =
+                mock(ServiceProfitDemoMaterializer.class);
+
         ServiceProfitDemoLoaderRunner runner =
                 new ServiceProfitDemoLoaderRunner(
-                        loader
+                        loader,
+                        materializer
                 );
 
         UUID principalId =
@@ -145,20 +166,52 @@ class ServiceProfitDemoLoaderRunnerTests {
                 )
         ).thenReturn(result);
 
+        org.mockito.Mockito.when(
+                materializer.materialize(
+                        any(Path.class),
+                        eq(principalId),
+                        any()
+                )
+        ).thenReturn(
+                ServiceProfitDemoMaterializationResult.from(
+                        List.of()
+                )
+        );
+
         runner.run(
                 mock(
                         org.springframework.boot.ApplicationArguments.class
                 )
         );
 
+        ArgumentCaptor<OffsetDateTime> loadTime =
+                ArgumentCaptor.forClass(OffsetDateTime.class);
+
+        ArgumentCaptor<OffsetDateTime> materializationTime =
+                ArgumentCaptor.forClass(OffsetDateTime.class);
+
+        Path expectedRoot =
+                Path.of(datasetRoot)
+                        .toAbsolutePath()
+                        .normalize();
+
         verify(loader).load(
                 eq(
-                        Path.of(datasetRoot)
-                                .toAbsolutePath()
-                                .normalize()
+                        expectedRoot
                 ),
                 eq(principalId),
-                any()
+                loadTime.capture()
+        );
+
+        verify(materializer).materialize(
+                eq(expectedRoot),
+                eq(principalId),
+                materializationTime.capture()
+        );
+
+        assertEquals(
+                loadTime.getValue(),
+                materializationTime.getValue()
         );
     }
 }
