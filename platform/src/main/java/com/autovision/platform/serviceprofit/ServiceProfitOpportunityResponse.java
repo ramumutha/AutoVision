@@ -32,6 +32,9 @@ public record ServiceProfitOpportunityResponse(
         UUID sourceQuoteId,
         String policyVersion,
         OffsetDateTime detectedAt,
+        ServiceProfitSuppressionReason suppressionReason,
+        OffsetDateTime suppressedAt,
+        ServiceProfitOpportunityExplanation explanation,
         long version,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -68,6 +71,11 @@ public record ServiceProfitOpportunityResponse(
                 opportunity.getSourceQuoteId(),
                 opportunity.getPolicyVersion(),
                 opportunity.getDetectedAt(),
+                opportunity.getSuppressionReason(),
+                opportunity.getSuppressedAt(),
+                ServiceProfitOpportunityExplanationResolver.resolve(
+                        opportunity
+                ),
                 opportunity.getVersion(),
                 opportunity.getCreatedAt(),
                 opportunity.getUpdatedAt()

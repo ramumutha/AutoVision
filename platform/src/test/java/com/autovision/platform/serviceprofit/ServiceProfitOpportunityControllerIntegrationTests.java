@@ -118,6 +118,104 @@ class ServiceProfitOpportunityControllerIntegrationTests {
         .andExpect(
                 jsonPath("$.priority")
                         .value("HIGH")
+        )
+        .andExpect(
+                jsonPath("$.suppressionReason")
+                        .doesNotExist()
+        )
+        .andExpect(
+                jsonPath("$.suppressedAt")
+                        .doesNotExist()
+        )
+        .andExpect(
+                jsonPath("$.explanation.headline")
+                        .value(
+                                "Previously declined work may be recoverable"
+                        )
+        )
+        .andExpect(
+                jsonPath("$.explanation.evidenceBasis")
+                        .value(
+                                org.hamcrest.Matchers.containsString(
+                                        "authoritative dealer source"
+                                )
+                        )
+        )
+        .andExpect(
+                jsonPath("$.explanation.recommendedAction")
+                        .value(
+                                org.hamcrest.Matchers.containsString(
+                                        "customer follow-up"
+                                )
+                        )
+        );
+    }
+
+    @Test
+    void readReturnsSuppressionExplanation()
+            throws Exception {
+
+        UUID opportunityId = UUID.randomUUID();
+
+        ServiceProfitOpportunity opportunity =
+                opportunity(opportunityId);
+
+        OffsetDateTime suppressedAt =
+                OffsetDateTime.parse(
+                        "2026-08-22T11:00:00+00:00"
+                );
+
+        opportunity.suppress(
+                ServiceProfitSuppressionReason.WORK_ALREADY_COMPLETED,
+                userRefId,
+                suppressedAt
+        );
+
+        when(tenantContextResolver.resolve(any()))
+                .thenReturn(context);
+
+        when(accessService.requireOpportunity(
+                context,
+                opportunityId
+        )).thenReturn(opportunity);
+
+        mockMvc.perform(
+                get(
+                        "/api/v1/service-profit/opportunities/{id}",
+                        opportunityId
+                )
+                .with(authenticatedJwt())
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.status")
+                        .value("SUPPRESSED")
+        )
+        .andExpect(
+                jsonPath("$.actionability")
+                        .value("SUPPRESSED")
+        )
+        .andExpect(
+                jsonPath("$.suppressionReason")
+                        .value("WORK_ALREADY_COMPLETED")
+        )
+        .andExpect(
+                jsonPath("$.suppressedAt")
+                        .exists()
+        )
+        .andExpect(
+                jsonPath("$.explanation.rationale")
+                        .value(
+                                org.hamcrest.Matchers.containsString(
+                                        "suppressed"
+                                )
+                        )
+        )
+        .andExpect(
+                jsonPath("$.explanation.recommendedAction")
+                        .value(
+                                "No follow-up is required because the work is already recorded as completed."
+                        )
         );
     }
 
