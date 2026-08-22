@@ -251,22 +251,19 @@ public class LifecycleServiceProfitDetectionPolicy {
 
             case DUE_SERVICE,
                  OVERDUE_SERVICE -> {
-                boolean hasDate =
+                boolean hasDueDate =
                         input.nextServiceDueDate() != null;
 
-                boolean hasMileage =
-                        input.currentMileage() != null
-                                && input.nextServiceDueMileage() != null;
+                boolean hasDueMileage =
+                        input.nextServiceDueMileage() != null;
 
-                yield hasDate && hasMileage
+                yield hasDueDate && hasDueMileage
                         ? ServiceProfitEvidenceStrength.STRONG
                         : ServiceProfitEvidenceStrength.MODERATE;
             }
 
             case INACTIVE_CUSTOMER ->
-                    input.lastServiceDate() != null
-                            ? ServiceProfitEvidenceStrength.STRONG
-                            : ServiceProfitEvidenceStrength.MODERATE;
+                    ServiceProfitEvidenceStrength.MODERATE;
 
             default ->
                     ServiceProfitEvidenceStrength.MODERATE;

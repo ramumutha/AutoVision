@@ -39,6 +39,16 @@ public class ServiceProfitEvidencePhraseClassifier {
                     "consider replacement"
             );
 
+    private static final List<String> AMBIGUOUS_IDENTITY_PHRASES =
+            List.of(
+                    "could not be confidently matched",
+                    "customer could not be matched",
+                    "unable to match customer",
+                    "customer identity uncertain",
+                    "ambiguous customer"
+            );
+
+
     private static final List<String> COMPLETION_PHRASES =
             List.of(
                     "completed",
@@ -78,6 +88,14 @@ public class ServiceProfitEvidencePhraseClassifier {
         )) {
             return ServiceProfitEvidenceSignal.STRONG_DEFER;
         }
+
+        if (containsAny(
+                normalized,
+                AMBIGUOUS_IDENTITY_PHRASES
+        )) {
+            return ServiceProfitEvidenceSignal.AMBIGUOUS_IDENTITY;
+        }
+
 
         if (containsAny(
                 normalized,

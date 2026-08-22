@@ -157,6 +157,64 @@ class LifecycleServiceProfitDetectionPolicyTests {
     }
 
     @Test
+    void dueScheduleWithDateAndDueMileageIsStrongWithoutCurrentMileage() {
+
+        ServiceProfitDetectionResult result =
+                policy.detect(
+                        input(
+                                LocalDate.of(
+                                        2026,
+                                        8,
+                                        25
+                                ),
+                                new BigDecimal("30000"),
+                                null,
+                                NOW.minusDays(100),
+                                true,
+                                false
+                        ),
+                        NOW
+                );
+
+        assertEquals(
+                ServiceProfitOpportunityType.DUE_SERVICE,
+                result.opportunityType()
+        );
+
+        assertEquals(
+                ServiceProfitEvidenceStrength.STRONG,
+                result.evidenceStrength()
+        );
+    }
+
+    @Test
+    void inactiveCustomerEvidenceIsModerateInR1() {
+
+        ServiceProfitDetectionResult result =
+                policy.detect(
+                        input(
+                                null,
+                                null,
+                                null,
+                                NOW.minusDays(500),
+                                true,
+                                false
+                        ),
+                        NOW
+                );
+
+        assertEquals(
+                ServiceProfitOpportunityType.INACTIVE_CUSTOMER,
+                result.opportunityType()
+        );
+
+        assertEquals(
+                ServiceProfitEvidenceStrength.MODERATE,
+                result.evidenceStrength()
+        );
+    }
+
+    @Test
     void detectsInactiveCustomer() {
 
         ServiceProfitDetectionResult result =

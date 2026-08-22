@@ -50,6 +50,16 @@ class ServiceProfitEvidencePhraseClassifierTests {
     }
 
     @Test
+    void classifiesAmbiguousCustomerIdentity() {
+        assertEquals(
+                ServiceProfitEvidenceSignal.AMBIGUOUS_IDENTITY,
+                classifier.classify(
+                        "Customer details from previous DMS export could not be confidently matched."
+                )
+        );
+    }
+
+    @Test
     void unrelatedTextProducesNoSignal() {
         assertEquals(
                 ServiceProfitEvidenceSignal.NONE,

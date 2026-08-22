@@ -153,7 +153,8 @@ public class EvidenceDerivedServiceProfitDetectionPolicy {
                     ServiceProfitOpportunityType.DECLINED_WORK;
 
             case STRONG_DEFER,
-                 AMBIGUOUS_POSTPONEMENT ->
+                 AMBIGUOUS_POSTPONEMENT,
+                 AMBIGUOUS_IDENTITY ->
                     ServiceProfitOpportunityType.DECLINED_WORK;
 
             case COMPLETION,
@@ -170,7 +171,8 @@ public class EvidenceDerivedServiceProfitDetectionPolicy {
                  STRONG_DEFER ->
                     ServiceProfitEvidenceStrength.STRONG;
 
-            case AMBIGUOUS_POSTPONEMENT ->
+            case AMBIGUOUS_POSTPONEMENT,
+                 AMBIGUOUS_IDENTITY ->
                     ServiceProfitEvidenceStrength.MODERATE;
 
             case COMPLETION,
@@ -187,6 +189,11 @@ public class EvidenceDerivedServiceProfitDetectionPolicy {
                 || signal
                 == ServiceProfitEvidenceSignal.COMPLETION) {
             return ServiceProfitActionability.SUPPRESSED;
+        }
+
+        if (signal
+                == ServiceProfitEvidenceSignal.AMBIGUOUS_IDENTITY) {
+            return ServiceProfitActionability.REVIEW_REQUIRED;
         }
 
         if (!input.customerContactable()) {

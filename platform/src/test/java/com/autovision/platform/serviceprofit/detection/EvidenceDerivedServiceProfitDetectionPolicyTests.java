@@ -85,6 +85,42 @@ class EvidenceDerivedServiceProfitDetectionPolicyTests {
     }
 
     @Test
+    void ambiguousIdentityCreatesReviewRequiredCandidate() {
+
+        ServiceProfitDetectionResult result =
+                policy.detect(
+                        input(
+                                "Suspension attention recommended.",
+                                "Customer details from previous DMS export could not be confidently matched.",
+                                true,
+                                false
+                        )
+                );
+
+        assertTrue(result.detected());
+
+        assertEquals(
+                ServiceProfitOpportunityType.DECLINED_WORK,
+                result.opportunityType()
+        );
+
+        assertEquals(
+                ServiceProfitEvidenceClass.EVIDENCE_DERIVED,
+                result.evidenceClass()
+        );
+
+        assertEquals(
+                ServiceProfitEvidenceStrength.MODERATE,
+                result.evidenceStrength()
+        );
+
+        assertEquals(
+                ServiceProfitActionability.REVIEW_REQUIRED,
+                result.actionability()
+        );
+    }
+
+    @Test
     void completedEvidenceSuppressesOpportunity() {
 
         ServiceProfitDetectionResult result =
