@@ -15,8 +15,14 @@ import java.util.UUID;
 public class ServiceProfitDemoLoaderRunner
         implements ApplicationRunner {
 
+        private final ServiceProfitDemoBootstrap bootstrap;
     private final ServiceProfitDemoLoader loader;
         private final ServiceProfitDemoMaterializer materializer;
+
+        @Value(
+                        "${autovision.service-profit.demo-bootstrap.enabled:false}"
+        )
+        private boolean bootstrapEnabled;
 
     @Value(
             "${autovision.service-profit.demo-load.enabled:false}"
@@ -33,19 +39,31 @@ public class ServiceProfitDemoLoaderRunner
     )
     private UUID principalId;
 
+    @Value(
+            "${autovision.service-profit.demo-bootstrap.manager-user-ref-id:00000000-0000-4000-8000-000000000001}"
+    )
+    private UUID managerUserRefId;
+
+    @Value(
+            "${autovision.service-profit.demo-bootstrap.manager-external-user-id:service-profit-demo-manager}"
+    )
+    private String managerExternalUserId;
+
     public ServiceProfitDemoLoaderRunner(
-                        ServiceProfitDemoLoader loader,
-                        ServiceProfitDemoMaterializer materializer
+            ServiceProfitDemoBootstrap bootstrap,
+            ServiceProfitDemoLoader loader,
+            ServiceProfitDemoMaterializer materializer
     ) {
+        this.bootstrap = bootstrap;
         this.loader = loader;
-                this.materializer = materializer;
+        this.materializer = materializer;
     }
 
     @Override
     public void run(
             ApplicationArguments args
     ) {
-        if (!enabled) {
+                if (!bootstrapEnabled && !enabled) {
             return;
         }
 
@@ -56,6 +74,25 @@ public class ServiceProfitDemoLoaderRunner
 
         OffsetDateTime startupTime =
                 OffsetDateTime.now();
+
+        if (bootstrapEnabled) {
+            ServiceProfitDemoBootstrapResult bootstrapResult =
+                    bootstrap.bootstrap(
+                            root,
+                            managerUserRefId,
+                            managerExternalUserId,
+                            startupTime
+                    );
+
+            System.out.println(
+                    "PASS: Service Profit demo runtime bootstrapped "
+                            + bootstrapResult.tenantId()
+            );
+        }
+
+        if (!enabled) {
+            return;
+        }
 
         ServiceProfitDemoLoadResult result =
                 loader.load(
@@ -87,10 +124,10 @@ public class ServiceProfitDemoLoaderRunner
             );
         }
 
-                System.out.println(
-                                "PASS: Service Profit demo opportunities materialized "
-                                                + materializationResult.totalScenariosEvaluated()
-                                                + " scenarios"
-                );
+        System.out.println(
+                "PASS: Service Profit demo opportunities materialized "
+                        + materializationResult.totalScenariosEvaluated()
+                        + " scenarios"
+        );
     }
 }
