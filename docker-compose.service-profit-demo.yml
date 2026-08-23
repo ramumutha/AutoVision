@@ -1,0 +1,17 @@
+services:
+  frontend:
+    depends_on:
+      platform:
+        condition: service_healthy
+
+  platform:
+    environment:
+      SPRING_PROFILES_ACTIVE: service-profit-demo
+      AUTOVISION_SERVICE_PROFIT_DEMO_BOOTSTRAP_ENABLED: "true"
+      AUTOVISION_SERVICE_PROFIT_DEMO_BOOTSTRAP_MANAGER_USER_REF_ID: ${AUTOVISION_LOCAL_DEV_USER_REF_ID:?AUTOVISION_LOCAL_DEV_USER_REF_ID is required}
+      AUTOVISION_SERVICE_PROFIT_DEMO_BOOTSTRAP_MANAGER_EXTERNAL_USER_ID: ${AUTOVISION_LOCAL_DEV_USERNAME:?AUTOVISION_LOCAL_DEV_USERNAME is required}
+      AUTOVISION_SERVICE_PROFIT_DEMO_LOAD_ENABLED: "true"
+      AUTOVISION_SERVICE_PROFIT_DEMO_LOAD_DATASET_ROOT: /opt/autovision/demo-data/service-profit/r1
+      AUTOVISION_SERVICE_PROFIT_DEMO_LOAD_PRINCIPAL_ID: ${AUTOVISION_LOCAL_DEV_USER_REF_ID:?AUTOVISION_LOCAL_DEV_USER_REF_ID is required}
+    volumes:
+      - ./demo-data/service-profit/r1:/opt/autovision/demo-data/service-profit/r1:ro

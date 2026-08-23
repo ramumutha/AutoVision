@@ -26,6 +26,27 @@ import org.mockito.InOrder;
 class ServiceProfitDemoLoaderRunnerTests {
 
     @Test
+    void materializationMessageIncludesOutcomeCounts() {
+        ServiceProfitDemoMaterializationResult result =
+                new ServiceProfitDemoMaterializationResult(
+                        10,
+                        9,
+                        1,
+                        0,
+                        0,
+                        List.of()
+                );
+
+        assertEquals(
+                "PASS: Service Profit demo opportunities materialized "
+                        + "10 scenarios: 9 CREATED, "
+                        + "1 CREATED_SUPPRESSED, 0 EXISTING, 0 NO_MATCH",
+                ServiceProfitDemoLoaderRunner
+                        .materializationMessage(result)
+        );
+    }
+
+    @Test
     void runnerIsRestrictedToServiceProfitDemoProfile() {
 
         Profile profile =

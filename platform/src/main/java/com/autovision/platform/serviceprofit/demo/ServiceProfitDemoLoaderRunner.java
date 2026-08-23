@@ -125,9 +125,23 @@ public class ServiceProfitDemoLoaderRunner
         }
 
         System.out.println(
-                "PASS: Service Profit demo opportunities materialized "
-                        + materializationResult.totalScenariosEvaluated()
-                        + " scenarios"
+                materializationMessage(materializationResult)
         );
+    }
+
+    static String materializationMessage(
+            ServiceProfitDemoMaterializationResult result
+    ) {
+        return "PASS: Service Profit demo opportunities materialized "
+                + result.totalScenariosEvaluated()
+                + " scenarios: "
+                + result.createdOpportunities()
+                + " CREATED, "
+                + result.createdSuppressedOpportunities()
+                + " CREATED_SUPPRESSED, "
+                + result.existingOpportunities()
+                + " EXISTING, "
+                + result.noMatchScenarios()
+                + " NO_MATCH";
     }
 }
