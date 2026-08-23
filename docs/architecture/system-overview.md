@@ -15,6 +15,16 @@ AutoVision is an adaptive vehicle service intelligence platform. The current ent
 
 The local browser enters through `http://localhost:8080`. Nginx serves Angular and proxies `/api/` to the platform, keeping browser API traffic same-origin. The platform validates the JWT and resolves the authenticated tenant context before domain access.
 
+## Service Profit context projection
+
+Service Profit opportunity detail may include a tenant-contained read-side
+snapshot of customer, vehicle, and originating-service display context. The
+projection is populated from authoritative ingestion evidence and is owned by
+Service Profit; it is not canonical Customer or Vehicle master data and does
+not replace ServiceOrder, ServiceJob, or ServiceLine references. Future
+canonical domains may replace or enrich the projection source without changing
+the opportunity detail contract.
+
 ## Ownership principles
 
 The backend is domain-oriented and modular. Keep controllers thin, put business decisions in services, keep persistence behind repositories, and make DTOs/contracts explicit. The frontend separates `core` cross-cutting concerns, `features` domain workflows, `shared` reusable UI, and `shell` application composition.

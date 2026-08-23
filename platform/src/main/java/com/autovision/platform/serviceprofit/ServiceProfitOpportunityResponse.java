@@ -37,11 +37,19 @@ public record ServiceProfitOpportunityResponse(
         ServiceProfitOpportunityExplanation explanation,
         long version,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        ServiceProfitOpportunityContextResponse context
 ) {
 
     public static ServiceProfitOpportunityResponse from(
             ServiceProfitOpportunity opportunity
+    ) {
+        return from(opportunity, null);
+    }
+
+    public static ServiceProfitOpportunityResponse from(
+            ServiceProfitOpportunity opportunity,
+            ServiceProfitOpportunityContext context
     ) {
         return new ServiceProfitOpportunityResponse(
                 opportunity.getId(),
@@ -78,7 +86,8 @@ public record ServiceProfitOpportunityResponse(
                 ),
                 opportunity.getVersion(),
                 opportunity.getCreatedAt(),
-                opportunity.getUpdatedAt()
+                                opportunity.getUpdatedAt(),
+                                ServiceProfitOpportunityContextResponse.from(context)
         );
     }
 }

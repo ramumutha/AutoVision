@@ -1,5 +1,6 @@
 package com.autovision.platform.serviceprofit.demo;
 
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContextService;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitDetectionOrchestrator;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitDetectionPersistenceService;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitDetectionResult;
@@ -21,17 +22,20 @@ public class ServiceProfitDemoMaterializer {
     private final ServiceProfitDemoDetectionInputAdapter inputAdapter;
     private final ServiceProfitDetectionOrchestrator orchestrator;
     private final ServiceProfitDetectionPersistenceService persistenceService;
+        private final ServiceProfitOpportunityContextService contextService;
 
     public ServiceProfitDemoMaterializer(
             ObjectMapper objectMapper,
             ServiceProfitDemoDetectionInputAdapter inputAdapter,
             ServiceProfitDetectionOrchestrator orchestrator,
-            ServiceProfitDetectionPersistenceService persistenceService
+            ServiceProfitDetectionPersistenceService persistenceService,
+            ServiceProfitOpportunityContextService contextService
     ) {
         this.objectMapper = objectMapper;
         this.inputAdapter = inputAdapter;
         this.orchestrator = orchestrator;
         this.persistenceService = persistenceService;
+        this.contextService = contextService;
     }
 
     public ServiceProfitDemoMaterializationResult materialize(
@@ -64,6 +68,15 @@ public class ServiceProfitDemoMaterializer {
                             principalId,
                             evaluatedAt
                     );
+
+            if (persistenceResult.opportunity() != null
+                    && scenario.context() != null) {
+                contextService.capture(
+                        persistenceResult.opportunity(),
+                        scenario.context(),
+                        evaluatedAt
+                );
+            }
 
             outcomes.add(
                     new ServiceProfitDemoMaterializationResult.ScenarioOutcome(

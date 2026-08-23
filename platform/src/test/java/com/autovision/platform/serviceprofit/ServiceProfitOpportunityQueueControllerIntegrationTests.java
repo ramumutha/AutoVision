@@ -142,7 +142,10 @@ class ServiceProfitOpportunityQueueControllerIntegrationTests {
         .andExpect(
                 jsonPath("$.totalPages")
                         .value(1)
-        );
+        )
+        .andExpect(jsonPath("$.items[0].context").doesNotExist())
+        .andExpect(jsonPath("$.items[0].customerId").doesNotExist())
+        .andExpect(jsonPath("$.items[0].vehicleId").doesNotExist());
     }
 
     @Test

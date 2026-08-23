@@ -25,17 +25,20 @@ public class ServiceProfitOpportunityController {
     private final ServiceProfitOpportunityCommandService commandService;
     private final ServiceProfitOpportunityAccessService accessService;
     private final ServiceProfitOpportunityQueryService queryService;
+        private final ServiceProfitOpportunityContextService contextService;
 
     public ServiceProfitOpportunityController(
             TenantContextResolver tenantContextResolver,
             ServiceProfitOpportunityCommandService commandService,
             ServiceProfitOpportunityAccessService accessService,
-            ServiceProfitOpportunityQueryService queryService
+            ServiceProfitOpportunityQueryService queryService,
+            ServiceProfitOpportunityContextService contextService
     ) {
         this.tenantContextResolver = tenantContextResolver;
         this.commandService = commandService;
         this.accessService = accessService;
         this.queryService = queryService;
+        this.contextService = contextService;
     }
 
     @PostMapping
@@ -170,11 +173,15 @@ public class ServiceProfitOpportunityController {
         AuthenticatedTenantContext tenantContext =
                 tenantContextResolver.resolve(jwt);
 
-        return ServiceProfitOpportunityResponse.from(
+        ServiceProfitOpportunity opportunity =
                 accessService.requireOpportunity(
-                        tenantContext,
-                        opportunityId
-                )
+                    tenantContext,
+                    opportunityId
+                );
+
+        return ServiceProfitOpportunityResponse.from(
+                opportunity,
+                contextService.findFor(opportunity).orElse(null)
         );
     }
 }

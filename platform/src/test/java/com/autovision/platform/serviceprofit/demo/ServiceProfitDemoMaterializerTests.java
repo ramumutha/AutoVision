@@ -2,6 +2,10 @@ package com.autovision.platform.serviceprofit.demo;
 
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunity;
 import com.autovision.platform.serviceprofit.ServiceProfitActionability;
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContext;
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContextRepository;
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContextService;
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContextSnapshot;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityRepository;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityStatus;
 import com.autovision.platform.serviceprofit.detection.EvidenceDerivedServiceProfitDetectionPolicy;
@@ -65,6 +69,9 @@ class ServiceProfitDemoMaterializerTests {
         ServiceProfitDetectionResult detectionResult =
                 mock(ServiceProfitDetectionResult.class);
 
+        ServiceProfitOpportunityContextService contextService =
+                mock(ServiceProfitOpportunityContextService.class);
+
         List<ServiceProfitDemoDetectionScenario> scenarios =
                 java.util.stream.IntStream.rangeClosed(1, 10)
                         .mapToObj(index ->
@@ -72,7 +79,8 @@ class ServiceProfitDemoMaterializerTests {
                                         "SP-DEMO-%03d".formatted(index),
                                         mock(
                                                 com.autovision.platform.serviceprofit.detection.ServiceProfitDetectionInput.class
-                                        )
+                                        ),
+                                        mock(ServiceProfitOpportunityContextSnapshot.class)
                                 )
                         )
                         .toList();
@@ -104,7 +112,8 @@ class ServiceProfitDemoMaterializerTests {
                         new ObjectMapper(),
                         adapter,
                         orchestrator,
-                        persistenceService
+                        persistenceService,
+                        contextService
                 );
 
         ServiceProfitDemoMaterializationResult result =
@@ -133,6 +142,9 @@ class ServiceProfitDemoMaterializerTests {
                         org.mockito.ArgumentMatchers.eq(PRINCIPAL_ID),
                         org.mockito.ArgumentMatchers.eq(EVALUATED_AT)
                 );
+
+        verify(contextService, times(9))
+                .capture(any(), any(), any());
     }
 
     @Test
@@ -141,6 +153,9 @@ class ServiceProfitDemoMaterializerTests {
                 mock(ServiceProfitOpportunityRepository.class);
 
         Map<String, ServiceProfitOpportunity> persisted =
+                new LinkedHashMap<>();
+
+        Map<UUID, ServiceProfitOpportunityContext> contexts =
                 new LinkedHashMap<>();
 
         when(repository.findByTenantIdAndOpportunityKey(any(), any()))
@@ -175,6 +190,22 @@ class ServiceProfitDemoMaterializerTests {
         ServiceProfitDemoDetectionInputAdapter adapter =
                 new ServiceProfitDemoDetectionInputAdapter();
 
+        ServiceProfitOpportunityContextRepository contextRepository =
+                mock(ServiceProfitOpportunityContextRepository.class);
+
+        when(contextRepository.findByOpportunityIdAndTenantId(any(), any()))
+                .thenAnswer(invocation -> Optional.ofNullable(
+                        contexts.get(invocation.getArgument(0))
+                ));
+
+        when(contextRepository.save(any()))
+                .thenAnswer(invocation -> {
+                    ServiceProfitOpportunityContext context =
+                            invocation.getArgument(0);
+                    contexts.put(context.getOpportunityId(), context);
+                    return context;
+                });
+
         ServiceProfitDemoMaterializer materializer =
                 new ServiceProfitDemoMaterializer(
                         new ObjectMapper(),
@@ -193,6 +224,9 @@ class ServiceProfitDemoMaterializerTests {
                         ),
                         new ServiceProfitDetectionPersistenceService(
                                 repository
+                        ),
+                        new ServiceProfitOpportunityContextService(
+                                contextRepository
                         )
                 );
 
@@ -209,6 +243,7 @@ class ServiceProfitDemoMaterializerTests {
         assertEquals(0, first.existingOpportunities());
         assertEquals(0, first.noMatchScenarios());
         assertEquals(10, persisted.size());
+        assertEquals(10, contexts.size());
         assertEquals(
                 ServiceProfitPersistenceOutcome.CREATED_SUPPRESSED,
                 outcomeFor(first, "SP-DEMO-004")
@@ -243,6 +278,22 @@ class ServiceProfitDemoMaterializerTests {
                 reviewOpportunity.getActionability()
         );
 
+        ServiceProfitOpportunityContext suppressedContext =
+                contexts.get(suppressedOpportunity.getId());
+        ServiceProfitOpportunityContext reviewContext =
+                contexts.get(reviewOpportunity.getId());
+
+        assertNotNull(suppressedContext);
+        assertNotNull(reviewContext);
+        assertEquals(
+                "RO-1004",
+                suppressedContext.getServiceOrderReference()
+        );
+        assertEquals(
+                "KA01AV9999",
+                reviewContext.getVehicleRegistration()
+        );
+
         ServiceProfitDemoMaterializationResult second =
                 materializer.materialize(
                         datasetRoot(),
@@ -256,6 +307,15 @@ class ServiceProfitDemoMaterializerTests {
         assertEquals(10, second.existingOpportunities());
         assertEquals(0, second.noMatchScenarios());
         assertEquals(10, persisted.size());
+        assertEquals(10, contexts.size());
+        assertEquals(
+                suppressedContext.getId(),
+                contexts.get(suppressedOpportunity.getId()).getId()
+        );
+        assertEquals(
+                reviewContext.getId(),
+                contexts.get(reviewOpportunity.getId()).getId()
+        );
         assertEquals(
                 ServiceProfitOpportunityStatus.SUPPRESSED,
                 suppressedOpportunity.getStatus()

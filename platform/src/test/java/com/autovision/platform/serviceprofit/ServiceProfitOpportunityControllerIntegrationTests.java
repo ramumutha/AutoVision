@@ -2,6 +2,7 @@ package com.autovision.platform.serviceprofit;
 
 import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import com.autovision.platform.tenant.TenantContextResolver;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,7 +13,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -40,6 +43,9 @@ class ServiceProfitOpportunityControllerIntegrationTests {
     @MockitoBean
     private ServiceProfitOpportunityAccessService accessService;
 
+        @MockitoBean
+        private ServiceProfitOpportunityContextService contextService;
+
     private final UUID userRefId =
             UUID.fromString(
                     "761b3ab6-bd03-48c0-a107-44fa1403b0f3"
@@ -56,6 +62,11 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                     tenantId,
                     "service-profit-user"
             );
+
+        @BeforeEach
+        void defaultToMissingContext() {
+                when(contextService.findFor(any())).thenReturn(Optional.empty());
+        }
 
     @Test
     void readRejectsUnauthenticatedRequest()
@@ -86,6 +97,14 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                 context,
                 opportunityId
         )).thenReturn(opportunity);
+
+        when(contextService.findFor(opportunity)).thenReturn(Optional.of(
+                ServiceProfitOpportunityContext.capture(
+                        UUID.randomUUID(), tenantId, opportunity,
+                        contextSnapshot(),
+                        OffsetDateTime.parse("2026-08-22T10:00:00Z")
+                )
+        ));
 
         mockMvc.perform(
                 get(
@@ -148,7 +167,80 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                                         "customer follow-up"
                                 )
                         )
-        );
+        )
+        .andExpect(jsonPath("$.context.customer.displayName")
+                .value("Arjun Mehta"))
+        .andExpect(jsonPath("$.context.customer.reference")
+                .value("CUST-001"))
+        .andExpect(jsonPath("$.context.customer.contactable")
+                .value(true))
+        .andExpect(jsonPath("$.context.vehicle.registration")
+                .value("KA01AV1001"))
+        .andExpect(jsonPath("$.context.vehicle.vin")
+                .value("VINDEMO00000000001"))
+        .andExpect(jsonPath("$.context.vehicle.modelYear")
+                .value(2022))
+        .andExpect(jsonPath("$.context.service.orderReference")
+                .value("RO-1001"))
+        .andExpect(jsonPath("$.context.service.serviceDate")
+                .value("2026-07-01"))
+        .andExpect(jsonPath("$.context.service.description")
+                .value("Front brake pad replacement"))
+        .andExpect(jsonPath("$.sourceEntityId").value("SRC-1"))
+        .andExpect(jsonPath("$.explanation").exists());
+    }
+
+    @Test
+    void readHandlesMissingContextWithoutBreakingDetail()
+            throws Exception {
+        UUID opportunityId = UUID.randomUUID();
+        ServiceProfitOpportunity opportunity = opportunity(opportunityId);
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(accessService.requireOpportunity(context, opportunityId))
+                .thenReturn(opportunity);
+
+        mockMvc.perform(get(
+                "/api/v1/service-profit/opportunities/{id}",
+                opportunityId
+        ).with(authenticatedJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.context").doesNotExist())
+        .andExpect(jsonPath("$.explanation").exists())
+        .andExpect(jsonPath("$.sourceSystem").value("DEALER_IMPORT"));
+    }
+
+    @Test
+    void readReturnsPartialContextWithNullFieldsOmitted()
+            throws Exception {
+        UUID opportunityId = UUID.randomUUID();
+        ServiceProfitOpportunity opportunity = opportunity(opportunityId);
+        ServiceProfitOpportunityContextSnapshot partial =
+                new ServiceProfitOpportunityContextSnapshot(
+                        null, null, null, null, null,
+                        "KA01AV9999", "VINDEMO00000000010",
+                        null, null, null, null,
+                        "RO-1099", null, null, null
+                );
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(accessService.requireOpportunity(context, opportunityId))
+                .thenReturn(opportunity);
+        when(contextService.findFor(opportunity)).thenReturn(Optional.of(
+                ServiceProfitOpportunityContext.capture(
+                        UUID.randomUUID(), tenantId, opportunity, partial,
+                        OffsetDateTime.parse("2026-08-22T10:00:00Z")
+                )
+        ));
+
+        mockMvc.perform(get(
+                "/api/v1/service-profit/opportunities/{id}",
+                opportunityId
+        ).with(authenticatedJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.context.customer.displayName").doesNotExist())
+        .andExpect(jsonPath("$.context.vehicle.registration")
+                .value("KA01AV9999"))
+        .andExpect(jsonPath("$.context.service.orderReference")
+                .value("RO-1099"));
     }
 
     @Test
@@ -178,6 +270,13 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                 context,
                 opportunityId
         )).thenReturn(opportunity);
+
+        when(contextService.findFor(opportunity)).thenReturn(Optional.of(
+                ServiceProfitOpportunityContext.capture(
+                        UUID.randomUUID(), tenantId, opportunity,
+                        contextSnapshot(), suppressedAt
+                )
+        ));
 
         mockMvc.perform(
                 get(
@@ -216,7 +315,9 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                         .value(
                                 "No follow-up is required because the work is already recorded as completed."
                         )
-        );
+        )
+        .andExpect(jsonPath("$.context.customer.displayName")
+                .value("Arjun Mehta"));
     }
 
     @Test
@@ -348,6 +449,18 @@ class ServiceProfitOpportunityControllerIntegrationTests {
                 )
         );
     }
+
+        private ServiceProfitOpportunityContextSnapshot contextSnapshot() {
+                return new ServiceProfitOpportunityContextSnapshot(
+                                "Arjun Mehta", "CUST-001", "+919900000001",
+                                "arjun.mehta@example.demo", true,
+                                "KA01AV1001", "VINDEMO00000000001", "Demo Motors",
+                                "City Prime", 2022, "ICE", "RO-1001",
+                                LocalDate.parse("2026-07-01"),
+                                "Front brake pad replacement",
+                                "Customer declined front brake work today."
+                );
+        }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor
             authenticatedJwt() {

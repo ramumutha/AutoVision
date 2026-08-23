@@ -1,5 +1,6 @@
 package com.autovision.platform.serviceprofit.demo;
 
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityContextSnapshot;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitDetectionInput;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitDisposition;
 import com.autovision.platform.serviceprofit.detection.ServiceProfitEvidenceRef;
@@ -37,6 +38,12 @@ public class ServiceProfitDemoDetectionInputAdapter {
         }
 
         try {
+            Map<String, CustomerRow> customers =
+                    readCustomers(datasetRoot);
+
+            Map<String, VehicleRow> vehicles =
+                    readVehicles(datasetRoot);
+
             Map<String, RepairOrderRow> repairOrders =
                     readRepairOrders(datasetRoot);
 
@@ -184,7 +191,15 @@ public class ServiceProfitDemoDetectionInputAdapter {
                 scenarios.add(
                         new ServiceProfitDemoDetectionScenario(
                                 scenarioId,
-                                input
+                                input,
+                                contextSnapshot(
+                                        customers.get(text(repairOrder.customerId())),
+                                        vehicles.get(text(repairOrder.vehicleId())),
+                                        repairOrder.roNumber(),
+                                        localDateFromOffset(repairOrder.closedAt()),
+                                        sourceJob.description(),
+                                        note == null ? null : note.noteText()
+                                )
                         )
                 );
             }
@@ -266,7 +281,15 @@ public class ServiceProfitDemoDetectionInputAdapter {
                 scenarios.add(
                         new ServiceProfitDemoDetectionScenario(
                                 history.scenarioId(),
-                                input
+                                input,
+                                contextSnapshot(
+                                        customers.get(text(history.customerId())),
+                                        vehicles.get(text(history.vehicleId())),
+                                        null,
+                                        localDate(history.lastServiceDate()),
+                                        null,
+                                        null
+                                )
                         )
                 );
             }
@@ -279,6 +302,50 @@ public class ServiceProfitDemoDetectionInputAdapter {
                     exception
             );
         }
+    }
+
+    private Map<String, CustomerRow> readCustomers(
+            Path root
+    ) throws IOException {
+        Map<String, CustomerRow> result = new HashMap<>();
+
+        for (Map<String, String> row
+                : readCsv(root.resolve("source").resolve("customers.csv"))) {
+            CustomerRow value = new CustomerRow(
+                    row.get("customer_id"),
+                    row.get("customer_number"),
+                    row.get("name"),
+                    row.get("phone"),
+                    row.get("email"),
+                    row.get("status"),
+                    Boolean.parseBoolean(row.get("do_not_contact"))
+            );
+            result.put(value.customerId(), value);
+        }
+
+        return result;
+    }
+
+    private Map<String, VehicleRow> readVehicles(
+            Path root
+    ) throws IOException {
+        Map<String, VehicleRow> result = new HashMap<>();
+
+        for (Map<String, String> row
+                : readCsv(root.resolve("source").resolve("vehicles.csv"))) {
+            VehicleRow value = new VehicleRow(
+                    row.get("vehicle_id"),
+                    row.get("registration_number"),
+                    row.get("vin"),
+                    row.get("make"),
+                    row.get("model"),
+                    integer(row.get("model_year")),
+                    row.get("powertrain")
+            );
+            result.put(value.vehicleId(), value);
+        }
+
+        return result;
     }
 
     private Map<String, RepairOrderRow> readRepairOrders(
@@ -302,6 +369,8 @@ public class ServiceProfitDemoDetectionInputAdapter {
                             uuid(row.get("location_id")),
                             uuid(row.get("customer_id")),
                             uuid(row.get("vehicle_id")),
+                            row.get("ro_number"),
+                            row.get("closed_at"),
                             row.get("odometer_km")
                     );
 
@@ -331,6 +400,7 @@ public class ServiceProfitDemoDetectionInputAdapter {
                             row.get("service_job_id"),
                             row.get("repair_order_id"),
                             row.get("scenario_id"),
+                            row.get("description"),
                             row.get("disposition"),
                             row.get("estimated_amount"),
                             row.get("currency_code"),
@@ -637,6 +707,14 @@ public class ServiceProfitDemoDetectionInputAdapter {
                 : new BigDecimal(value);
     }
 
+    private static Integer integer(
+            String value
+    ) {
+        return value == null
+                ? null
+                : Integer.valueOf(value);
+    }
+
     private static LocalDate localDate(
             String value
     ) {
@@ -655,6 +733,54 @@ public class ServiceProfitDemoDetectionInputAdapter {
         return OffsetDateTime.parse(value)
                 .toLocalDate();
     }
+
+        private static LocalDate localDateFromOffset(
+                        String value
+        ) {
+                return value == null
+                                ? null
+                                : OffsetDateTime.parse(value).toLocalDate();
+        }
+
+        private static String text(UUID value) {
+                return value == null ? null : value.toString();
+        }
+
+        private ServiceProfitOpportunityContextSnapshot contextSnapshot(
+                        CustomerRow customer,
+                        VehicleRow vehicle,
+                        String orderReference,
+                        LocalDate serviceDate,
+                        String description,
+                        String advisorContext
+        ) {
+                return new ServiceProfitOpportunityContextSnapshot(
+                                customer == null ? null : customer.name(),
+                                customer == null ? null : customer.customerNumber(),
+                                customer == null ? null : customer.phone(),
+                                customer == null ? null : customer.email(),
+                                contactable(customer),
+                                vehicle == null ? null : vehicle.registration(),
+                                vehicle == null ? null : vehicle.vin(),
+                                vehicle == null ? null : vehicle.make(),
+                                vehicle == null ? null : vehicle.model(),
+                                vehicle == null ? null : vehicle.modelYear(),
+                                vehicle == null ? null : vehicle.powertrain(),
+                                orderReference,
+                                serviceDate,
+                                description,
+                                advisorContext
+                );
+        }
+
+        private Boolean contactable(CustomerRow customer) {
+                if (customer == null) {
+                        return null;
+                }
+                return "ACTIVE".equals(customer.status())
+                                && !customer.doNotContact()
+                                && (customer.phone() != null || customer.email() != null);
+        }
 
     private static OffsetDateTime dateTime(
             String value
@@ -708,6 +834,8 @@ public class ServiceProfitDemoDetectionInputAdapter {
             UUID locationId,
             UUID customerId,
             UUID vehicleId,
+            String roNumber,
+            String closedAt,
             String odometerKm
     ) {
     }
@@ -716,6 +844,7 @@ public class ServiceProfitDemoDetectionInputAdapter {
             String serviceJobId,
             String repairOrderId,
             String scenarioId,
+            String description,
             String disposition,
             String estimatedAmount,
             String currencyCode,
@@ -757,6 +886,28 @@ public class ServiceProfitDemoDetectionInputAdapter {
     private record InvoiceRow(
             String scenarioId,
             String invoiceId
+    ) {
+    }
+
+    private record CustomerRow(
+            String customerId,
+            String customerNumber,
+            String name,
+            String phone,
+            String email,
+            String status,
+            boolean doNotContact
+    ) {
+    }
+
+    private record VehicleRow(
+            String vehicleId,
+            String registration,
+            String vin,
+            String make,
+            String model,
+            Integer modelYear,
+            String powertrain
     ) {
     }
 }

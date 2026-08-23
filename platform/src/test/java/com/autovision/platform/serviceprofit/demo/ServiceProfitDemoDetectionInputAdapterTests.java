@@ -45,6 +45,10 @@ class ServiceProfitDemoDetectionInputAdapterTests {
                         .distinct()
                         .count()
         );
+
+        assertTrue(scenarios.stream().allMatch(
+                scenario -> scenario.context() != null
+        ));
     }
 
     @Test
@@ -76,6 +80,17 @@ class ServiceProfitDemoDetectionInputAdapterTests {
 
         assertFalse(
                 scenario.input().completedWorkEvidence()
+        );
+
+        assertEquals("Arjun Mehta", scenario.context().customerDisplayName());
+        assertEquals("CUST-001", scenario.context().customerReference());
+        assertTrue(scenario.context().customerContactable());
+        assertEquals("KA01AV1001", scenario.context().vehicleRegistration());
+        assertEquals("VINDEMO00000000001", scenario.context().vehicleVin());
+        assertEquals("RO-1001", scenario.context().serviceOrderReference());
+        assertEquals(
+                "Front brake pad replacement",
+                scenario.context().serviceDescription()
         );
     }
 
@@ -155,6 +170,12 @@ class ServiceProfitDemoDetectionInputAdapterTests {
                 new BigDecimal("30000"),
                 scenario.input().nextServiceDueMileage()
         );
+
+        assertEquals("Vikram Shah",
+                scenario.context().customerDisplayName());
+        assertEquals("KA02AV2002", scenario.context().vehicleRegistration());
+        assertEquals("2026-02-15", scenario.context().serviceDate().toString());
+        assertNull(scenario.context().serviceOrderReference());
     }
 
     @Test
@@ -211,6 +232,11 @@ class ServiceProfitDemoDetectionInputAdapterTests {
         assertNotNull(
                 scenario.input().vehicleId()
         );
+
+        assertNull(scenario.context().customerDisplayName());
+        assertNull(scenario.context().customerContactable());
+        assertEquals("KA01AV9999", scenario.context().vehicleRegistration());
+        assertEquals("RO-1099", scenario.context().serviceOrderReference());
     }
 
     private Map<String, ServiceProfitDemoDetectionScenario> scenarios() {
