@@ -35,6 +35,7 @@ export class ServiceProfitManagerComponent {
   protected readonly loadError = signal<ApiError | null>(null);
   protected readonly filters = signal<ServiceProfitOpportunityFilters>({});
   protected readonly selected = signal<ServiceProfitOpportunityResponse | null>(null);
+  protected readonly selectedOpportunityId = signal<string | null>(null);
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<ApiError | null>(null);
 
@@ -52,7 +53,7 @@ export class ServiceProfitManagerComponent {
 
   protected refresh(): void {
     this.loadManagerData();
-    const selectedId = this.selected()?.id;
+    const selectedId = this.selectedOpportunityId();
     if (selectedId) this.loadDetail(selectedId);
   }
 
@@ -70,6 +71,7 @@ export class ServiceProfitManagerComponent {
   }
 
   protected loadDetail(opportunityId: string): void {
+    this.selectedOpportunityId.set(opportunityId);
     this.detailLoading.set(true);
     this.detailError.set(null);
     this.api.getOpportunity(opportunityId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -100,6 +102,10 @@ export class ServiceProfitManagerComponent {
 
   protected isSuppressed(opportunity: ServiceProfitOpportunityResponse): boolean {
     return opportunity.status === 'SUPPRESSED' || opportunity.actionability === 'SUPPRESSED' || !!opportunity.suppressionReason;
+  }
+
+  protected requiresReview(opportunity: ServiceProfitOpportunityResponse): boolean {
+    return opportunity.actionability === 'REVIEW_REQUIRED';
   }
 
   private loadManagerData(): void {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ConnectivityService } from '../core/connectivity/connectivity.service';
 import { BrandingService } from '../core/branding/branding.service';
@@ -19,11 +19,26 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
         <span>{{ branding.branding().organizationName }}</span>
       </a>
       <div class="session" aria-label="Session status">
-        <av-status [label]="connectivity.isOnline() ? localization.text('online') : localization.text('offline')" [tone]="connectivity.isOnline() ? 'success' : 'warning'" />
-        <span class="user">{{ auth.isAuthenticated() ? (session.session()?.userDisplayName ?? branding.branding().organizationName) : localization.text('signedOut') }}</span>
+        @if (!connectivity.isOnline()) {
+          <av-status [label]="localization.text('offline')" tone="warning" />
+        }
         @if (auth.isAuthenticated()) {
-          <button class="auth-action" type="button" (click)="auth.logout()">{{ localization.text('signOut') }}</button>
+          <div class="user-menu">
+            <button class="user-menu-trigger" type="button" aria-haspopup="dialog" aria-controls="user-profile-menu"
+              [attr.aria-expanded]="userMenuOpen()" (click)="toggleUserMenu()" (keydown.escape)="closeUserMenu()">
+              <span class="user-name">{{ userDisplayName() }}</span><span aria-hidden="true">▾</span>
+            </button>
+            @if (userMenuOpen()) {
+              <section class="profile-menu" id="user-profile-menu" role="dialog" [attr.aria-label]="localization.text('userProfile')" (keydown.escape)="closeUserMenu()">
+                <span class="profile-label">{{ localization.text('signedInAs') }}</span>
+                <strong>{{ userDisplayName() }}</strong>
+                @if (auth.state().email; as email) { <span class="profile-email">{{ email }}</span> }
+                <button class="profile-sign-out" type="button" (click)="signOut()">{{ localization.text('signOut') }}</button>
+              </section>
+            }
+          </div>
         } @else {
+          <span class="user">{{ localization.text('signedOut') }}</span>
           <button class="auth-action" type="button" (click)="auth.beginLogin()">{{ localization.text('signIn') }}</button>
         }
       </div>
@@ -48,6 +63,15 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
     .auth-action { min-block-size: 2.5rem; padding: .55rem .9rem; border: 1px solid var(--av-color-brand); border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font: inherit; font-weight: 700; }
     .auth-action:hover { background: var(--av-color-brand-strong); border-color: var(--av-color-brand-strong); }
     .auth-action:focus-visible { outline: 3px solid var(--av-color-focus); outline-offset: 2px; }
+    .user-menu { position: relative; }
+    .user-menu-trigger { display: inline-flex; align-items: center; gap: .45rem; min-block-size: 2.5rem; max-inline-size: 18rem; padding: .5rem .7rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); color: var(--av-color-ink); cursor: pointer; font: inherit; font-weight: 700; }
+    .user-menu-trigger:hover { border-color: var(--av-color-brand); background: #f0f7f6; }
+    .user-menu-trigger:focus-visible, .profile-sign-out:focus-visible { outline: 3px solid var(--av-color-focus); outline-offset: 2px; }
+    .user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .profile-menu { position: absolute; z-index: 10; inset-block-start: calc(100% + .45rem); inset-inline-end: 0; display: grid; gap: .35rem; inline-size: min(19rem, calc(100vw - 2rem)); padding: .85rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); box-shadow: 0 .75rem 2rem rgb(20 43 48 / 16%); }
+    .profile-label { color: var(--av-color-muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+    .profile-email { overflow-wrap: anywhere; color: var(--av-color-muted); font-size: .8rem; }
+    .profile-sign-out { min-block-size: 2.4rem; margin-block-start: .45rem; border: 1px solid var(--av-color-brand); border-radius: var(--av-radius-sm); background: var(--av-color-brand); color: white; cursor: pointer; font: inherit; font-weight: 700; }
     .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); max-width: var(--av-content-max); min-height: calc(100dvh - 4.5rem); margin: 0 auto; }
     .nav { padding: 2rem 1rem; border-right: 1px solid var(--av-color-border); background: #eaf0f1; }
     .nav-label { margin: 0 0 .75rem .75rem; color: var(--av-color-muted); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
@@ -64,4 +88,24 @@ export class AvShellComponent {
   protected readonly localization = inject(LocalizationService);
   protected readonly session = inject(SessionService);
   protected readonly theme = inject(ThemeService);
+  protected readonly userMenuOpen = signal(false);
+  protected readonly userDisplayName = computed(() =>
+    this.auth.state().displayName
+      ?? this.auth.state().username
+      ?? this.session.session()?.userDisplayName
+      ?? this.branding.branding().organizationName
+  );
+
+  protected toggleUserMenu(): void {
+    this.userMenuOpen.update((open) => !open);
+  }
+
+  protected closeUserMenu(): void {
+    this.userMenuOpen.set(false);
+  }
+
+  protected signOut(): void {
+    this.closeUserMenu();
+    this.auth.logout();
+  }
 }

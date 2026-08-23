@@ -8,72 +8,209 @@ $ErrorActionPreference = "Stop"
 $container = "autovision-keycloak"
 $realm = "autovision"
 $attributeName = "autovision_user_ref_id"
+$kcadmConfig = "/tmp/autovision-profile-$([guid]::NewGuid().ToString('N')).config"
 
-Write-Host "Authenticating Keycloak admin..."
+function Invoke-NativeDocker {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
 
-docker exec $container `
-    /opt/keycloak/bin/kcadm.sh `
-    config credentials `
-    --server http://localhost:8080 `
-    --realm master `
-    --user admin `
-    --password "$AdminPassword"
+        [string]$InputText,
 
-if ($LASTEXITCODE -ne 0) {
-    throw "Keycloak admin authentication failed."
-}
+        [Parameter(Mandatory = $true)]
+        [string]$Purpose,
 
-$profileJson = docker exec $container `
-    /opt/keycloak/bin/kcadm.sh `
-    get users/profile `
-    -r $realm
+        [switch]$SuppressFailure
+    )
 
-if ($LASTEXITCODE -ne 0) {
-    throw "Unable to read Keycloak User Profile."
-}
+    $stderrPath =
+        Join-Path `
+            $env:TEMP `
+            "autovision-docker-$([guid]::NewGuid().ToString('N')).stderr"
 
-$profile = $profileJson | ConvertFrom-Json
+    try {
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
 
-$existing = $profile.attributes |
-    Where-Object { $_.name -eq $attributeName }
-
-if ($existing) {
-    Write-Host "Managed attribute already exists: $attributeName"
-}
-else {
-    $newAttribute = [PSCustomObject]@{
-        name        = $attributeName
-        displayName = "AutoVision User Reference ID"
-        validations = [PSCustomObject]@{
-            length = [PSCustomObject]@{
-                min = 36
-                max = 36
+        try {
+            if ($PSBoundParameters.ContainsKey("InputText")) {
+                $output =
+                    $InputText |
+                    & docker @Arguments 2> $stderrPath
             }
+            else {
+                $output =
+                    & docker @Arguments 2> $stderrPath
+            }
+
+            $nativeExitCode = $LASTEXITCODE
         }
-        permissions = [PSCustomObject]@{
-            view = @("admin")
-            edit = @("admin")
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
         }
-        multivalued = $false
+
+        $stderr = ""
+        if (Test-Path $stderrPath) {
+            $stderr = Get-Content $stderrPath -Raw
+        }
+
+        if ($nativeExitCode -ne 0) {
+
+            if ($SuppressFailure) {
+                return $null
+            }
+
+            $sanitizedStderr =
+                $stderr `
+                    -replace [regex]::Escape($AdminPassword), "<REDACTED>" `
+                    -replace '(?i)(bearer\s+)[^\s]+', '$1<REDACTED>' `
+                    -replace '(?i)((password|token|secret)[\s:=]+)[^\s]+', '$1<REDACTED>'
+
+            throw "$Purpose failed with exit code $nativeExitCode. stderr: $sanitizedStderr"
+        }
+
+        return $output
     }
-
-    $profile.attributes += $newAttribute
-
-    $updatedProfileJson = $profile |
-        ConvertTo-Json -Depth 20
-
-    $updatedProfileJson |
-        docker exec -i $container `
-            /opt/keycloak/bin/kcadm.sh `
-            update users/profile `
-            -r $realm `
-            -f -
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to update Keycloak User Profile."
+    finally {
+        Remove-Item `
+            $stderrPath `
+            -ErrorAction SilentlyContinue
     }
-
-    Write-Host "Created managed attribute: $attributeName"
 }
 
-Write-Host "KEYCLOAK USER PROFILE: PASS"
+function Invoke-Keycloak {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+
+        [string]$InputText,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Purpose
+    )
+
+    $dockerArguments = @(
+        "exec",
+        $container,
+        "/opt/keycloak/bin/kcadm.sh"
+    ) + $Arguments + @(
+        "--config",
+        $kcadmConfig
+    )
+
+    if ($PSBoundParameters.ContainsKey("InputText")) {
+        return Invoke-NativeDocker `
+            -Arguments $dockerArguments `
+            -InputText $InputText `
+            -Purpose $Purpose
+    }
+
+    return Invoke-NativeDocker `
+        -Arguments $dockerArguments `
+        -Purpose $Purpose
+}
+
+try {
+    Write-Host "Authenticating Keycloak admin..."
+
+    Invoke-Keycloak `
+        -Arguments @(
+            "config",
+            "credentials",
+            "--server",
+            "http://localhost:8080",
+            "--realm",
+            "master",
+            "--user",
+            "admin",
+            "--password",
+            $AdminPassword
+        ) `
+        -Purpose "Keycloak admin authentication" |
+        Out-Null
+
+    $profileJson =
+        Invoke-Keycloak `
+            -Arguments @(
+                "get",
+                "users/profile",
+                "-r",
+                $realm
+            ) `
+            -Purpose "Keycloak User Profile read"
+
+    $profile =
+        ($profileJson | Out-String) |
+        ConvertFrom-Json
+
+    $existing =
+        $profile.attributes |
+        Where-Object {
+            $_.name -eq $attributeName
+        }
+
+    if ($existing) {
+        Write-Host "Managed attribute already exists: $attributeName"
+    }
+    else {
+        $newAttribute = [PSCustomObject]@{
+            name        = $attributeName
+            displayName = "AutoVision User Reference ID"
+            validations = [PSCustomObject]@{
+                length = [PSCustomObject]@{
+                    min = 36
+                    max = 36
+                }
+            }
+            permissions = [PSCustomObject]@{
+                view = @("admin")
+                edit = @("admin")
+            }
+            multivalued = $false
+        }
+
+        $profile.attributes += $newAttribute
+
+        $updatedProfileJson =
+            $profile |
+            ConvertTo-Json -Depth 20
+
+        $dockerArguments = @(
+            "exec",
+            "-i",
+            $container,
+            "/opt/keycloak/bin/kcadm.sh",
+            "update",
+            "users/profile",
+            "-r",
+            $realm,
+            "-f",
+            "-",
+            "--config",
+            $kcadmConfig
+        )
+
+        Invoke-NativeDocker `
+            -Arguments $dockerArguments `
+            -InputText $updatedProfileJson `
+            -Purpose "Keycloak User Profile update" |
+            Out-Null
+
+        Write-Host "Created managed attribute: $attributeName"
+    }
+
+    Write-Host "KEYCLOAK USER PROFILE: PASS"
+}
+finally {
+    Invoke-NativeDocker `
+        -Arguments @(
+            "exec",
+            $container,
+            "rm",
+            "-f",
+            $kcadmConfig
+        ) `
+        -Purpose "kcadm config cleanup" `
+        -SuppressFailure |
+        Out-Null
+}

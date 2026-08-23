@@ -92,7 +92,8 @@ describe('ServiceProfitManagerComponent', () => {
 
   it('loads the authoritative explanation and exposes suppression state when selected', async () => {
     await createComponent();
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -103,8 +104,52 @@ describe('ServiceProfitManagerComponent', () => {
     expect(text).toContain('Confirmed service line history.');
     expect(text).toContain('No action while suppressed.');
     expect(text).toContain('Suppressed opportunity');
+    expect(text).toContain('Do not action');
     expect(text).toContain('Work Already Completed');
+    expect(text).toContain('Actionability');
+    expect(text).toContain('Evidence Strength');
+    expect(element.querySelector('.opportunity-button')?.tagName).toBe('BUTTON');
+    expect(element.querySelector('.selection-label')?.textContent).toContain('Selected');
     expect(text).not.toContain('Ready to Action Ready');
+  });
+
+  it('clearly represents review-required opportunities before customer contact', async () => {
+    api.getOpportunity.mockReturnValue(of({ ...detail, status: 'DETECTED', actionability: 'REVIEW_REQUIRED', suppressionReason: null, suppressedAt: null }));
+    await createComponent();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+
+    const review = (fixture.nativeElement as HTMLElement).querySelector('.review-required');
+    expect(review?.textContent).toContain('Review Required');
+    expect(review?.textContent).toContain('Review is required before customer contact.');
+  });
+
+  it('surfaces a detail 401 instead of silently discarding the failure', async () => {
+    api.getOpportunity.mockReturnValue(throwError(() => ({ status: 401, message: 'Unauthorized' })));
+    await createComponent();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Unable to load opportunity details');
+    expect(text).toContain('Your session could not be renewed. Sign in again to view this opportunity.');
+  });
+
+  it('provides a compact accessible refresh control that invokes refresh', async () => {
+    await createComponent();
+    const refresh = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.refresh-control');
+
+    expect(refresh?.getAttribute('aria-label')).toBe('Refresh Service Profit data');
+    expect(refresh?.getAttribute('title')).toBe('Refresh');
+    expect(refresh?.querySelector('svg')).not.toBeNull();
+    expect(refresh?.getAttribute('style')).toContain('inline-size: 2.5rem');
+    expect(refresh?.getAttribute('style')).toContain('block-size: 2.5rem');
+    refresh?.click();
+
+    expect(api.getSummary).toHaveBeenCalledTimes(2);
+    expect(api.getOpportunities).toHaveBeenCalledTimes(2);
   });
 
   it('reloads manager data with backend-supported filter values', async () => {

@@ -155,13 +155,6 @@ $userJson = [ordered]@{
     attributes = @{
         autovision_user_ref_id = @($UserRefId)
     }
-    credentials = @(
-        [ordered]@{
-            type = "password"
-            value = $UserPassword
-            temporary = $false
-        }
-    )
 } | ConvertTo-Json -Depth 10
 
 $existingJson = Invoke-NativeDocker -Arguments @(
@@ -192,6 +185,24 @@ else {
     ) -InputText $userJson -Purpose "Keycloak user update" | Out-Null
     Write-Host "Updated local Keycloak user: $Username"
 }
+
+$resolvedJson = Invoke-NativeDocker -Arguments @(
+    "exec", $container, "/opt/keycloak/bin/kcadm.sh", "get", "users",
+    "--target-realm", $realm, "--query", "username=$Username", "--config", $kcadmConfig
+) -Purpose "Updated Keycloak user lookup"
+$resolvedUsers = @(ConvertFrom-KeycloakUserJson (($resolvedJson -join "`n")))
+if ($resolvedUsers.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$resolvedUsers[0].id)) {
+    throw "Exactly one Keycloak user must exist after local-user bootstrap."
+}
+
+Invoke-NativeDocker -Arguments @(
+    "exec", $container, "/opt/keycloak/bin/kcadm.sh", "set-password",
+    "--target-realm", $realm,
+    "--userid", [string]$resolvedUsers[0].id,
+    "--new-password", $UserPassword,
+    "--config", $kcadmConfig
+) -Purpose "Keycloak local-user password synchronization" | Out-Null
+Write-Host "Synchronized local Keycloak user password."
 
 Write-Host "LOCAL KEYCLOAK USER: PASS"
 Write-Host "Platform user reference and Keycloak claim mapping are ready."

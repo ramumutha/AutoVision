@@ -50,17 +50,18 @@ const ENGLISH = {
   authorizationReadinessPartial: 'Partial authorization', authorizationReadinessPending: 'Authorization pending', authorizationReadinessMissing: 'Authorization missing',
   serviceProfit: 'Service Profit', serviceProfitManager: 'Service Profit Manager',
   serviceProfitContext: 'Actionable service revenue opportunities, their potential value, and the evidence behind them.',
-  refresh: 'Refresh', loadingServiceProfit: 'Loading Service Profit opportunities', unableToLoadServiceProfit: 'Unable to load Service Profit',
+  refresh: 'Refresh', refreshServiceProfit: 'Refresh Service Profit data', loadingServiceProfit: 'Loading Service Profit opportunities', unableToLoadServiceProfit: 'Unable to load Service Profit',
   recoverableCommercialValue: 'Recoverable commercial value', recoverablePotential: 'Recoverable Potential',
   totalOpportunities: 'Total Opportunities', highPriority: 'High Priority', reviewRequired: 'Review Required', readyToAction: 'Ready to Action',
   opportunitiesNeedingAttention: 'Opportunities needing attention', opportunityQueueContext: 'Select an opportunity to review why it was identified and what to do next.',
   priority: 'Priority', opportunityType: 'Opportunity Type', actionability: 'Actionability', all: 'All', opportunity: 'Opportunity',
   evidenceStrength: 'Evidence Strength', potential: 'Potential', detected: 'Detected', noOpportunities: 'No opportunities match these filters',
   noOpportunitiesContext: 'Change a filter or refresh to check for newly detected opportunities.', loadingOpportunity: 'Loading opportunity details',
-  unableToLoadOpportunity: 'Unable to load opportunity details', opportunityDetail: 'Opportunity detail', suppressed: 'Suppressed',
-  suppressedOpportunity: 'Suppressed opportunity', whyAutoVisionFoundThis: 'Why AutoVision found this', evidenceBasis: 'Evidence basis',
+  unableToLoadOpportunity: 'Unable to load opportunity details', detailSessionExpired: 'Your session could not be renewed. Sign in again to view this opportunity.', opportunityDetail: 'Opportunity detail', selected: 'Selected', suppressed: 'Suppressed',
+  suppressedOpportunity: 'Suppressed opportunity', doNotAction: 'Do not action', reviewBeforeCustomerContact: 'Review is required before customer contact.', whyAutoVisionFoundThis: 'Why AutoVision found this', evidenceBasis: 'Evidence basis',
   recommendedAction: 'Recommended action', sourceAndProvenance: 'Source and provenance', sourceSystem: 'Source system',
   sourceEntityType: 'Source entity type', sourceEntityId: 'Source entity ID', policyVersion: 'Policy version',
+  userProfile: 'User profile', signedInAs: 'Signed in as',
 };
 
 @Injectable({ providedIn: 'root' })

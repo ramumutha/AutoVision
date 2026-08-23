@@ -4,8 +4,13 @@
     <h1>{{ localization.text('serviceProfitManager') }}</h1>
     <p class="context">{{ localization.text('serviceProfitContext') }}</p>
   </div>
-  <button class="primary-action" type="button" (click)="refresh()" [disabled]="loading()">
-    {{ localization.text('refresh') }}
+  <button class="refresh-control" type="button" (click)="refresh()" [disabled]="loading()"
+    [attr.aria-label]="localization.text('refreshServiceProfit')" [title]="localization.text('refresh')"
+    style="inline-size: 2.5rem; block-size: 2.5rem; padding: .5rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); color: var(--av-color-brand-strong); cursor: pointer;">
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+      <path d="M20 4v7h-7" />
+    </svg>
   </button>
 </header>
 
@@ -79,8 +84,13 @@
           </tr></thead>
           <tbody>
             @for (opportunity of queue(); track opportunity.id) {
-              <tr [class.selected]="selected()?.id === opportunity.id">
-                <td><button class="opportunity-button" type="button" (click)="loadDetail(opportunity.id)" [attr.aria-pressed]="selected()?.id === opportunity.id">{{ opportunity.title }}</button></td>
+              <tr [class.selected]="selectedOpportunityId() === opportunity.id">
+                <td>
+                  <button class="opportunity-button" type="button" (click)="loadDetail(opportunity.id)" [attr.aria-pressed]="selectedOpportunityId() === opportunity.id">
+                    {{ opportunity.title }}
+                    @if (selectedOpportunityId() === opportunity.id) { <span class="selection-label">{{ localization.text('selected') }}</span> }
+                  </button>
+                </td>
                 <td>{{ label(opportunity.opportunityType) }}</td>
                 <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
                 <td>{{ label(opportunity.evidenceStrength) }}</td>
@@ -101,7 +111,8 @@
 @if (detailLoading()) {
   <div class="detail-loading" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
 } @else if (detailError()) {
-  <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')" [message]="localization.text('tryAgain')" />
+  <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')"
+    [message]="detailError()?.status === 401 ? localization.text('detailSessionExpired') : localization.text('tryAgain')" />
 } @else if (selected(); as opportunity) {
   <section class="detail" aria-labelledby="opportunity-detail-heading">
     <header class="detail-header">
@@ -113,15 +124,25 @@
     </header>
     <dl class="detail-facts">
       <div><dt>{{ localization.text('opportunityType') }}</dt><dd>{{ label(opportunity.opportunityType) }}</dd></div>
+      <div><dt>{{ localization.text('status') }}</dt><dd>{{ label(opportunity.status) }}</dd></div>
       <div><dt>{{ localization.text('priority') }}</dt><dd>{{ label(opportunity.priority) }}</dd></div>
       <div><dt>{{ localization.text('potential') }}</dt><dd>{{ opportunity.potentialAmount | number:'1.0-2' }} {{ opportunity.currencyCode }}</dd></div>
+      <div><dt>{{ localization.text('actionability') }}</dt><dd>{{ label(opportunity.actionability) }}</dd></div>
+      <div><dt>{{ localization.text('evidenceStrength') }}</dt><dd>{{ label(opportunity.evidenceStrength) }}</dd></div>
       <div><dt>{{ localization.text('detected') }}</dt><dd>{{ opportunity.detectedAt | date:'medium' }}</dd></div>
     </dl>
     @if (isSuppressed(opportunity)) {
       <aside class="suppression" aria-label="Suppression details">
-        <strong>{{ localization.text('suppressedOpportunity') }}</strong>
+        <strong>{{ localization.text('doNotAction') }}</strong>
+        <span>{{ localization.text('suppressedOpportunity') }}</span>
         <span>{{ opportunity.suppressionReason ? label(opportunity.suppressionReason) : localization.text('suppressed') }}</span>
         @if (opportunity.suppressedAt) { <time [attr.datetime]="opportunity.suppressedAt">{{ opportunity.suppressedAt | date:'medium' }}</time> }
+      </aside>
+    }
+    @if (requiresReview(opportunity)) {
+      <aside class="suppression review-required" role="note">
+        <strong>{{ localization.text('reviewRequired') }}</strong>
+        <span>{{ localization.text('reviewBeforeCustomerContact') }}</span>
       </aside>
     }
     <div class="explanation">
