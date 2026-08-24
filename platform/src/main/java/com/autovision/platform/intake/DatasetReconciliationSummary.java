@@ -85,6 +85,28 @@ public class DatasetReconciliationSummary {
         return value;
     }
 
+    public void updateMaterialization(int recordsMapped, int opportunitiesDetected, int opportunitiesPersisted,
+            int duplicateNoOpCount, DatasetProcessing processing, OffsetDateTime observedAt) {
+        if (processing == null || observedAt == null) throw new IllegalArgumentException("Dataset and observation time are required");
+        this.recordsMapped = nonNegative(recordsMapped, "Mapped records");
+        this.opportunitiesDetected = nonNegative(opportunitiesDetected, "Detected opportunities");
+        this.opportunitiesPersisted = nonNegative(opportunitiesPersisted, "Persisted opportunities");
+        this.duplicateNoOpCount = nonNegative(duplicateNoOpCount, "Duplicate no-op count");
+        if (opportunitiesPersisted > opportunitiesDetected) throw new IllegalArgumentException("Persisted opportunities exceed detected opportunities");
+        this.materializationKey = processing.getMaterializationKey();
+        this.materializationVersion = processing.getMaterializationVersion();
+        this.status = processing.getStatus();
+        this.observedAt = observedAt;
+    }
+
+    public void updateLifecycle(DatasetProcessing processing, OffsetDateTime observedAt) {
+        if (processing == null || observedAt == null) throw new IllegalArgumentException("Dataset and observation time are required");
+        this.materializationKey = processing.getMaterializationKey();
+        this.materializationVersion = processing.getMaterializationVersion();
+        this.status = processing.getStatus();
+        this.observedAt = observedAt;
+    }
+
     public UUID getId() { return id; }
     public UUID getTenantId() { return tenantId; }
     public UUID getDatasetProcessingId() { return datasetProcessingId; }

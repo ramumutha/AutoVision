@@ -2,6 +2,7 @@ package com.autovision.platform.intake;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,13 +34,46 @@ public class DatasetOperationalEvidenceService {
     }
 
     @Transactional
+    public DatasetReconciliationSummary updateMaterializationSummary(UUID tenantId, DatasetProcessing processing,
+            int recordsMapped, int opportunitiesDetected, int opportunitiesPersisted, int duplicateNoOpCount,
+            OffsetDateTime observedAt) {
+        requireTenant(tenantId, processing.getTenantId());
+        requireProcessing(tenantId, processing.getId());
+        DatasetReconciliationSummary summary = summaryRepository
+                .findByTenantIdAndDatasetProcessingId(tenantId, processing.getId()).orElse(null);
+        if (summary == null) {
+            summary = DatasetReconciliationSummary.record(UUID.randomUUID(), processing,
+                    new ReconciliationCounts(0, 0, 0, 0, 0, 0, recordsMapped, opportunitiesDetected,
+                            opportunitiesPersisted, duplicateNoOpCount), 0, 0, 0, 0, observedAt);
+        } else {
+            summary.updateMaterialization(recordsMapped, opportunitiesDetected, opportunitiesPersisted,
+                    duplicateNoOpCount, processing, observedAt);
+        }
+        return summaryRepository.save(summary);
+    }
+
+    @Transactional
+    public DatasetReconciliationSummary updateLifecycleSummary(UUID tenantId, DatasetProcessing processing,
+            OffsetDateTime observedAt) {
+        requireTenant(tenantId, processing.getTenantId());
+        requireProcessing(tenantId, processing.getId());
+        DatasetReconciliationSummary summary = summaryRepository
+                .findByTenantIdAndDatasetProcessingId(tenantId, processing.getId()).orElse(null);
+        if (summary != null) {
+            summary.updateLifecycle(processing, observedAt);
+            return summaryRepository.save(summary);
+        }
+        return null;
+    }
+
+    @Transactional
     public PreStagingRejection recordPreStagingRejection(UUID tenantId, PreStagingRejection rejection) {
         requireTenant(tenantId, rejection.getTenantId());
         requireProcessing(tenantId, rejection.getDatasetProcessingId());
         return rejectionRepository.save(rejection);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public DatasetOperationalEvent recordEvent(UUID tenantId, DatasetOperationalEvent event) {
         requireTenant(tenantId, event.getTenantId());
         requireProcessing(tenantId, event.getDatasetProcessingId());

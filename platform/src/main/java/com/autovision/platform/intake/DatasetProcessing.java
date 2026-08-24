@@ -318,6 +318,31 @@ public class DatasetProcessing {
         materializationFailureReplayable = replayable;
     }
 
+    public void markAbandonedMaterializationFailed(
+            String failureReason,
+            MaterializationFailureStage failureStage,
+            MaterializationFailureCode failureCode,
+            boolean replayable,
+            OffsetDateTime now
+    ) {
+        if (status != DatasetProcessingStatus.MATERIALIZING) {
+            throw new IllegalStateException("Only materializing datasets can be recovered");
+        }
+        if (failureStage == null || failureCode == null) {
+            throw new IllegalArgumentException("Recovery failure stage and code are required");
+        }
+        requireText(failureReason, "Recovery failure reason is required");
+        requireTime(now, "Recovery time is required");
+        status = DatasetProcessingStatus.MATERIALIZATION_FAILED;
+        materializationFailedAt = now;
+        materializationFailureReason = failureReason.trim();
+        materializationFailureStage = failureStage;
+        materializationFailureCode = failureCode;
+        materializationFailureAttempt = materializationAttemptCount;
+        materializationFailureReplayable = replayable;
+        updatedAt = now;
+    }
+
     private boolean sameMaterialization(String key, String version) {
         return key != null && version != null
                 && key.trim().equals(materializationKey)

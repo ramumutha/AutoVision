@@ -57,6 +57,8 @@ class ControlledDatasetMaterializationIntegrationTests {
     private ServiceProfitDetectionPersistenceService persistenceService;
     @Mock
     private ServiceProfitOpportunityContextService contextService;
+        @Mock
+        private DatasetOperationalEvidenceService evidenceService;
     @Mock
     private DealerDataAssessmentRepository assessmentRepository;
     @Mock
@@ -202,7 +204,7 @@ class ControlledDatasetMaterializationIntegrationTests {
 
     private ControlledDatasetMaterializer materializer() {
         return new ControlledDatasetMaterializer(datasetService, failureService, mapper, readinessService,
-                orchestrator, persistenceService, contextService);
+                                orchestrator, persistenceService, contextService, evidenceService);
     }
 
     private DatasetProcessing dataset() {

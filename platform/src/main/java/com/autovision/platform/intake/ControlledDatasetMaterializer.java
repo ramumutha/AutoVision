@@ -26,6 +26,7 @@ public class ControlledDatasetMaterializer {
     private final ServiceProfitDetectionOrchestrator orchestrator;
     private final ServiceProfitDetectionPersistenceService persistenceService;
     private final ServiceProfitOpportunityContextService contextService;
+    private final DatasetOperationalEvidenceService evidenceService;
 
     public ControlledDatasetMaterializer(
             DatasetProcessingService datasetService,
@@ -34,7 +35,8 @@ public class ControlledDatasetMaterializer {
             ControlledDatasetReadinessService readinessService,
             ServiceProfitDetectionOrchestrator orchestrator,
             ServiceProfitDetectionPersistenceService persistenceService,
-            ServiceProfitOpportunityContextService contextService
+            ServiceProfitOpportunityContextService contextService,
+            DatasetOperationalEvidenceService evidenceService
     ) {
         this.datasetService = datasetService;
         this.failureService = failureService;
@@ -43,6 +45,7 @@ public class ControlledDatasetMaterializer {
         this.orchestrator = orchestrator;
         this.persistenceService = persistenceService;
         this.contextService = contextService;
+        this.evidenceService = evidenceService;
     }
 
     @Transactional
@@ -84,6 +87,8 @@ public class ControlledDatasetMaterializer {
                         || persisted.outcome() == ServiceProfitPersistenceOutcome.CREATED_SUPPRESSED) created++;
             }
             datasetService.markMaterialized(tenantId, datasetProcessingId, key, MATERIALIZATION_VERSION, evaluatedAt);
+                evidenceService.updateMaterializationSummary(tenantId, processing, candidates.size(), detected,
+                    created, existing, evaluatedAt);
             return new ControlledDatasetMaterializationResult(DatasetProcessingStatus.MATERIALIZED,
                     candidates.size(), detected, created, existing, false);
         } catch (RuntimeException exception) {

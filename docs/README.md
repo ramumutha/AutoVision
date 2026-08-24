@@ -60,6 +60,10 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 - [Validation and Git workflow](development/validation-and-git-workflow.md): focused checks, quality gates, and review discipline.
 - [Troubleshooting](development/troubleshooting.md): symptom-to-boundary diagnostics for runtime and authentication failures.
 
+## Operations
+
+- [Controlled dealer data intake operator runbook](operations/controlled-dealer-data-intake-operator-runbook.md): controlled FULL intake, reconciliation, replay, recovery, and safe operational handling.
+
 ## Demo Readiness
 
 - [Demo readiness matrix](product/demo/demo-readiness-matrix.md): feature-by-feature evidence and GREEN/AMBER/RED status.
