@@ -46,9 +46,11 @@
       [summary]="managerSummary" [filters]="filters()" [sort]="sort()" [loading]="loading()"
       [refreshing]="refreshing()" [refreshError]="refreshError()" [priorities]="priorities"
       [opportunityTypes]="opportunityTypes" [actionabilities]="actionabilities" [sorts]="sorts"
-      (filterChanged)="updateFilter($event.key, $event.value)" (sortChanged)="updateSort($event)" (refreshRequested)="refresh()" />
+      (filterChanged)="updateFilter($event.key, $event.value)" (sortChanged)="updateSort($event)"
+      (mobileStateApplied)="updateMobileState($event)" (refreshRequested)="refresh()" />
 
     @if (queue().length) {
+      <app-service-profit-mobile-list [opportunities]="queue()" [queryParams]="listQueryParams()" />
       <div class="table-scroll">
         <table>
           <thead><tr>

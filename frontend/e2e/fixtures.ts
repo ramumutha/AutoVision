@@ -131,7 +131,7 @@ export async function installServiceProfitFixtures(page: Page): Promise<void> {
     version: 1, createdAt: '2026-08-20T10:00:00Z', updatedAt: '2026-08-21T10:00:00Z',
   };
 
-  await page.route('**/api/v1/service-profit/opportunities/summary', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(summary) }));
+  await page.route('**/api/v1/service-profit/opportunities/summary*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(summary) }));
   await page.route(`**/api/v1/service-profit/opportunities/${SERVICE_PROFIT_OPPORTUNITY_ID}`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(detail) }));
   await page.route('**/api/v1/service-profit/opportunities?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [queueItem], page: 0, size: 25, totalElements: 1, totalPages: 1 }) }));
 }

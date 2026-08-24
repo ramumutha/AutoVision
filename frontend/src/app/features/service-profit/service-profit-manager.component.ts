@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -10,6 +10,8 @@ import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-s
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
 import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
+import { ServiceProfitMobileListComponent } from './service-profit-mobile-list.component';
+import { ServiceProfitMobileFilterState } from './service-profit-mobile-filters.component';
 import {
   ServiceProfitActionability,
   ServiceProfitOpportunityFilters,
@@ -28,7 +30,7 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent],
+  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
@@ -54,6 +56,12 @@ export class ServiceProfitManagerComponent {
   protected readonly selectedOpportunityId = signal<string | null>(null);
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<ApiError | null>(null);
+  protected readonly listQueryParams = computed(() => ({
+    type: this.filters().opportunityType,
+    priority: this.filters().priority,
+    actionability: this.filters().actionability,
+    sort: this.sort(),
+  }));
 
   protected readonly priorities: ServiceProfitPriority[] = ['HIGH', 'MEDIUM', 'LOW'];
   protected readonly opportunityTypes: ServiceProfitOpportunityType[] = [
@@ -143,6 +151,18 @@ export class ServiceProfitManagerComponent {
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { sort: this.isSupportedSort(value) ? value : null },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  protected updateMobileState(state: ServiceProfitMobileFilterState): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        priority: state.priority,
+        actionability: state.actionability,
+        sort: state.sort === 'DETECTED_DESC' ? null : state.sort,
+      },
       queryParamsHandling: 'merge',
     });
   }

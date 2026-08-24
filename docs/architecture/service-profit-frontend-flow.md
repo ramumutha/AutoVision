@@ -4,14 +4,18 @@
 
 `/service-profit` is a lazy standalone Angular route protected by `authenticatedGuard`. The route renders `ServiceProfitManagerComponent` inside `AvShellComponent`.
 
-Planned for C2-C: `/service-profit/opportunities/:opportunityId` will provide dedicated mobile detail. It is not implemented in C2-B.
+`/service-profit/opportunities/:opportunityId` is also lazy and protected by `authenticatedGuard`. Mobile cards navigate to this dedicated detail route while carrying supported list query state.
 
 ```mermaid
 flowchart LR
     Browser[Browser URL] --> Guard[authenticatedGuard]
     Guard --> Shell[AvShellComponent]
     Shell --> Manager[ServiceProfitManagerComponent]
+    Manager --> Cards[ServiceProfitMobileListComponent]
+    Cards --> Page[ServiceProfitOpportunityDetailPageComponent]
+    Page --> Detail[ServiceProfitOpportunityDetailComponent]
     Manager --> Api[ServiceProfitApiService]
+    Page --> Api
     Api --> Client[ApiClientService /api]
     Client --> Platform[Spring platform]
 ```
@@ -20,11 +24,15 @@ flowchart LR
 
 `AvShellComponent` owns global navigation and the authenticated-user popup. It closes the popup on outside click, Escape, Sign out, and route navigation. Escape restores focus to the trigger.
 
-`ServiceProfitManagerComponent` owns manager query state, summary and queue loading, selection state, responsive presentation, and display-oriented domain labels. It does not authorize requests or calculate authoritative opportunity counts.
+`ServiceProfitManagerComponent` owns manager query state, summary and queue loading, desktop/tablet selection state, responsive presentation, and display-oriented domain labels. It does not authorize requests or calculate authoritative opportunity counts.
 
-`ServiceProfitOpportunityControlsComponent` presents opportunity-type navigation, Priority and Actionability filters, Sort, refresh state, and refresh feedback. It emits explicit user intents to the manager and does not own URL or API state.
+`ServiceProfitOpportunityControlsComponent` presents opportunity-type navigation, desktop/tablet filters and Sort, refresh state, and refresh feedback. `ServiceProfitMobileFiltersComponent` owns only pending mobile disclosure values and emits one applied state. Neither owns URL or API state.
 
-`ServiceProfitOpportunityDetailComponent` receives one `ServiceProfitOpportunityResponse` and owns dealer-facing presentation only. It does not call an API, own selection or routing, mutate data, or perform authorization. Desktop/tablet inline detail uses it now; the planned C2-C mobile page will reuse the same component.
+`ServiceProfitMobileListComponent` presents semantic decision cards and creates routed links with the manager's supported query state. It does not load detail.
+
+`ServiceProfitOpportunityDetailPageComponent` owns routed ID loading, retry, direct-load errors, and Back fallback. Its `switchMap` cancels stale requests when the route ID changes.
+
+`ServiceProfitOpportunityDetailComponent` receives one `ServiceProfitOpportunityResponse` and owns dealer-facing presentation only. It does not call an API, own selection or routing, mutate data, or perform authorization. Both desktop/tablet inline detail and routed mobile detail reuse it.
 
 `ServiceProfitApiService` translates typed filters, pagination, and sort values into `/api/v1/service-profit/opportunities` requests. It also loads summary and detail endpoints.
 
@@ -90,7 +98,25 @@ sequenceDiagram
     D-->>U: Present inline dealer detail
 ```
 
-Planned for C2-C: mobile cards navigate to a dedicated full-detail route and preserve list query state for browser Back.
+On mobile, a card link carries `type`, `priority`, `actionability`, and `sort` to the detail route. Browser Back restores the prior list URL. Direct-link Back falls back to `/service-profit` with only those supported parameters.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Mobile card
+    participant R as Angular Router
+    participant P as Detail page
+    participant A as API service
+    participant D as Detail component
+    U->>C: Open opportunity
+    C->>R: Route with list query state
+    R->>P: opportunityId + query parameters
+    P->>A: GET opportunity detail
+    Note over P,A: switchMap cancels stale route request
+    A-->>P: Authoritative detail
+    P->>D: Pass response input
+    D-->>U: Present dealer detail
+```
 
 ## Authentication Boundary
 
@@ -100,11 +126,9 @@ The frontend guard protects navigation for user experience. The shared auth inte
 
 CSS owns presentation; there is no runtime viewport service.
 
-- `<=720px`: type navigation scrolls horizontally and toolbar controls wrap compactly.
+- `<=720px`: type navigation scrolls horizontally, Sort & Filter uses one disclosure, and semantic cards replace the table. Cards route to full detail.
 - `721px–1100px`: compact/tablet table hides Opportunity Type, Evidence Strength, and Detected while inline detail retains them.
 - `>1100px`: desktop layout.
-
-Current: the opportunity table and inline detail remain the mobile fallback. Planned C2-C replaces them with mobile decision cards, routed detail, and consolidated mobile Sort/Filter controls.
 
 ## Loading And Errors
 
@@ -113,6 +137,8 @@ Initial and query-driven loads show the manager loading state. A failed initial/
 Background refresh keeps loaded content visible, marks the queue busy, disables Refresh, and reports refresh failure without discarding data.
 
 Detail loading and errors remain independent and render inside the selected opportunity's inline row. A detail `401` displays session-renewal guidance; `403` explicitly reports that the user cannot view the opportunity.
+
+The routed page has independent loading and error state. It adds an explicit `404` unavailable message and offers Retry only for retryable failures.
 
 ## Accessibility Architecture
 
@@ -124,18 +150,7 @@ Detail loading and errors remain independent and render inside the selected oppo
 - Opportunity titles are table row headers. Disclosure buttons use `aria-expanded` and `aria-controls`; loaded detail is a uniquely labelled region.
 - The profile popup exposes `aria-expanded`, closes globally on Escape, and restores trigger focus.
 - Native `<details>` provides keyboard-accessible audit disclosure.
-
-## Important Deferred Items
-
-C2-C:
-
-- mobile opportunity cards;
-- consolidated mobile Sort/Filter disclosure with Apply/Clear behavior;
-- guarded mobile detail route and direct-load error states;
-- browser Back restoration from mobile detail;
-- responsive and accessibility E2E expansion for those interactions.
-
-These deferred items must preserve current API contracts, tenant authorization, evidence/provenance meaning, suppressed-opportunity safeguards, and `REVIEW_REQUIRED` behavior.
+- Mobile cards use semantic lists and descriptive native links. The mobile filter trigger exposes disclosure state, and its grouped selects retain native labels.
 
 ## Tests
 
@@ -146,4 +161,4 @@ npm test
 npm run build
 ```
 
-Do not invoke bare Vitest. Add selection/request tests beside the manager, presentation tests beside `ServiceProfitOpportunityDetailComponent`, shell popup tests beside the shell, and query serialization tests beside `ServiceProfitApiService`.
+Do not invoke bare Vitest. Keep selection/request tests beside the manager, mobile list/filter behavior beside those focused components, routed loading/navigation beside the detail page, presentation beside `ServiceProfitOpportunityDetailComponent`, shell popup behavior beside the shell, and query serialization beside `ServiceProfitApiService`.

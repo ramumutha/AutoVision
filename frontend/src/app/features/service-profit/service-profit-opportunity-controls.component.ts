@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
+import { ServiceProfitMobileFiltersComponent, ServiceProfitMobileFilterState } from './service-profit-mobile-filters.component';
 import {
   ServiceProfitActionability,
   ServiceProfitOpportunityFilters,
@@ -18,7 +19,7 @@ export interface ServiceProfitFilterChange {
 
 @Component({
   selector: 'app-service-profit-opportunity-controls',
-  imports: [AvFeedbackComponent],
+  imports: [AvFeedbackComponent, ServiceProfitMobileFiltersComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="opportunity-type-navigation" role="group" [attr.aria-label]="localization.text('opportunityTypes')">
@@ -56,6 +57,8 @@ export interface ServiceProfitFilterChange {
           </select>
         </label>
       </fieldset>
+      <app-service-profit-mobile-filters [filters]="filters()" [sort]="sort()" [priorities]="priorities()"
+        [actionabilities]="actionabilities()" [sorts]="sorts()" (applied)="mobileStateApplied.emit($event)" />
       <button class="refresh-control" type="button" (click)="refreshRequested.emit()" [disabled]="loading() || refreshing()"
         [attr.aria-label]="localization.text('refreshServiceProfit')" [attr.aria-busy]="refreshing()" [title]="localization.text('refresh')">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,7 +90,7 @@ export interface ServiceProfitFilterChange {
     .refresh-feedback { display: block; margin-bottom: .75rem; }
     @keyframes refresh-turn { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .refresh-control[aria-busy="true"] svg { animation: none; opacity: .55; } }
-    @media (max-width: 720px) { .opportunity-type-navigation { flex-wrap: nowrap; overflow-x: auto; padding-block-end: .25rem; } .queue-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem; align-items: end; gap: .75rem; } .filters { width: 100%; } .filters label { flex: 1 1 9rem; } select { width: 100%; max-width: none; } .refresh-control { inline-size: 2.75rem; block-size: 2.75rem; } }
+    @media (max-width: 720px) { .opportunity-type-navigation { flex-wrap: nowrap; overflow-x: auto; padding-block-end: .25rem; } .queue-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem; align-items: start; gap: .75rem; } .filters { display: none; } .refresh-control { inline-size: 2.75rem; block-size: 2.75rem; } }
   `],
 })
 export class ServiceProfitOpportunityControlsComponent {
@@ -106,6 +109,7 @@ export class ServiceProfitOpportunityControlsComponent {
 
   readonly filterChanged = output<ServiceProfitFilterChange>();
   readonly sortChanged = output<string>();
+  readonly mobileStateApplied = output<ServiceProfitMobileFilterState>();
   readonly refreshRequested = output<void>();
 
   protected changeFilter(key: ServiceProfitFilterChange['key'], value: string): void {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installQuoteFixtures, openQuotes } from './fixtures';
+import { installQuoteFixtures, installServiceProfitFixtures, openQuotes } from './fixtures';
 
 const viewports = [
   ['large desktop', { width: 1920, height: 1080 }],
@@ -35,3 +35,37 @@ test('@responsive Service Lines remain readable on mobile', async ({ page }) => 
   await expect(page.locator('.cards').getByText('Commercial data incomplete')).toBeVisible();
   await expect(page.getByText('Eligible service lines are selected automatically when a quote is created.')).toBeVisible();
 });
+
+const serviceProfitViewports = [
+  ['mobile 390', { width: 390, height: 844 }, true],
+  ['mobile 430', { width: 430, height: 932 }, true],
+  ['tablet portrait', { width: 768, height: 1024 }, false],
+  ['tablet landscape', { width: 1024, height: 768 }, false],
+  ['desktop', { width: 1440, height: 900 }, false],
+  ['large desktop', { width: 1920, height: 1080 }, false],
+] as const;
+
+for (const [name, viewport, mobile] of serviceProfitViewports) {
+  test(`@responsive ${name} uses the intended Service Profit interaction`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await installServiceProfitFixtures(page);
+    await page.goto('/service-profit?priority=HIGH&sort=POTENTIAL_DESC');
+    await expect(page.getByRole('heading', { name: 'Service Profit Manager' })).toBeVisible();
+
+    if (mobile) {
+      await expect(page.getByRole('link', { name: /Recover declined brake work/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Sort & Filter/ })).toBeVisible();
+      await page.getByRole('link', { name: /Recover declined brake work/ }).click();
+      await expect(page).toHaveURL(/service-profit\/opportunities\/.*priority=HIGH.*sort=POTENTIAL_DESC/);
+      await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
+      await page.getByRole('button', { name: 'Back to opportunities' }).click();
+      await expect(page).toHaveURL(/service-profit\?priority=HIGH&sort=POTENTIAL_DESC/);
+    } else {
+      await expect(page.getByRole('table')).toBeVisible();
+      await page.getByRole('button', { name: 'Recover declined brake work' }).click();
+      await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
+    }
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+}

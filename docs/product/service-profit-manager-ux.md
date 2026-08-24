@@ -39,6 +39,8 @@ The current values are stored in the URL as `type`, `priority`, `actionability`,
 
 Filtering and sorting never rearrange the partially loaded queue in the browser.
 
+On mobile, Priority, Actionability, and Sort are consolidated behind one Sort & Filter disclosure. Changes remain pending until Apply. Clear resets both filters to All and Sort to Newest; Opportunity Type remains separate. The active count includes only non-default Priority and Actionability filters.
+
 ## Refresh
 
 Refresh is a compact icon-only utility action in the opportunity-list toolbar. A background refresh:
@@ -75,9 +77,11 @@ Current ranges are:
 
 Current desktop/tablet behavior keeps the opportunity table and inserts detail immediately after the selected row. At compact/tablet widths, Opportunity Type, Evidence Strength, and Detected are hidden from the table; they remain available in detail. The type rail and filter/sort/refresh toolbar remain responsive.
 
-Suppressed detail retains the Do not action safeguard. `REVIEW_REQUIRED` detail retains review-before-contact guidance.
+At mobile widths, the table is replaced with semantic opportunity cards. Each card contains the title, type, recoverable amount, priority, actionability, and concise evidence strength, and links to `/service-profit/opportunities/:opportunityId`. The link preserves current list query parameters. The dedicated page loads authoritative detail and reuses the same dealer detail presentation as inline desktop/tablet detail.
 
-Planned for C2-C: mobile will replace the current table fallback with concise decision cards, a consolidated Sort/Filter interaction, and a dedicated full-detail route.
+Back returns through browser history when the user arrived from the list. For a direct detail link without meaningful in-app history, Back navigates to `/service-profit` with the supported list query parameters preserved. Direct-load errors distinguish expired sessions, unauthorized access, unavailable opportunities, and retryable failures.
+
+Suppressed detail retains the Do not action safeguard. `REVIEW_REQUIRED` detail retains review-before-contact guidance.
 
 ## Accessibility Expectations
 
@@ -89,7 +93,8 @@ Planned for C2-C: mobile will replace the current table fallback with concise de
 - The profile menu supports outside dismissal, Escape, and focus restoration.
 - Existing table headers retain `scope="col"`; opportunity selection remains a native button.
 - Opportunity titles are row headers. Selection buttons expose `aria-expanded` and `aria-controls`, and inline detail is a labelled region.
+- Mobile opportunities are semantic list items containing descriptive native links. Sort & Filter exposes `aria-expanded` and `aria-controls`, and uses native labelled selects inside a fieldset.
 
 ## Safe Test Locations
 
-Inline selection and request tests belong in `frontend/src/app/features/service-profit/service-profit-manager.component.spec.ts`. Dealer-detail presentation tests belong in `frontend/src/app/features/service-profit/service-profit-opportunity-detail.component.spec.ts`. Profile-menu tests belong in `frontend/src/app/shell/av-shell.component.spec.ts`. API query serialization tests belong in `frontend/src/app/features/service-profit/service-profit-api.service.spec.ts`.
+Inline selection and request tests belong in `frontend/src/app/features/service-profit/service-profit-manager.component.spec.ts`. Mobile card, mobile filter, and routed-page tests remain in their focused component specs. Dealer-detail presentation tests belong beside `ServiceProfitOpportunityDetailComponent`. Profile-menu tests belong beside the shell. API query serialization tests belong beside `ServiceProfitApiService`.

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { installQuoteFixtures, openQuotes } from './fixtures';
+import { installQuoteFixtures, installServiceProfitFixtures, openQuotes } from './fixtures';
 
 async function expectAccessible(page: Parameters<typeof installQuoteFixtures>[0]): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
@@ -23,5 +23,19 @@ test('@a11y scans Overview, Quotes, Create Quote, and Quote Detail', async ({ pa
   await page.getByLabel('Cancel').click();
   await page.getByRole('button', { name: 'Q-QUALITY-001' }).click();
   await expect(page.getByRole('rowheader', { name: 'Brake pad replacement' })).toBeVisible();
+  await expectAccessible(page);
+});
+
+test('@a11y scans mobile Service Profit cards, filters, and routed detail', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installServiceProfitFixtures(page);
+  await page.goto('/service-profit');
+  await expect(page.getByRole('link', { name: /Recover declined brake work/ })).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole('button', { name: /Sort & Filter/ }).click();
+  await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole('link', { name: /Recover declined brake work/ }).click();
+  await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
   await expectAccessible(page);
 });
