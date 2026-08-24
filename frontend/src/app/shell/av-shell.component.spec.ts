@@ -1,10 +1,13 @@
-import { signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../core/auth/auth.service';
 import { ConnectivityService } from '../core/connectivity/connectivity.service';
 import { AvShellComponent } from './av-shell.component';
+
+@Component({ template: '' })
+class EmptyRouteComponent {}
 
 describe('AvShellComponent authentication actions', () => {
   let fixture: ComponentFixture<AvShellComponent>;
@@ -27,7 +30,7 @@ describe('AvShellComponent authentication actions', () => {
     await TestBed.configureTestingModule({
       imports: [AvShellComponent],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'next', component: EmptyRouteComponent }]),
         { provide: AuthService, useValue: auth },
         { provide: ConnectivityService, useValue: { isOnline } },
       ],
@@ -65,6 +68,55 @@ describe('AvShellComponent authentication actions', () => {
     (menu.querySelector('.profile-sign-out') as HTMLButtonElement).click();
 
     expect(auth.logout).toHaveBeenCalledOnce();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.profile-menu')).toBeNull();
+  });
+
+  it('closes the user menu when clicking outside it', () => {
+    auth.state.set({ status: 'AUTHENTICATED', displayName: 'Demo Manager', roles: [] });
+    auth.isAuthenticated.set(true);
+    fixture.detectChanges();
+    const trigger = fixture.nativeElement.querySelector('button.user-menu-trigger') as HTMLButtonElement;
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.profile-menu')).not.toBeNull();
+
+    document.body.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.profile-menu')).toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('closes on Escape from anywhere and restores focus to the trigger', () => {
+    auth.state.set({ status: 'AUTHENTICATED', displayName: 'Demo Manager', roles: [] });
+    auth.isAuthenticated.set(true);
+    fixture.detectChanges();
+    const trigger = fixture.nativeElement.querySelector('button.user-menu-trigger') as HTMLButtonElement;
+
+    trigger.click();
+    fixture.detectChanges();
+    const signOut = fixture.nativeElement.querySelector('button.profile-sign-out') as HTMLButtonElement;
+    signOut.focus();
+    signOut.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.profile-menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('closes the user menu when navigation starts', async () => {
+    auth.state.set({ status: 'AUTHENTICATED', displayName: 'Demo Manager', roles: [] });
+    auth.isAuthenticated.set(true);
+    fixture.detectChanges();
+    const trigger = fixture.nativeElement.querySelector('button.user-menu-trigger') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+
+    await TestBed.inject(Router).navigateByUrl('/next');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.profile-menu')).toBeNull();
   });
 
   it('hides healthy connectivity status and preserves the offline warning', () => {

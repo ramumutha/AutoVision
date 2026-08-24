@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { routes } from '../../app.routes';
 import { authenticatedGuard } from '../../core/auth/auth.guard';
@@ -34,13 +35,19 @@ describe('ServiceProfitManagerComponent', () => {
     suppressionReason: 'WORK_ALREADY_COMPLETED', suppressedAt: '2026-08-21T10:00:00Z',
     explanation: { headline: 'Previously declined work was identified', rationale: 'The source record shows a customer decline.', evidenceBasis: 'Confirmed service line history.', recommendedAction: 'No action while suppressed.' },
     version: 1, createdAt: '2026-08-20T10:00:00Z', updatedAt: '2026-08-21T10:00:00Z',
+    context: {
+      customer: { displayName: 'Arjun Mehta', reference: 'CUST-001', phone: '+919900000001', email: 'arjun.mehta@example.demo', contactable: true },
+      vehicle: { registration: 'KA01AV1001', vin: 'VINDEMO00000000001', make: 'Demo Motors', model: 'City Prime', modelYear: 2022, powertrain: 'ICE' },
+      service: { orderReference: 'RO-1001', serviceDate: '2026-07-01', description: 'Front brake pad replacement', advisorContext: 'Customer declined front brake work today.' },
+    },
   };
 
-  async function createComponent(): Promise<void> {
+  async function createComponent(initialUrl?: string): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [ServiceProfitManagerComponent],
-      providers: [{ provide: ServiceProfitApiService, useValue: api }],
+      providers: [provideRouter([]), { provide: ServiceProfitApiService, useValue: api }],
     }).compileComponents();
+    if (initialUrl) await TestBed.inject(Router).navigateByUrl(initialUrl);
     fixture = TestBed.createComponent(ServiceProfitManagerComponent);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -108,9 +115,55 @@ describe('ServiceProfitManagerComponent', () => {
     expect(text).toContain('Work Already Completed');
     expect(text).toContain('Actionability');
     expect(text).toContain('Evidence Strength');
+    expect(text).toContain('Arjun Mehta');
+    expect(text).toContain('CUST-001');
+    expect(text).toContain('KA01AV1001');
+    expect(text).toContain('Demo Motors City Prime · 2022');
+    expect(text).toContain('RO-1001');
+    expect(text).toContain('Front brake pad replacement');
+    expect(text).toContain('$320');
+    expect(text).not.toContain('customer-1');
+    expect(text).not.toContain('vehicle-1');
+    expect(element.querySelector('.recommended-action')?.textContent).toContain('No action while suppressed.');
+    expect(element.querySelector('.suppression')?.textContent).toContain('Do not action');
+    expect(element.querySelector('.detail-statuses')?.textContent).not.toContain('Ready');
+    const audit = element.querySelector('details.audit-details');
+    expect(audit?.querySelector('summary')?.textContent).toContain('Evidence & audit details');
+    expect(audit?.textContent).toContain('line-1');
+    expect(audit?.hasAttribute('open')).toBe(false);
     expect(element.querySelector('.opportunity-button')?.tagName).toBe('BUTTON');
     expect(element.querySelector('.selection-label')?.textContent).toContain('Selected');
     expect(text).not.toContain('Ready to Action Ready');
+  });
+
+  it('handles missing and partial context without rendering empty rows or raw IDs', async () => {
+    api.getOpportunity.mockReturnValue(of({
+      ...detail,
+      customerId: 'hidden-customer-uuid',
+      vehicleId: 'hidden-vehicle-uuid',
+      context: {
+        customer: { displayName: null, reference: 'CUST-010', phone: null, email: null, contactable: false },
+        vehicle: { registration: null, vin: 'VINDEMO00000000010', make: null, model: null, modelYear: null, powertrain: null },
+        service: null,
+      },
+    }));
+    await createComponent();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const text = element.textContent ?? '';
+    expect(text).toContain('CUST-010');
+    expect(text).toContain('Contact information incomplete');
+    expect(text).toContain('VINDEMO00000000010');
+    expect(element.querySelector('.service-context')).toBeNull();
+    expect(text).not.toContain('hidden-customer-uuid');
+    expect(text).not.toContain('hidden-vehicle-uuid');
+
+    api.getOpportunity.mockReturnValue(of({ ...detail, context: null }));
+    element.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('.context-grid')).toBeNull();
+    expect((element.textContent ?? '')).toContain('Previously declined work was identified');
   });
 
   it('clearly represents review-required opportunities before customer contact', async () => {
@@ -142,24 +195,198 @@ describe('ServiceProfitManagerComponent', () => {
     const refresh = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.refresh-control');
 
     expect(refresh?.getAttribute('aria-label')).toBe('Refresh Service Profit data');
+    expect(refresh?.getAttribute('aria-busy')).toBe('false');
     expect(refresh?.getAttribute('title')).toBe('Refresh');
     expect(refresh?.querySelector('svg')).not.toBeNull();
-    expect(refresh?.getAttribute('style')).toContain('inline-size: 2.5rem');
-    expect(refresh?.getAttribute('style')).toContain('block-size: 2.5rem');
+    expect(refresh?.textContent?.trim()).toBe('');
     refresh?.click();
 
     expect(api.getSummary).toHaveBeenCalledTimes(2);
     expect(api.getOpportunities).toHaveBeenCalledTimes(2);
   });
 
-  it('reloads manager data with backend-supported filter values', async () => {
+  it('groups Priority, Actionability, and Sort with native accessible labels', async () => {
     await createComponent();
-    const priority = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select');
-    if (!priority) throw new Error('Priority filter was not rendered');
+    const filters = (fixture.nativeElement as HTMLElement).querySelector<HTMLFieldSetElement>('fieldset.filters');
+    const selects = filters?.querySelectorAll<HTMLSelectElement>('select');
+
+    expect(filters?.tagName).toBe('FIELDSET');
+    expect(filters?.getAttribute('aria-label')).toBeNull();
+    expect(filters?.querySelector('legend')?.textContent).toBe('Opportunity filters');
+    expect(Array.from(selects ?? []).map((select) => select.labels?.[0]?.textContent?.trim())).toEqual([
+      'Priority AllHighMediumLow',
+      'Actionability AllReadyReview RequiredContact Data MissingBlockedSuppressed',
+      'Sort by NewestOldestHighest potentialLowest potential',
+    ]);
+  });
+
+  it('renders accessible single-select opportunity type navigation', async () => {
+    await createComponent();
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.opportunity-type-navigation');
+    const buttons = Array.from(group?.querySelectorAll('button') ?? []);
+
+    expect(group?.getAttribute('role')).toBe('group');
+    expect(group?.getAttribute('aria-label')).toBe('Opportunity types');
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'All4', 'Declined Work', 'Deferred Work', 'Due Service', 'Overdue Service', 'Inactive Customer',
+    ]);
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('uses native focusable buttons for keyboard-accessible type selection', async () => {
+    await createComponent();
+    const typeButton = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button')[1];
+
+    typeButton.focus();
+    expect(typeButton.tagName).toBe('BUTTON');
+    expect(typeButton.type).toBe('button');
+    expect(document.activeElement).toBe(typeButton);
+    typeButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(typeButton.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('applies and clears the server-side opportunity type query', async () => {
+    await createComponent();
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button'));
+
+    buttons[1].click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(api.getSummary).toHaveBeenLastCalledWith({ opportunityType: 'DECLINED_WORK' });
+    expect(buttons[1].getAttribute('aria-pressed')).toBe('true');
+
+    buttons[0].click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(api.getSummary).toHaveBeenLastCalledWith({});
+  });
+
+  it('shows only authoritative opportunity type counts, including zero', async () => {
+    api.getSummary.mockReturnValue(of({
+      ...summary,
+      byOpportunityType: [
+        { key: 'DECLINED_WORK', count: 3 },
+        { key: 'DEFERRED_WORK', count: 0 },
+      ],
+    }));
+    await createComponent();
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button'));
+
+    expect(buttons[1].querySelector('.type-count')?.textContent).toBe('3');
+    expect(buttons[2].querySelector('.type-count')?.textContent).toBe('0');
+    expect(buttons[3].querySelector('.type-count')).toBeNull();
+  });
+
+  it('applies priority and actionability as server-side filters', async () => {
+    await createComponent();
+    const selects = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('.filters select');
+    const priority = selects[0];
     priority.value = 'HIGH';
     priority.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(api.getSummary).toHaveBeenLastCalledWith({ priority: 'HIGH' });
     expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ priority: 'HIGH' }));
+
+    const actionability = selects[1];
+    actionability.value = 'REVIEW_REQUIRED';
+    actionability.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(api.getSummary).toHaveBeenLastCalledWith({ priority: 'HIGH', actionability: 'REVIEW_REQUIRED' });
+  });
+
+  it.each([
+    ['DETECTED_DESC', 'Newest'],
+    ['DETECTED_ASC', 'Oldest'],
+    ['POTENTIAL_DESC', 'Highest potential'],
+    ['POTENTIAL_ASC', 'Lowest potential'],
+  ] as const)('applies the supported %s sort option labelled %s', async (sortValue, sortLabel) => {
+    await createComponent();
+    const sort = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('.filters select')[2];
+    expect(sort.labels?.[0]?.textContent).toContain('Sort by');
+    expect(Array.from(sort.options).find((option) => option.value === sortValue)?.textContent).toBe(sortLabel);
+
+    sort.value = sortValue;
+    sort.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ sort: sortValue }));
+  });
+
+  it('restores valid URL state and safely ignores unsupported values', async () => {
+    await createComponent('/?type=DECLINED_WORK&priority=HIGH&actionability=READY&sort=POTENTIAL_DESC');
+    expect(api.getSummary).toHaveBeenLastCalledWith({ opportunityType: 'DECLINED_WORK', priority: 'HIGH', actionability: 'READY' });
+    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'POTENTIAL_DESC' }));
+
+    TestBed.resetTestingModule();
+    await createComponent('/?type=UNKNOWN&priority=URGENT&actionability=UNKNOWN&sort=PRIORITY_DESC');
+    expect(api.getSummary).toHaveBeenLastCalledWith({});
+    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'DETECTED_DESC' }));
+  });
+
+  it('cancels an older manager request when query state changes again', async () => {
+    await createComponent();
+    const olderSummary = new Subject<ServiceProfitOpportunitySummary>();
+    const olderQueue = new Subject<ServiceProfitOpportunityPage>();
+    api.getSummary.mockReturnValueOnce(olderSummary).mockReturnValueOnce(of({ ...summary, totalOpportunities: 9 }));
+    api.getOpportunities.mockReturnValueOnce(olderQueue).mockReturnValueOnce(of({
+      ...queue,
+      items: [{ ...queue.items[0], title: 'Newest query result' }],
+    }));
+    const router = TestBed.inject(Router);
+
+    await router.navigate([], { queryParams: { priority: 'HIGH' } });
+    await router.navigate([], { queryParams: { priority: 'HIGH', actionability: 'READY' } });
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Newest query result');
+
+    olderSummary.next({ ...summary, totalOpportunities: 99 });
+    olderSummary.complete();
+    olderQueue.next({ ...queue, items: [{ ...queue.items[0], title: 'Stale query result' }] });
+    olderQueue.complete();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Stale query result');
+  });
+
+  it('keeps loaded content visible while a background refresh is pending', async () => {
+    await createComponent();
+    const pendingSummary = new Subject<ServiceProfitOpportunitySummary>();
+    const pendingQueue = new Subject<ServiceProfitOpportunityPage>();
+    api.getSummary.mockReturnValueOnce(pendingSummary);
+    api.getOpportunities.mockReturnValueOnce(pendingQueue);
+    const element = fixture.nativeElement as HTMLElement;
+    const refresh = element.querySelector<HTMLButtonElement>('.refresh-control');
+
+    refresh?.click();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Recover declined brake work');
+    expect(refresh?.disabled).toBe(true);
+    expect(refresh?.getAttribute('aria-busy')).toBe('true');
+    expect(refresh?.textContent?.trim()).toBe('');
+
+    pendingSummary.next(summary);
+    pendingSummary.complete();
+    pendingQueue.next(queue);
+    pendingQueue.complete();
+    fixture.detectChanges();
+    expect(refresh?.disabled).toBe(false);
+    expect(refresh?.getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('retains loaded content and reports a background refresh failure', async () => {
+    await createComponent();
+    api.getSummary.mockReturnValueOnce(throwError(() => ({ status: 503, message: 'Unavailable' })));
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('.refresh-control')?.click();
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain('Recover declined brake work');
+    expect(element.textContent).toContain('Unable to refresh Service Profit');
+    expect(element.textContent).toContain('The previously loaded data is still available.');
   });
 });

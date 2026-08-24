@@ -92,9 +92,39 @@ export interface ServiceProfitOpportunityExplanation {
   recommendedAction: string;
 }
 
+export interface ServiceProfitCustomerContext {
+  displayName: string | null;
+  reference: string | null;
+  phone: string | null;
+  email: string | null;
+  contactable: boolean | null;
+}
+
+export interface ServiceProfitVehicleContext {
+  registration: string | null;
+  vin: string | null;
+  make: string | null;
+  model: string | null;
+  modelYear: number | null;
+  powertrain: string | null;
+}
+
+export interface ServiceProfitServiceContext {
+  orderReference: string | null;
+  serviceDate: string | null;
+  description: string | null;
+  advisorContext: string | null;
+}
+
+export interface ServiceProfitOpportunityContext {
+  customer: ServiceProfitCustomerContext | null;
+  vehicle: ServiceProfitVehicleContext | null;
+  service: ServiceProfitServiceContext | null;
+}
+
 export interface ServiceProfitOpportunityResponse extends ServiceProfitOpportunityQueueItem {
-  customerId: string;
-  vehicleId: string;
+  customerId: string | null;
+  vehicleId: string | null;
   summary: string;
   sourceSystem: string;
   sourceEntityType: string;
@@ -110,6 +140,7 @@ export interface ServiceProfitOpportunityResponse extends ServiceProfitOpportuni
   version: number;
   createdAt: string;
   updatedAt: string;
+  context?: ServiceProfitOpportunityContext | null;
 }
 
 export interface ServiceProfitOpportunityFilters {

@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 import { ConnectivityService } from '../core/connectivity/connectivity.service';
 import { BrandingService } from '../core/branding/branding.service';
 import { AuthService } from '../core/auth/auth.service';
@@ -24,12 +26,12 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
         }
         @if (auth.isAuthenticated()) {
           <div class="user-menu">
-            <button class="user-menu-trigger" type="button" aria-haspopup="dialog" aria-controls="user-profile-menu"
-              [attr.aria-expanded]="userMenuOpen()" (click)="toggleUserMenu()" (keydown.escape)="closeUserMenu()">
+            <button #userMenuTrigger class="user-menu-trigger" type="button" aria-haspopup="dialog" aria-controls="user-profile-menu"
+              [attr.aria-expanded]="userMenuOpen()" (click)="toggleUserMenu()">
               <span class="user-name">{{ userDisplayName() }}</span><span aria-hidden="true">▾</span>
             </button>
             @if (userMenuOpen()) {
-              <section class="profile-menu" id="user-profile-menu" role="dialog" [attr.aria-label]="localization.text('userProfile')" (keydown.escape)="closeUserMenu()">
+              <section class="profile-menu" id="user-profile-menu" role="dialog" [attr.aria-label]="localization.text('userProfile')">
                 <span class="profile-label">{{ localization.text('signedInAs') }}</span>
                 <strong>{{ userDisplayName() }}</strong>
                 @if (auth.state().email; as email) { <span class="profile-email">{{ email }}</span> }
@@ -82,6 +84,9 @@ import { AvStatusComponent } from '../shared/design-system/av-status.component';
   `],
 })
 export class AvShellComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   protected readonly connectivity = inject(ConnectivityService);
   protected readonly branding = inject(BrandingService);
   protected readonly auth = inject(AuthService);
@@ -89,12 +94,34 @@ export class AvShellComponent {
   protected readonly session = inject(SessionService);
   protected readonly theme = inject(ThemeService);
   protected readonly userMenuOpen = signal(false);
+  private readonly userMenuTrigger = viewChild<ElementRef<HTMLButtonElement>>('userMenuTrigger');
   protected readonly userDisplayName = computed(() =>
     this.auth.state().displayName
       ?? this.auth.state().username
       ?? this.session.session()?.userDisplayName
       ?? this.branding.branding().organizationName
   );
+
+  constructor() {
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationStart),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => this.closeUserMenu());
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeUserMenuOnOutsideClick(event: MouseEvent): void {
+    if (!this.userMenuOpen()) return;
+    const menu = this.elementRef.nativeElement.querySelector('.user-menu');
+    if (menu && !menu.contains(event.target as Node)) this.closeUserMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  protected closeUserMenuOnEscape(): void {
+    if (!this.userMenuOpen()) return;
+    this.closeUserMenu();
+    this.userMenuTrigger()?.nativeElement.focus();
+  }
 
   protected toggleUserMenu(): void {
     this.userMenuOpen.update((open) => !open);
