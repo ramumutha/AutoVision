@@ -7,10 +7,10 @@ test('loads the Service Profit manager queue and authoritative explanation respo
 
   await expect(page.getByRole('heading', { name: 'Service Profit Manager' })).toBeVisible();
   const currencyValues = page.locator('.currency-values p');
-  await expect(currencyValues).toHaveCount(2);
+  await expect(currencyValues).toHaveCount(1);
   await expect(currencyValues.nth(0)).toHaveText('$320');
-  await expect(currencyValues.nth(1)).toHaveText('€180');
 
+  await page.getByRole('button', { name: /Declined Work.*1/ }).click();
   await page.getByRole('button', { name: 'Recover declined brake work' }).click();
   await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
   await expect(page.getByText('Confirmed DMS service history.')).toBeVisible();

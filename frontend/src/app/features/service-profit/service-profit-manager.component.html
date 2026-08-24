@@ -16,7 +16,10 @@
     <h2 id="commercial-value-heading" class="section-title">{{ localization.text('recoverableCommercialValue') }}</h2>
     <div class="kpis">
       <article class="kpi kpi-primary">
-        <h3>{{ localization.text('recoverablePotential') }}</h3>
+        <div class="kpi-heading">
+          <h3>{{ localization.text('recoverablePotential') }}</h3>
+          <app-service-profit-data-capability [view]="dataCapability()" />
+        </div>
         @if (managerSummary.potentialByCurrency.length) {
           <div class="currency-values">
             @for (potential of managerSummary.potentialByCurrency; track potential.currencyCode) {
@@ -26,7 +29,6 @@
         } @else {
           <p class="kpi-value">{{ localization.text('notAvailable') }}</p>
         }
-        <app-service-profit-data-capability [view]="dataCapability()" />
       </article>
       <app-service-profit-business-navigation
         [summary]="navigationSummary() ?? managerSummary"
@@ -35,75 +37,28 @@
     </div>
   </section>
 
-  <section class="queue-section" aria-labelledby="opportunity-queue-heading" [attr.aria-busy]="loading() || refreshing()">
+  <section class="queue-section" aria-labelledby="opportunity-queue-heading" [attr.aria-busy]="opportunityWorkspaceLoading()">
     <div class="section-heading">
       <div>
-        <h2 id="opportunity-queue-heading">{{ resultContext() }}</h2>
-        <p class="result-count" aria-live="polite">
-          {{ managerSummary.totalOpportunities }} {{ opportunityCountLabel(managerSummary.totalOpportunities) }}
-        </p>
-        <p>{{ localization.text('opportunityQueueContext') }}</p>
+        <h2 id="opportunity-queue-heading">{{ localization.text('opportunities') }} <span class="result-count" aria-live="polite">{{ managerSummary.totalOpportunities }}</span></h2>
       </div>
       <app-service-profit-opportunity-controls
-        [filters]="filters()" [sort]="sort()" [loading]="loading()"
+        [filters]="filters()" [sort]="sort()" [groupBy]="groupBy()" [loading]="opportunityWorkspaceLoading()"
         [refreshing]="refreshing()" [refreshError]="refreshError()" [priorities]="priorities"
         [opportunityTypes]="opportunityTypes" [actionabilities]="actionabilities" [sorts]="sorts"
-        [canonicalKpiSelected]="businessLens() !== null" (sortChanged)="updateSort($event)"
+        [canonicalKpiSelected]="businessLens() !== null" (groupByChanged)="updateGroupBy($event)"
         (secondaryFiltersApplied)="applySecondaryFilters($event)" (refreshRequested)="refresh()" />
     </div>
 
-    @if (queue().length) {
-      <app-service-profit-mobile-list [opportunities]="queue()" [queryParams]="listQueryParams()" />
-      <div class="table-scroll">
-        <table>
-          <thead><tr>
-            <th scope="col">{{ localization.text('opportunity') }}</th>
-            <th class="secondary-tablet" scope="col">{{ localization.text('opportunityType') }}</th>
-            <th scope="col">{{ localization.text('priority') }}</th>
-            <th class="secondary-tablet" scope="col">{{ localization.text('evidenceStrength') }}</th>
-            <th scope="col">{{ localization.text('potential') }}</th>
-            <th scope="col">{{ localization.text('actionability') }}</th>
-            <th class="secondary-tablet" scope="col">{{ localization.text('detected') }}</th>
-          </tr></thead>
-          <tbody>
-            @for (opportunity of queue(); track opportunity.id) {
-              <tr class="opportunity-row" [class.selected]="selectedOpportunityId() === opportunity.id">
-                <th scope="row">
-                  <button class="opportunity-button" type="button" (click)="toggleOpportunityDetail(opportunity.id)"
-                    [attr.aria-expanded]="selectedOpportunityId() === opportunity.id" [attr.aria-controls]="detailRegionId(opportunity.id)">
-                    {{ opportunity.title }}
-                    @if (selectedOpportunityId() === opportunity.id) { <span class="selection-label">{{ localization.text('selected') }}</span> }
-                  </button>
-                </th>
-                <td class="secondary-tablet">{{ label(opportunity.opportunityType) }}</td>
-                <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
-                <td class="secondary-tablet">{{ label(opportunity.evidenceStrength) }}</td>
-                <td class="amount">{{ opportunity.potentialAmount | avMoney:opportunity.currencyCode:localization.locale() }}</td>
-                <td><av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" /></td>
-                <td class="secondary-tablet">{{ opportunity.detectedAt | date:'medium' }}</td>
-              </tr>
-              @if (selectedOpportunityId() === opportunity.id) {
-                <tr class="inline-detail-row">
-                  <td colspan="7">
-                    @if (detailLoading()) {
-                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
-                    } @else if (detailError()) {
-                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)" role="region" [attr.aria-label]="localization.text('opportunityDetail')">
-                        <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')"
-                          [message]="detailErrorMessage(detailError())" />
-                      </div>
-                    } @else if (selected(); as selectedOpportunity) {
-                      @if (selectedOpportunity.id === opportunity.id) {
-                        <app-service-profit-opportunity-detail [opportunity]="selectedOpportunity" />
-                      }
-                    }
-                  </td>
-                </tr>
-              }
-            }
-          </tbody>
-        </table>
-      </div>
+    @if (opportunityWorkspaceLoading() && groups().length) {
+      <p class="workspace-loading" role="status" aria-live="polite">{{ localization.text('loadingOpportunities') }}</p>
+    }
+
+    @if (groups().length) {
+      <app-service-profit-grouped-queue [groups]="groups()" [groupBy]="groupBy()" [sort]="sort()"
+        [queryParams]="listQueryParams()" [selectedOpportunityId]="selectedOpportunityId()" [selected]="selected()"
+        [detailLoading]="detailLoading()" [detailError]="detailError()" (sortChanged)="updateSort($event)"
+        (opportunitySelected)="toggleOpportunityDetail($event)" />
     } @else {
       <av-feedback [title]="localization.text('noOpportunities')" [message]="localization.text('noOpportunitiesContext')" />
     }

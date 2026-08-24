@@ -1,0 +1,76 @@
+@for (group of groups(); track group.key) {
+  <section class="opportunity-group" [attr.aria-labelledby]="groupId(group.key) + '-heading'">
+    @if (groupBy() !== 'NONE') {
+      <button class="group-heading" type="button" (click)="toggleGroup(group.key)"
+        [id]="groupId(group.key) + '-heading'" [attr.aria-expanded]="isExpanded(group.key)" [attr.aria-controls]="groupId(group.key)">
+        <span>{{ groupLabel(group.key) }}</span>
+        <span class="group-count">{{ group.authoritativeCount }}</span>
+        <span class="group-chevron" [class.expanded]="isExpanded(group.key)" aria-hidden="true"></span>
+      </button>
+    }
+
+    @if (isExpanded(group.key)) {
+      <div [id]="groupId(group.key)">
+        @if (!group.complete) {
+          <av-feedback class="group-warning" kind="info" [title]="localization.text('opportunityGroupIncomplete')"
+            [message]="localization.text('opportunityGroupIncompleteContext')" />
+        }
+        <app-service-profit-mobile-list [opportunities]="group.opportunities" [queryParams]="queryParams()"
+          [showOpportunityType]="showOpportunityType(group.key)" />
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th scope="col">{{ localization.text('opportunity') }}</th>
+              @if (showOpportunityType(group.key)) { <th class="secondary-tablet" scope="col">{{ localization.text('opportunityType') }}</th> }
+              <th scope="col">{{ localization.text('priority') }}</th>
+              <th scope="col" [attr.aria-sort]="ariaSort('POTENTIAL')">
+                <button class="sort-heading" type="button" (click)="toggleSort('POTENTIAL')">
+                  {{ localization.text('potential') }} <span aria-hidden="true">{{ sortIndicator('POTENTIAL') }}</span>
+                </button>
+              </th>
+              <th scope="col">{{ localization.text('actionability') }}</th>
+              <th class="secondary-tablet" scope="col" [attr.aria-sort]="ariaSort('DETECTED')">
+                <button class="sort-heading" type="button" (click)="toggleSort('DETECTED')">
+                  {{ localization.text('detected') }} <span aria-hidden="true">{{ sortIndicator('DETECTED') }}</span>
+                </button>
+              </th>
+            </tr></thead>
+            <tbody>
+              @for (opportunity of group.opportunities; track opportunity.id) {
+                <tr class="opportunity-row" [class.selected]="selectedOpportunityId() === opportunity.id">
+                  <th scope="row">
+                    <button class="opportunity-button" type="button" (click)="opportunitySelected.emit(opportunity.id)"
+                      [attr.aria-expanded]="selectedOpportunityId() === opportunity.id" [attr.aria-controls]="detailRegionId(opportunity.id)">
+                      {{ opportunity.title }}
+                      @if (selectedOpportunityId() === opportunity.id) { <span class="selection-label">{{ localization.text('selected') }}</span> }
+                    </button>
+                  </th>
+                  @if (showOpportunityType(group.key)) { <td class="secondary-tablet">{{ label(opportunity.opportunityType) }}</td> }
+                  <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
+                  <td class="amount">{{ opportunity.potentialAmount | avMoney:opportunity.currencyCode:localization.locale() }}</td>
+                  <td><av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" /></td>
+                  <td class="secondary-tablet">{{ opportunity.detectedAt | date:'medium' }}</td>
+                </tr>
+                @if (selectedOpportunityId() === opportunity.id) {
+                  <tr class="inline-detail-row"><td [attr.colspan]="showOpportunityType(group.key) ? 6 : 5">
+                    @if (detailLoading()) {
+                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
+                    } @else if (detailError()) {
+                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)">
+                        <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')" [message]="detailErrorMessage(detailError()!)" />
+                      </div>
+                    } @else if (selected(); as selectedOpportunity) {
+                      @if (selectedOpportunity.id === opportunity.id) {
+                        <app-service-profit-opportunity-detail [opportunity]="selectedOpportunity" />
+                      }
+                    }
+                  </td></tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </section>
+}

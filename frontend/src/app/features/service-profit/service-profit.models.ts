@@ -29,6 +29,7 @@ export type ServiceProfitActionability =
 export type ServiceProfitEvidenceClass = 'SOURCE_CONFIRMED' | 'EVIDENCE_DERIVED' | 'POLICY_DERIVED';
 export type ServiceProfitEvidenceStrength = 'STRONG' | 'MODERATE' | 'WEAK';
 export type ServiceProfitOpportunitySort = 'DETECTED_DESC' | 'DETECTED_ASC' | 'POTENTIAL_DESC' | 'POTENTIAL_ASC';
+export type ServiceProfitGroupBy = 'NONE' | 'OPPORTUNITY_TYPE' | 'PRIORITY' | 'ACTIONABILITY';
 
 export type ServiceProfitSuppressionReason =
   | 'WORK_ALREADY_COMPLETED'
@@ -83,6 +84,13 @@ export interface ServiceProfitOpportunityPage {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+export interface ServiceProfitOpportunityGroup {
+  key: string;
+  authoritativeCount: number;
+  opportunities: ServiceProfitOpportunityQueueItem[];
+  complete: boolean;
 }
 
 export interface ServiceProfitOpportunityExplanation {

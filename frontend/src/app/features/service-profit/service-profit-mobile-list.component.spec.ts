@@ -36,8 +36,15 @@ describe('ServiceProfitMobileListComponent', () => {
     expect(cardText).toContain('$320');
     expect(cardText).toContain('High');
     expect(cardText).toContain('Ready');
-    expect(cardText).toContain('Strong evidence');
+    expect(cardText).not.toContain('Strong evidence');
     expect(cardText).not.toContain('tenant-1');
+  });
+
+  it('hides Opportunity Type when the containing group already communicates it', () => {
+    fixture.componentRef.setInput('showOpportunityType', false);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.mobile-opportunity-card')?.textContent).not.toContain('Declined Work');
   });
 
   it('uses a descriptive real link and preserves list query state', () => {

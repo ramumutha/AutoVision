@@ -1,24 +1,23 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
-import { EMPTY, Observable, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject, catchError, combineLatest, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvMoneyPipe } from '../../shared/formatting/av-money.pipe';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
-import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitBusinessLens, ServiceProfitBusinessNavigationComponent } from './service-profit-business-navigation.component';
 import { ServiceProfitDataCapabilityComponent, ServiceProfitDataCapabilityView } from './service-profit-data-capability.component';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
-import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
-import { ServiceProfitMobileListComponent } from './service-profit-mobile-list.component';
+import { ServiceProfitGroupedQueueComponent } from './service-profit-grouped-queue.component';
+import { ServiceProfitGroupedQueueService } from './service-profit-grouped-queue.service';
 import { ServiceProfitMobileFilterState } from './service-profit-mobile-filters.component';
 import {
   ServiceProfitActionability,
+  ServiceProfitGroupBy,
   ServiceProfitOpportunityFilters,
-  ServiceProfitOpportunityQueueItem,
+  ServiceProfitOpportunityGroup,
   ServiceProfitOpportunityResponse,
   ServiceProfitOpportunitySort,
   ServiceProfitOpportunitySummary,
@@ -33,19 +32,21 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [DatePipe, AvMoneyPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitBusinessNavigationComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
+  imports: [AvMoneyPipe, AvFeedbackComponent, ServiceProfitBusinessNavigationComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitGroupedQueueComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
 })
 export class ServiceProfitManagerComponent {
   private readonly api = inject(ServiceProfitApiService);
+  private readonly groupedQueue = inject(ServiceProfitGroupedQueueService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly refreshRequests = new Subject<void>();
   private readonly detailRequests = new Subject<string | null>();
+  private readonly groupByRequests = new BehaviorSubject<ServiceProfitGroupBy>('OPPORTUNITY_TYPE');
   private readonly opportunityControls = viewChild(ServiceProfitOpportunityControlsComponent);
   private navigationSummaryOpportunityType: ServiceProfitOpportunityType | null | undefined;
   private restoreFiltersFocus = false;
@@ -54,13 +55,14 @@ export class ServiceProfitManagerComponent {
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
   protected readonly navigationSummary = signal<ServiceProfitOpportunitySummary | null>(null);
   protected readonly dataCapability = signal<ServiceProfitDataCapabilityView>({ state: 'loading' });
-  protected readonly queue = signal<ServiceProfitOpportunityQueueItem[]>([]);
+  protected readonly groups = signal<ServiceProfitOpportunityGroup[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadError = signal<ApiError | null>(null);
   protected readonly refreshing = signal(false);
   protected readonly refreshError = signal<ApiError | null>(null);
   protected readonly filters = signal<ServiceProfitOpportunityFilters>({});
   protected readonly sort = signal<ServiceProfitOpportunitySort>('DETECTED_DESC');
+  protected readonly groupBy = signal<ServiceProfitGroupBy>('OPPORTUNITY_TYPE');
   protected readonly businessLens = computed<ServiceProfitBusinessLens | null>(() => {
     const filters = this.filters();
     if (!filters.priority && !filters.actionability) return 'TOTAL';
@@ -69,14 +71,7 @@ export class ServiceProfitManagerComponent {
     if (!filters.priority && filters.actionability === 'READY') return 'READY_TO_ACTION';
     return null;
   });
-  protected readonly resultContext = computed(() => {
-    const lens = this.businessLens();
-    if (lens === 'TOTAL') return this.localization.text('allOpportunities');
-    if (lens === 'HIGH_PRIORITY') return this.localization.text('highPriority');
-    if (lens === 'REVIEW_REQUIRED') return this.localization.text('reviewRequired');
-    if (lens === 'READY_TO_ACTION') return this.localization.text('readyToAction');
-    return this.localization.text('filteredOpportunities');
-  });
+  protected readonly opportunityWorkspaceLoading = signal(true);
   protected readonly selected = signal<ServiceProfitOpportunityResponse | null>(null);
   protected readonly selectedOpportunityId = signal<string | null>(null);
   protected readonly detailLoading = signal(false);
@@ -119,18 +114,20 @@ export class ServiceProfitManagerComponent {
     );
 
     merge(
-      queryState$.pipe(map((state) => ({ state, background: false }))),
+      combineLatest([queryState$, this.groupByRequests]).pipe(map(([state, groupBy]) => ({ state, groupBy, background: false }))),
       this.refreshRequests.pipe(
-        withLatestFrom(queryState$),
-        map(([, state]) => ({ state, background: true })),
+        withLatestFrom(queryState$, this.groupByRequests),
+        map(([, state, groupBy]) => ({ state, groupBy, background: true })),
       ),
     ).pipe(
       tap(({ background }) => this.beginManagerLoad(background)),
-      switchMap(({ state, background }) => forkJoin({
+      switchMap(({ state, groupBy, background }) => forkJoin({
         navigationSummary: this.navigationSummaryRequest(state, background),
         summary: this.api.getSummary(state.filters),
-        queue: this.api.getOpportunities({ ...state.filters, page: 0, size: 25, sort: state.sort }),
       }).pipe(
+        switchMap((data) => this.groupedQueue.load(data.summary, groupBy, state.filters, state.sort).pipe(
+          map((groups) => ({ ...data, groups })),
+        )),
         map((data) => ({ state, background, data, error: null })),
         catchError((error: ApiError) => of({ state, background, data: null, error })),
       )),
@@ -177,6 +174,11 @@ export class ServiceProfitManagerComponent {
     });
   }
 
+  protected updateGroupBy(groupBy: ServiceProfitGroupBy): void {
+    this.groupBy.set(groupBy);
+    this.groupByRequests.next(groupBy);
+  }
+
   protected selectBusinessLens(lens: ServiceProfitBusinessLens): void {
     const queryParams: { priority: ServiceProfitPriority | null; actionability: ServiceProfitActionability | null } = {
       priority: null,
@@ -219,30 +221,6 @@ export class ServiceProfitManagerComponent {
     this.requestDetail(opportunityId);
   }
 
-  protected detailRegionId(opportunityId: string): string {
-    return `opportunity-detail-${opportunityId}`;
-  }
-
-  protected detailErrorMessage(error: ApiError | null): string {
-    if (error?.status === 401) return this.localization.text('detailSessionExpired');
-    if (error?.status === 403) return this.localization.text('detailNotAuthorized');
-    return this.localization.text('tryAgain');
-  }
-
-  protected label(value: string): string {
-    return value.replaceAll('_', ' ').toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
-  }
-
-  protected priorityTone(priority: ServiceProfitPriority): AvStatusTone {
-    return priority === 'HIGH' ? 'danger' : priority === 'MEDIUM' ? 'warning' : 'neutral';
-  }
-
-  protected actionabilityTone(actionability: ServiceProfitActionability): AvStatusTone {
-    if (actionability === 'READY') return 'success';
-    if (actionability === 'REVIEW_REQUIRED' || actionability === 'CONTACT_DATA_MISSING') return 'warning';
-    return actionability === 'SUPPRESSED' ? 'neutral' : 'danger';
-  }
-
   private readQueryState(params: ParamMap): ServiceProfitManagerQueryState {
     const opportunityType = params.get('type');
     const priority = params.get('priority');
@@ -271,10 +249,12 @@ export class ServiceProfitManagerComponent {
     this.refreshError.set(null);
     if (background) {
       this.refreshing.set(true);
+      this.opportunityWorkspaceLoading.set(true);
       return;
     }
     this.refreshing.set(false);
-    this.loading.set(true);
+    this.opportunityWorkspaceLoading.set(true);
+    if (!this.summary()) this.loading.set(true);
     this.loadError.set(null);
   }
 
@@ -299,14 +279,19 @@ export class ServiceProfitManagerComponent {
     data: {
       summary: ServiceProfitOpportunitySummary;
       navigationSummary: ServiceProfitOpportunitySummary | null;
-      queue: { items: ServiceProfitOpportunityQueueItem[] };
+      groups: ServiceProfitOpportunityGroup[];
     } | null;
     error: ApiError | null;
   }): void {
     if (result.background) this.refreshing.set(false);
-    else this.loading.set(false);
+    else {
+      this.loading.set(false);
+      this.opportunityWorkspaceLoading.set(false);
+    }
+    if (result.background) this.opportunityWorkspaceLoading.set(false);
     if (result.error) {
       this.restoreFiltersFocus = false;
+      this.opportunityWorkspaceLoading.set(false);
       if (result.background) this.refreshError.set(result.error);
       else this.loadError.set(result.error);
       return;
@@ -320,9 +305,10 @@ export class ServiceProfitManagerComponent {
         this.navigationSummary.set(result.data.summary);
         this.navigationSummaryOpportunityType = result.state.filters.opportunityType ?? null;
       }
-      this.queue.set(result.data.queue.items);
+      this.groups.set(result.data.groups);
+      const opportunities = result.data.groups.flatMap((group) => group.opportunities);
       const selectedId = this.selectedOpportunityId();
-      if (selectedId && !result.data.queue.items.some((opportunity) => opportunity.id === selectedId)) {
+      if (selectedId && !opportunities.some((opportunity) => opportunity.id === selectedId)) {
         this.clearDetailSelection();
       }
       if (this.restoreFiltersFocus) {

@@ -118,9 +118,11 @@ export async function installServiceProfitFixtures(page: Page): Promise<void> {
     title: 'Recover declined brake work', potentialAmount: 320, currencyCode: 'USD', detectedAt: '2026-08-20T10:00:00Z',
   };
   const summary = {
-    totalOpportunities: 3, highPriorityCount: 1, reviewRequiredCount: 1, readyCount: 1, suppressedCount: 1,
-    potentialByCurrency: [{ currencyCode: 'USD', amount: 320 }, { currencyCode: 'EUR', amount: 180 }],
-    byOpportunityType: [], byPriority: [], byActionability: [],
+    totalOpportunities: 1, highPriorityCount: 1, reviewRequiredCount: 0, readyCount: 0, suppressedCount: 1,
+    potentialByCurrency: [{ currencyCode: 'USD', amount: 320 }],
+    byOpportunityType: [{ key: 'DECLINED_WORK', count: 1 }],
+    byPriority: [{ key: 'HIGH', count: 1 }],
+    byActionability: [{ key: 'SUPPRESSED', count: 1 }],
   };
   const detail = {
     ...queueItem, customerId: 'ffffffff-ffff-4fff-8fff-ffffffffffff', vehicleId: '11111111-2222-4333-8444-555555555555',
@@ -142,5 +144,5 @@ export async function installServiceProfitFixtures(page: Page): Promise<void> {
   await page.route('**/api/v1/service-profit/data-capability', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dataCapability) }));
   await page.route('**/api/v1/service-profit/opportunities/summary*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(summary) }));
   await page.route(`**/api/v1/service-profit/opportunities/${SERVICE_PROFIT_OPPORTUNITY_ID}`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(detail) }));
-  await page.route('**/api/v1/service-profit/opportunities?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [queueItem], page: 0, size: 25, totalElements: 1, totalPages: 1 }) }));
+  await page.route('**/api/v1/service-profit/opportunities?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [queueItem], page: 0, size: 100, totalElements: 1, totalPages: 1 }) }));
 }

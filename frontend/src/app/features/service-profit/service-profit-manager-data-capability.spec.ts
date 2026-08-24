@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitManagerComponent } from './service-profit-manager.component';
@@ -104,6 +104,8 @@ describe('ServiceProfitManagerComponent data capability', () => {
     await fixture.whenStable();
 
     fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.group-heading')?.click();
+    fixture.detectChanges();
   }
 
   beforeEach(() => {
@@ -136,18 +138,8 @@ describe('ServiceProfitManagerComponent data capability', () => {
 
     expect(capability).not.toBeNull();
     expect(capability?.closest('.kpi-primary')).not.toBeNull();
-    expect(capability?.textContent).toContain(
-      'Revenue data',
-    );
-    expect(capability?.textContent).toContain(
-      'Available',
-    );
-    expect(capability?.textContent).toContain(
-      'Gross profit data',
-    );
-    expect(capability?.textContent).toContain(
-      'Partial',
-    );
+    expect(capability?.textContent).toBe('');
+    expect(capability?.querySelectorAll('av-status')).toHaveLength(0);
   });
 
   it('keeps opportunity management operational when capability loading fails', async () => {
@@ -176,12 +168,7 @@ describe('ServiceProfitManagerComponent data capability', () => {
     );
 
     expect(capability).not.toBeNull();
-    expect(capability?.textContent).toContain(
-      'Data capability unavailable',
-    );
-    expect(capability?.textContent).not.toContain(
-      'Data capability not yet assessed',
-    );
+    expect(capability?.textContent).toBe('');
 
     expect(text).not.toContain(
       'Unable to load Service Profit',
@@ -191,34 +178,7 @@ describe('ServiceProfitManagerComponent data capability', () => {
   it('does not reload tenant data capability when opportunity filters change', async () => {
     await createComponent();
 
-    const element = fixture.nativeElement as HTMLElement;
-
-    element.querySelector<HTMLButtonElement>(
-      '.disclosure-trigger',
-    )?.click();
-
-    fixture.detectChanges();
-
-    const priority = element.querySelectorAll<HTMLSelectElement>(
-      '.filter-panel select',
-    )[1];
-
-    if (!priority) {
-      throw new Error(
-        'Priority filter was not rendered',
-      );
-    }
-
-    priority.value = 'HIGH';
-
-    priority.dispatchEvent(
-      new Event('change'),
-    );
-
-    element.querySelector<HTMLButtonElement>(
-      '.apply-action',
-    )?.click();
-
+    await TestBed.inject(Router).navigate([], { queryParams: { priority: 'HIGH' }, queryParamsHandling: 'merge' });
     await fixture.whenStable();
 
     fixture.detectChanges();

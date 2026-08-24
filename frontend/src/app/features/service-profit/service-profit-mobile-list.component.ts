@@ -19,13 +19,12 @@ import { ServiceProfitActionability, ServiceProfitOpportunityQueueItem, ServiceP
             [attr.aria-label]="opportunity.title + ', ' + label(opportunity.priority) + ', ' + localization.text('openDetails')">
             <span class="card-heading">
               <strong>{{ opportunity.title }}</strong>
-              <span class="opportunity-type">{{ label(opportunity.opportunityType) }}</span>
+              @if (showOpportunityType()) { <span class="opportunity-type">{{ label(opportunity.opportunityType) }}</span> }
             </span>
             <span class="decision-summary">
               <span class="potential">{{ opportunity.potentialAmount | avMoney:opportunity.currencyCode:localization.locale() }}</span>
               <av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" />
               <av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" />
-              <span class="evidence">{{ label(opportunity.evidenceStrength) }} {{ localization.text('evidence') }}</span>
             </span>
             <span class="open-details">{{ localization.text('openDetails') }} <span aria-hidden="true">→</span></span>
           </a>
@@ -50,6 +49,7 @@ export class ServiceProfitMobileListComponent {
   protected readonly localization = inject(LocalizationService);
   readonly opportunities = input.required<readonly ServiceProfitOpportunityQueueItem[]>();
   readonly queryParams = input<Params>({});
+  readonly showOpportunityType = input(true);
 
   protected label(value: string): string {
     return value.replaceAll('_', ' ').toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());

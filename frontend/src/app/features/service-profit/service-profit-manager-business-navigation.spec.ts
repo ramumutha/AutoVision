@@ -80,15 +80,15 @@ describe('ServiceProfitManagerComponent business navigation', () => {
     const buttons = element.querySelectorAll<HTMLButtonElement>('app-service-profit-business-navigation button');
 
     expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
-    expect(element.querySelector('#opportunity-queue-heading')?.textContent).toContain('All Opportunities');
-    expect(element.querySelector('.result-count')?.textContent).toContain('10 opportunities');
+    expect(element.querySelector('#opportunity-queue-heading')?.textContent).toContain('Opportunities');
+    expect(element.querySelector('.result-count')?.textContent).toContain('10');
     expect(api.getSummary).toHaveBeenCalledOnce();
   });
 
   it.each([
-    ['?priority=HIGH', 1, 'High Priority', '5 opportunities'],
-    ['?actionability=REVIEW_REQUIRED', 2, 'Review Required', '1 opportunity'],
-    ['?actionability=READY', 3, 'Ready to Action', '8 opportunities'],
+    ['?priority=HIGH', 1, 'Opportunities', '5'],
+    ['?actionability=REVIEW_REQUIRED', 2, 'Opportunities', '1'],
+    ['?actionability=READY', 3, 'Opportunities', '8'],
   ] as const)('restores the canonical KPI from %s', async (query, selectedIndex, heading, count) => {
     await createComponent(`/${query}`);
     const element = fixture.nativeElement as HTMLElement;
@@ -106,7 +106,7 @@ describe('ServiceProfitManagerComponent business navigation', () => {
       .querySelectorAll<HTMLButtonElement>('app-service-profit-business-navigation button');
 
     expect(Array.from(buttons).every((button) => button.getAttribute('aria-pressed') === 'false')).toBe(true);
-    expect((fixture.nativeElement as HTMLElement).querySelector('#opportunity-queue-heading')?.textContent).toContain('Filtered Opportunities');
+    expect((fixture.nativeElement as HTMLElement).querySelector('#opportunity-queue-heading')?.textContent).toContain('Opportunities');
 
     buttons[2].click();
     await fixture.whenStable();
@@ -162,14 +162,7 @@ describe('ServiceProfitManagerComponent business navigation', () => {
   it('loads a new navigation summary when Type changes under an active KPI', async () => {
     await createComponent('/?priority=HIGH');
     api.getSummary.mockClear();
-    const element = fixture.nativeElement as HTMLElement;
-    element.querySelector<HTMLButtonElement>('.disclosure-trigger')?.click();
-    fixture.detectChanges();
-    const type = element.querySelector<HTMLSelectElement>('.filter-panel select');
-    if (!type) throw new Error('Opportunity Type filter was not rendered');
-    type.value = 'DECLINED_WORK';
-    type.dispatchEvent(new Event('change'));
-    element.querySelector<HTMLButtonElement>('.apply-action')?.click();
+    await TestBed.inject(Router).navigate([], { queryParams: { type: 'DECLINED_WORK' }, queryParamsHandling: 'merge' });
     await fixture.whenStable();
     fixture.detectChanges();
 

@@ -20,17 +20,17 @@ export interface ServiceProfitMobileFilterState {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="filter-control">
-      <button #disclosureTrigger class="disclosure-trigger" type="button" (click)="toggle()" [attr.aria-expanded]="open()" aria-controls="service-profit-secondary-filters">
+      <button #disclosureTrigger class="disclosure-trigger" type="button" (click)="toggle()" [attr.aria-expanded]="open()" aria-controls="service-profit-secondary-filters" [title]="localization.text('filters')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
         <span class="desktop-label">{{ localization.text('filters') }}</span>
         <span class="mobile-label">{{ localization.text('sortAndFilter') }}</span>
         @if (activeCount()) {
           <span class="active-count" [attr.aria-label]="activeCount() + ' ' + localization.text('activeFilters')">{{ activeCount() }}</span>
         }
-        <span aria-hidden="true">{{ open() ? '−' : '+' }}</span>
       </button>
 
       @if (open()) {
-        <div id="service-profit-secondary-filters" class="filter-panel">
+        <div id="service-profit-secondary-filters" class="filter-panel" role="dialog" [attr.aria-label]="localization.text('opportunityFilters')">
           <fieldset>
             <legend>{{ localization.text('opportunityFilters') }}</legend>
             <label>{{ localization.text('opportunityType') }}
@@ -68,10 +68,10 @@ export interface ServiceProfitMobileFilterState {
   styles: [`
     :host { display: block; min-inline-size: 0; }
     .filter-control { position: relative; }
-    .disclosure-trigger { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-block-size: 2.5rem; padding: .45rem .7rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); color: var(--av-color-ink); font: inherit; font-weight: 800; }
+    .disclosure-trigger { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-block-size: 2.5rem; padding: .45rem .7rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); background: var(--av-color-surface); color: var(--av-color-ink); cursor: pointer; font: inherit; font-weight: 800; }
     .mobile-label { display: none; }
     .active-count { display: grid; place-items: center; min-inline-size: 1.5rem; min-block-size: 1.5rem; margin-inline-start: auto; border-radius: 50%; background: var(--av-color-brand); color: white; font-size: .75rem; }
-    .filter-panel { display: grid; gap: 1rem; padding: .85rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); margin-top: .4rem; background: var(--av-color-surface); }
+    .filter-panel { position: absolute; inset-inline-end: 0; z-index: 5; display: grid; gap: 1rem; min-inline-size: min(34rem, calc(100vw - 2rem)); padding: .85rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-sm); margin-top: .4rem; background: var(--av-color-surface); box-shadow: 0 .75rem 2rem rgb(16 31 29 / 16%); }
     fieldset { display: grid; grid-template-columns: repeat(3, minmax(9rem, 1fr)); gap: .75rem; padding: 0; border: 0; margin: 0; }
     legend { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; border: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
     label { display: grid; gap: .3rem; color: var(--av-color-muted); font-size: .75rem; font-weight: 800; }
@@ -85,6 +85,7 @@ export interface ServiceProfitMobileFilterState {
       .disclosure-trigger { inline-size: 100%; min-block-size: 2.75rem; padding: .55rem .75rem; }
       .desktop-label { display: none; }
       .mobile-label { display: inline; }
+      .filter-panel { inset-inline: 0; min-inline-size: 0; }
       fieldset { grid-template-columns: 1fr; }
       .mobile-sort { display: grid; }
       .panel-actions { display: grid; grid-template-columns: 1fr 1fr; }
@@ -133,6 +134,12 @@ export class ServiceProfitMobileFiltersComponent {
       actionability: this.pendingActionability(),
       sort: this.pendingSort(),
     });
+    this.open.set(false);
+    this.disclosureTrigger().nativeElement.focus();
+  }
+
+  clearApplied(): void {
+    this.applied.emit({ opportunityType: null, priority: null, actionability: null, sort: this.sort() });
     this.open.set(false);
     this.disclosureTrigger().nativeElement.focus();
   }

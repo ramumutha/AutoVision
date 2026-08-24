@@ -10,6 +10,7 @@ describe('ServiceProfitOpportunityControlsComponent', () => {
     await TestBed.configureTestingModule({ imports: [ServiceProfitOpportunityControlsComponent] }).compileComponents();
     fixture = TestBed.createComponent(ServiceProfitOpportunityControlsComponent);
     fixture.componentRef.setInput('filters', {});
+    fixture.componentRef.setInput('showAdvancedFilters', true);
     fixture.componentRef.setInput('sort', 'DETECTED_DESC');
     fixture.componentRef.setInput('opportunityTypes', ['DECLINED_WORK', 'DEFERRED_WORK']);
     fixture.componentRef.setInput('priorities', ['HIGH', 'MEDIUM', 'LOW']);
@@ -41,14 +42,26 @@ describe('ServiceProfitOpportunityControlsComponent', () => {
     ]);
   });
 
-  it('keeps desktop Sort visible and mobile Sort inside the combined disclosure', () => {
-    const desktopSort = element.querySelector<HTMLSelectElement>('.desktop-sort select');
-    expect(desktopSort?.labels?.[0]?.textContent).toContain('Sort by');
+  it('keeps Group By visible and mobile Sort inside the combined disclosure', () => {
+    const groupBy = element.querySelector<HTMLSelectElement>('.group-by select');
+    expect(groupBy?.labels?.[0]?.textContent).toContain('Group by');
+    expect(groupBy?.value).toBe('OPPORTUNITY_TYPE');
+    expect(element.querySelector('.desktop-sort')).toBeNull();
 
     element.querySelector<HTMLButtonElement>('.disclosure-trigger')!.click();
     fixture.detectChanges();
 
     expect(element.querySelector('.mobile-sort select')).not.toBeNull();
+  });
+
+  it('emits a local grouping change', () => {
+    const changed: string[] = [];
+    fixture.componentInstance.groupByChanged.subscribe((groupBy) => changed.push(groupBy));
+    const groupBy = element.querySelector<HTMLSelectElement>('.group-by select')!;
+    groupBy.value = 'PRIORITY';
+    groupBy.dispatchEvent(new Event('change'));
+
+    expect(changed).toEqual(['PRIORITY']);
   });
 
   it('forwards one complete applied secondary-filter state', () => {

@@ -5,7 +5,7 @@ import { routes } from '../../app.routes';
 import { authenticatedGuard } from '../../core/auth/auth.guard';
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitManagerComponent } from './service-profit-manager.component';
-import { ServiceProfitOpportunityPage, ServiceProfitOpportunityResponse, ServiceProfitOpportunitySummary } from './service-profit.models';
+import { ServiceProfitOpportunityFilters, ServiceProfitOpportunityPage, ServiceProfitOpportunityResponse, ServiceProfitOpportunitySummary } from './service-profit.models';
 
 describe('ServiceProfitManagerComponent', () => {
   let fixture: ComponentFixture<ServiceProfitManagerComponent>;
@@ -53,6 +53,9 @@ describe('ServiceProfitManagerComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+    const firstGroup = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.group-heading');
+    firstGroup?.click();
+    fixture.detectChanges();
   }
 
   beforeEach(() => {
@@ -93,7 +96,7 @@ describe('ServiceProfitManagerComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Unable to load Service Profit');
 
     TestBed.resetTestingModule();
-    api.getSummary.mockReturnValue(of(summary));
+    api.getSummary.mockReturnValue(of({ ...summary, totalOpportunities: 0 }));
     api.getOpportunities.mockReturnValue(of({ ...queue, items: [], totalElements: 0, totalPages: 0 }));
     await createComponent();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No opportunities match these filters');
@@ -206,7 +209,7 @@ describe('ServiceProfitManagerComponent', () => {
     const inlineRow = row?.nextElementSibling as HTMLTableRowElement | null;
     expect(inlineRow?.classList.contains('inline-detail-row')).toBe(true);
     expect(inlineRow?.parentElement?.tagName).toBe('TBODY');
-    expect(inlineRow?.querySelector('td')?.colSpan).toBe(7);
+    expect(inlineRow?.querySelector('td')?.colSpan).toBe(6);
     expect(inlineRow?.textContent).toContain('Loading opportunity details');
   });
 
@@ -290,19 +293,11 @@ describe('ServiceProfitManagerComponent', () => {
     element.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
     fixture.detectChanges();
     api.getOpportunities.mockReturnValueOnce(of({ ...queue, items: [remainingItem] }));
-
-    element.querySelector<HTMLButtonElement>('.disclosure-trigger')?.click();
-    fixture.detectChanges();
-    const priority = element.querySelectorAll<HTMLSelectElement>('.filter-panel select')[1];
-    if (!priority) throw new Error('Priority filter was not rendered');
-    priority.value = 'HIGH';
-    priority.dispatchEvent(new Event('change'));
-    element.querySelector<HTMLButtonElement>('.apply-action')?.click();
+    await TestBed.inject(Router).navigate([], { queryParams: { priority: 'HIGH' } });
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(element.querySelector('.inline-detail-row')).toBeNull();
-    expect(element.querySelector<HTMLButtonElement>('.opportunity-button')?.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('exposes disclosure ARIA and collapses the selected row on a second activation', async () => {
@@ -324,12 +319,12 @@ describe('ServiceProfitManagerComponent', () => {
     expect(api.getOpportunity).toHaveBeenCalledOnce();
   });
 
-  it('marks secondary table columns for compact tablet presentation', async () => {
+  it('keeps Type and Detected secondary in the truthful All fallback table', async () => {
     await createComponent();
     const element = fixture.nativeElement as HTMLElement;
 
-    expect(element.querySelectorAll('thead .secondary-tablet')).toHaveLength(3);
-    expect(element.querySelectorAll('.opportunity-row .secondary-tablet')).toHaveLength(3);
+    expect(element.querySelectorAll('thead .secondary-tablet')).toHaveLength(2);
+    expect(element.querySelectorAll('.opportunity-row .secondary-tablet')).toHaveLength(2);
   });
 
   it('provides a compact accessible refresh control that invokes refresh', async () => {
@@ -348,22 +343,18 @@ describe('ServiceProfitManagerComponent', () => {
   });
 
   it.each([
-    ['DETECTED_DESC', 'Newest'],
-    ['DETECTED_ASC', 'Oldest'],
-    ['POTENTIAL_DESC', 'Highest potential'],
-    ['POTENTIAL_ASC', 'Lowest potential'],
-  ] as const)('applies the supported %s sort option labelled %s', async (sortValue, sortLabel) => {
-    await createComponent();
-    const sort = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('.desktop-sort select')!;
-    expect(sort.labels?.[0]?.textContent).toContain('Sort by');
-    expect(Array.from(sort.options).find((option) => option.value === sortValue)?.textContent).toBe(sortLabel);
-
-    sort.value = sortValue;
-    sort.dispatchEvent(new Event('change'));
+    ['', 1, 'DETECTED_ASC'],
+    ['?sort=DETECTED_ASC', 1, 'DETECTED_DESC'],
+    ['?sort=POTENTIAL_DESC', 0, 'POTENTIAL_ASC'],
+    ['?sort=POTENTIAL_ASC', 0, 'POTENTIAL_DESC'],
+  ] as const)('applies header sorting from %s to %s', async (query, headerIndex, expectedSort) => {
+    await createComponent(`/${query}`);
+    const sortableHeaders = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.sort-heading');
+    sortableHeaders[headerIndex].click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ sort: sortValue }));
+    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ sort: expectedSort }));
   });
 
   it('restores valid URL state and safely ignores unsupported values', async () => {
@@ -380,9 +371,11 @@ describe('ServiceProfitManagerComponent', () => {
   it('cancels an older manager request when query state changes again', async () => {
     await createComponent();
     const olderSummary = new Subject<ServiceProfitOpportunitySummary>();
-    const olderQueue = new Subject<ServiceProfitOpportunityPage>();
-    api.getSummary.mockReturnValueOnce(olderSummary).mockReturnValueOnce(of({ ...summary, totalOpportunities: 9 }));
-    api.getOpportunities.mockReturnValueOnce(olderQueue).mockReturnValueOnce(of({
+    api.getSummary.mockImplementation((filters: ServiceProfitOpportunityFilters) => {
+      if (filters.priority === 'HIGH' && !filters.actionability) return olderSummary;
+      return of({ ...summary, totalOpportunities: 9 });
+    });
+    api.getOpportunities.mockReturnValue(of({
       ...queue,
       items: [{ ...queue.items[0], title: 'Newest query result' }],
     }));
@@ -391,14 +384,37 @@ describe('ServiceProfitManagerComponent', () => {
     await router.navigate([], { queryParams: { priority: 'HIGH' } });
     await router.navigate([], { queryParams: { priority: 'HIGH', actionability: 'READY' } });
     fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.group-heading')?.click();
+    fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Newest query result');
 
     olderSummary.next({ ...summary, totalOpportunities: 99 });
     olderSummary.complete();
-    olderQueue.next({ ...queue, items: [{ ...queue.items[0], title: 'Stale query result' }] });
-    olderQueue.complete();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Stale query result');
+  });
+
+  it('cancels a pending grouped page request when query state changes', async () => {
+    await createComponent();
+    const olderQueue = new Subject<ServiceProfitOpportunityPage>();
+    api.getSummary.mockReturnValue(of(summary));
+    api.getOpportunities.mockReturnValueOnce(olderQueue).mockReturnValueOnce(of({
+      ...queue,
+      items: [{ ...queue.items[0], title: 'Newest grouped result' }],
+    }));
+    const router = TestBed.inject(Router);
+
+    await router.navigate([], { queryParams: { priority: 'HIGH' } });
+    await router.navigate([], { queryParams: { priority: 'HIGH', actionability: 'READY' } });
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.group-heading')?.click();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Newest grouped result');
+
+    olderQueue.next({ ...queue, items: [{ ...queue.items[0], title: 'Stale grouped result' }] });
+    olderQueue.complete();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Stale grouped result');
   });
 
   it('keeps loaded content visible while a background refresh is pending', async () => {

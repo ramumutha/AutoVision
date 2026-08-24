@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import {
@@ -22,38 +22,33 @@ export type ServiceProfitDataCapabilityView =
     @let capabilityView = view();
     <div class="capability" role="group" [attr.aria-label]="localization.text('dataCapability')">
       <div class="capability-summary">
-        @if (capabilityView.state === 'loading') {
-          <p class="capability-state" role="status">{{ localization.text('dataCapabilityLoading') }}</p>
-        } @else if (capabilityView.state === 'failed') {
-          <p class="capability-state capability-failed">{{ localization.text('dataCapabilityUnavailable') }}</p>
-        } @else if (capabilityView.data.assessmentState === 'ASSESSED') {
-          <div class="capability-statuses">
-            @for (item of displayCapabilities(); track item.capability) {
-              <div class="capability-status">
-                <span>{{ capabilityLabel(item.capability) }}</span>
-                <av-status [label]="statusLabel(item.status)" [tone]="statusTone(item.status)" />
-              </div>
-            }
-          </div>
-        } @else {
-          <p class="not-assessed">{{ localization.text('dataCapabilityNotAssessed') }}</p>
-        }
-
-        @if (capabilityView.state === 'available') {
-          <button
+        <button #detailsButton
             class="details-toggle"
             type="button"
-            (click)="expanded.set(!expanded())"
+            (click)="expanded.set(true)"
             [attr.aria-expanded]="expanded()"
-            [attr.aria-controls]="detailsId">
-            {{ localization.text(expanded() ? 'hideDataDetails' : 'viewDataDetails') }}
-          </button>
-        }
+            [attr.aria-controls]="detailsId"
+            [attr.aria-label]="localization.text('viewDataDetails')"
+            [title]="localization.text('viewDataDetails')">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 11v5" />
+              <path d="M12 8h.01" />
+            </svg>
+        </button>
       </div>
 
-      @if (capabilityView.state === 'available' && expanded()) {
-        <div class="capability-details" [id]="detailsId">
-          @if (capabilityView.data.assessmentState === 'ASSESSED') {
+      @if (expanded()) {
+        <div class="capability-backdrop" (click)="closeDetails()">
+          <section class="capability-details" [id]="detailsId" role="dialog" aria-modal="true" [attr.aria-label]="localization.text('dataCapability')" (click)="$event.stopPropagation()" (keydown.escape)="closeDetails()">
+            <button #closeButton class="close-details" type="button" (click)="closeDetails()" [attr.aria-label]="localization.text('hideDataDetails')" [title]="localization.text('hideDataDetails')">
+              <span aria-hidden="true">×</span>
+            </button>
+          @if (capabilityView.state === 'loading') {
+            <p class="capability-state" role="status">{{ localization.text('dataCapabilityLoading') }}</p>
+          } @else if (capabilityView.state === 'failed') {
+            <p class="capability-state capability-failed">{{ localization.text('dataCapabilityUnavailable') }}</p>
+          } @else if (capabilityView.data.assessmentState === 'ASSESSED') {
             <dl class="assessment-metadata">
               <div>
                 <dt>{{ localization.text('dataSource') }}</dt>
@@ -96,19 +91,20 @@ export type ServiceProfitDataCapabilityView =
               {{ localization.text('dataCapabilityNotAssessedContext') }}
             </p>
           }
+          </section>
         </div>
       }
     </div>
   `,
   styles: [`
-    :host { display: block; margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--av-color-border); }
+    :host { display: block; }
     .capability-summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
-    .capability-statuses { display: grid; gap: .45rem; }
-    .capability-status { display: flex; align-items: center; gap: .45rem; color: var(--av-color-muted); font-size: .8rem; font-weight: 700; white-space: nowrap; }
     .capability-state { margin: 0; color: var(--av-color-muted); font-size: .8rem; font-weight: 700; }
     .capability-failed { color: var(--av-color-danger); }
-    .details-toggle { min-block-size: 2.5rem; padding: .4rem .65rem; border: 0; background: transparent; color: var(--av-color-brand-strong); cursor: pointer; font: inherit; font-size: .8rem; font-weight: 800; white-space: nowrap; }
-    .capability-details { padding: 1rem; border-top: 1px solid var(--av-color-border); }
+    .details-toggle, .close-details { display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; flex: 0 0 auto; padding: 0; border: 1px solid var(--av-color-border); border-radius: 50%; background: var(--av-color-surface); color: var(--av-color-brand-strong); cursor: pointer; }
+    .capability-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1rem; background: rgb(16 31 29 / 32%); }
+    .capability-details { position: relative; max-inline-size: 42rem; max-block-size: min(85vh, 42rem); overflow: auto; padding: 1.25rem; border: 1px solid var(--av-color-border); border-radius: var(--av-radius-md); background: var(--av-color-surface); box-shadow: 0 1rem 3rem rgb(16 31 29 / 22%); }
+    .close-details { position: absolute; inset-block-start: .75rem; inset-inline-end: .75rem; }
     .assessment-metadata { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1rem; }
     .assessment-metadata div { min-width: 0; }
     dt { color: var(--av-color-muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
@@ -124,8 +120,6 @@ export type ServiceProfitDataCapabilityView =
     }
     @media (max-width: 600px) {
       .capability-summary { align-items: center; gap: .5rem; }
-      .capability-statuses { gap: .4rem; }
-      .capability-status { justify-content: space-between; white-space: normal; }
       .details-toggle { min-block-size: 2.75rem; }
       .capability-details { padding: .75rem; }
       .assessment-metadata, .capability-reasons { grid-template-columns: 1fr; }
@@ -136,8 +130,14 @@ export class ServiceProfitDataCapabilityComponent {
   protected readonly localization = inject(LocalizationService);
   protected readonly expanded = signal(false);
   protected readonly detailsId = 'service-profit-data-capability-details';
+  private readonly detailsButton = viewChild<ElementRef<HTMLButtonElement>>('detailsButton');
 
   readonly view = input.required<ServiceProfitDataCapabilityView>();
+
+  protected closeDetails(): void {
+    this.expanded.set(false);
+    this.detailsButton()?.nativeElement.focus();
+  }
 
   protected readonly displayCapabilities = computed(() => {
     const order: ServiceProfitDataCapability[] = [
