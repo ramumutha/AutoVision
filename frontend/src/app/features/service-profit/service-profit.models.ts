@@ -160,3 +160,30 @@ export interface ServiceProfitOpportunityQuery extends ServiceProfitOpportunityF
   size?: number;
   sort?: ServiceProfitOpportunitySort;
 }
+export type ServiceProfitDataCapabilityStatus =
+  | 'AVAILABLE'
+  | 'PARTIAL'
+  | 'UNAVAILABLE';
+
+export type ServiceProfitDataCapability =
+  | 'REVENUE_ATTRIBUTION'
+  | 'GROSS_PROFIT_ATTRIBUTION';
+
+export type ServiceProfitDataAssessmentState =
+  | 'ASSESSED'
+  | 'NOT_ASSESSED';
+
+export interface ServiceProfitDataCapabilityItem {
+  capability: ServiceProfitDataCapability;
+  status: ServiceProfitDataCapabilityStatus;
+  reason: string;
+}
+
+export interface ServiceProfitDataCapabilityResponse {
+  assessmentState: ServiceProfitDataAssessmentState;
+  sourceDatasetId: string | null;
+  sourceDatasetVersion: string | null;
+  assessmentPolicyVersion: string | null;
+  assessedAt: string | null;
+  capabilities: ServiceProfitDataCapabilityItem[];
+}

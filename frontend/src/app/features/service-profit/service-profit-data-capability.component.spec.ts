@@ -1,0 +1,169 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ServiceProfitDataCapabilityComponent } from './service-profit-data-capability.component';
+import { ServiceProfitDataCapabilityResponse } from './service-profit.models';
+
+describe('ServiceProfitDataCapabilityComponent', () => {
+  let fixture: ComponentFixture<ServiceProfitDataCapabilityComponent>;
+
+  const assessed: ServiceProfitDataCapabilityResponse = {
+    assessmentState: 'ASSESSED',
+    sourceDatasetId: 'AUTOVISION-SERVICE-PROFIT-R1-DEMO',
+    sourceDatasetVersion: '1.0.0',
+    assessmentPolicyVersion: 'service-profit-data-readiness-r1',
+    assessedAt: '2026-08-24T05:00:00Z',
+    capabilities: [
+      {
+        capability: 'REVENUE_ATTRIBUTION',
+        status: 'AVAILABLE',
+        reason: 'Invoice linkage supports revenue attribution.',
+      },
+      {
+        capability: 'GROSS_PROFIT_ATTRIBUTION',
+        status: 'PARTIAL',
+        reason: 'Cost data is available for only part of the assessed population.',
+      },
+    ],
+  };
+
+  async function createComponent(
+    data: ServiceProfitDataCapabilityResponse = assessed,
+  ): Promise<void> {
+    await TestBed.configureTestingModule({
+      imports: [ServiceProfitDataCapabilityComponent],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ServiceProfitDataCapabilityComponent);
+    fixture.componentRef.setInput('data', data);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('shows the commercial capability summary without exposing raw assessment scores', async () => {
+    await createComponent();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const text = element.textContent ?? '';
+
+    expect(text).toContain('Data capability');
+    expect(text).toContain('Revenue attribution');
+    expect(text).toContain('Available');
+    expect(text).toContain('Gross profit attribution');
+    expect(text).toContain('Partial');
+
+    expect(text).not.toContain('overallScore');
+    expect(text).not.toContain('identityCoverage');
+    expect(text).not.toContain('invoiceLinkageCoverage');
+    expect(text).not.toContain('costCoverage');
+    expect(text).not.toContain('%');
+  });
+
+  it('keeps technical assessment details collapsed until explicitly requested', async () => {
+    await createComponent();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const toggle = element.querySelector<HTMLButtonElement>('.details-toggle');
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-controls')).toBe(
+      'service-profit-data-capability-details',
+    );
+
+    expect(element.textContent).not.toContain('AUTOVISION-SERVICE-PROFIT-R1-DEMO');
+    expect(element.textContent).not.toContain('Invoice linkage supports revenue attribution.');
+
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      element.querySelector('#service-profit-data-capability-details'),
+    ).not.toBeNull();
+
+    const text = element.textContent ?? '';
+    expect(text).toContain('AUTOVISION-SERVICE-PROFIT-R1-DEMO');
+    expect(text).toContain('1.0.0');
+    expect(text).toContain('service-profit-data-readiness-r1');
+    expect(text).toContain('Invoice linkage supports revenue attribution.');
+    expect(text).toContain(
+      'Cost data is available for only part of the assessed population.',
+    );
+  });
+
+  it('represents unavailable capability with visible text rather than color alone', async () => {
+    await createComponent({
+      ...assessed,
+      capabilities: [
+        {
+          capability: 'REVENUE_ATTRIBUTION',
+          status: 'UNAVAILABLE',
+          reason: 'Invoice linkage is unavailable.',
+        },
+        {
+          capability: 'GROSS_PROFIT_ATTRIBUTION',
+          status: 'UNAVAILABLE',
+          reason: 'Cost data is unavailable.',
+        },
+      ],
+    });
+
+    const element = fixture.nativeElement as HTMLElement;
+    const text = element.textContent ?? '';
+
+    expect(text).toContain('Revenue attribution');
+    expect(text).toContain('Gross profit attribution');
+    expect(
+      Array.from(element.querySelectorAll('av-status'))
+        .map((status) => status.textContent?.trim()),
+    ).toEqual(['Unavailable', 'Unavailable']);
+  });
+
+  it('clearly represents a dealer whose data has not yet been assessed', async () => {
+    await createComponent({
+      assessmentState: 'NOT_ASSESSED',
+      sourceDatasetId: null,
+      sourceDatasetVersion: null,
+      assessmentPolicyVersion: null,
+      assessedAt: null,
+      capabilities: [],
+    });
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.textContent).toContain('Data capability not yet assessed');
+    expect(element.textContent).not.toContain('Revenue attribution');
+    expect(element.textContent).not.toContain('Gross profit attribution');
+
+    element.querySelector<HTMLButtonElement>('.details-toggle')?.click();
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain(
+      'Commercial attribution capability will be shown after dealer data assessment is completed.',
+    );
+  });
+
+  it('supports accessible expand and collapse disclosure semantics', async () => {
+    await createComponent();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const toggle = element.querySelector<HTMLButtonElement>('.details-toggle');
+
+    expect(toggle?.tagName).toBe('BUTTON');
+    expect(toggle?.type).toBe('button');
+    expect(toggle?.textContent?.trim()).toBe('View details');
+
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.textContent?.trim()).toBe('Hide details');
+
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(
+      element.querySelector('#service-profit-data-capability-details'),
+    ).toBeNull();
+  });
+});

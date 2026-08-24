@@ -34,6 +34,9 @@
     </div>
   </section>
 
+  @if (dataCapability(); as capability) {
+    <app-service-profit-data-capability [data]="capability" />
+  }
   <section class="queue-section" aria-labelledby="opportunity-queue-heading" [attr.aria-busy]="loading() || refreshing()">
     <div class="section-heading">
       <div>

@@ -8,12 +8,14 @@ import { LocalizationService } from '../../core/localization/localization.servic
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
+import { ServiceProfitDataCapabilityComponent } from './service-profit-data-capability.component';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
 import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
 import { ServiceProfitMobileListComponent } from './service-profit-mobile-list.component';
 import { ServiceProfitMobileFilterState } from './service-profit-mobile-filters.component';
 import {
   ServiceProfitActionability,
+  ServiceProfitDataCapabilityResponse,
   ServiceProfitOpportunityFilters,
   ServiceProfitOpportunityQueueItem,
   ServiceProfitOpportunityResponse,
@@ -30,7 +32,7 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
+  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
@@ -45,6 +47,7 @@ export class ServiceProfitManagerComponent {
   protected readonly localization = inject(LocalizationService);
 
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
+  protected readonly dataCapability = signal<ServiceProfitDataCapabilityResponse | null>(null);
   protected readonly queue = signal<ServiceProfitOpportunityQueueItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadError = signal<ApiError | null>(null);
@@ -78,6 +81,10 @@ export class ServiceProfitManagerComponent {
   ];
 
   constructor() {
+    this.api.getDataCapability().pipe(
+      catchError(() => of(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((capability) => this.dataCapability.set(capability));
     const queryState$ = this.route.queryParamMap.pipe(
       map((params) => this.readQueryState(params)),
       distinctUntilChanged((previous, current) => this.queryStateKey(previous) === this.queryStateKey(current)),

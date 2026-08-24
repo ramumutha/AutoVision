@@ -69,7 +69,21 @@ const ENGLISH = {
   customer: 'Customer', customerRef: 'Customer Ref', phone: 'Phone', email: 'Email', contactable: 'Contactable', yes: 'Yes', contactInformationIncomplete: 'Contact information incomplete',
   registration: 'Registration', vin: 'VIN', makeAndModel: 'Make and model', modelYear: 'Model year', powertrain: 'Powertrain',
   serviceContextHeading: 'Service context', repairOrder: 'Repair Order', serviceDate: 'Service date', serviceItem: 'Service item', advisorContext: 'Advisor context',
-  userProfile: 'User profile', signedInAs: 'Signed in as',
+  dataCapability: 'Data capability',
+  dataCapabilityContext: 'How the available dealer data supports commercial attribution.',
+  dataCapabilityNotAssessed: 'Data capability not yet assessed',
+  dataCapabilityNotAssessedContext: 'Commercial attribution capability will be shown after dealer data assessment is completed.',
+  revenueAttribution: 'Revenue attribution',
+  grossProfitAttribution: 'Gross profit attribution',
+  available: 'Available',
+  partial: 'Partial',
+  unavailable: 'Unavailable',
+  viewDataDetails: 'View details',
+  hideDataDetails: 'Hide details',
+  dataSource: 'Data source',
+  assessed: 'Assessed',
+  assessmentPolicy: 'Assessment policy',
+  dataCapabilityReasonUnavailable: 'No additional assessment explanation is available.',  userProfile: 'User profile', signedInAs: 'Signed in as',
 };
 
 @Injectable({ providedIn: 'root' })

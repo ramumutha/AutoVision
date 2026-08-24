@@ -6,6 +6,7 @@ import {
   ServiceProfitOpportunityFilters,
   ServiceProfitOpportunityPage,
   ServiceProfitOpportunityQuery,
+  ServiceProfitDataCapabilityResponse,
   ServiceProfitOpportunityResponse,
   ServiceProfitOpportunitySummary,
 } from './service-profit.models';
@@ -32,6 +33,11 @@ export class ServiceProfitApiService {
     );
   }
 
+  getDataCapability(): Observable<ServiceProfitDataCapabilityResponse> {
+    return this.api.get<ServiceProfitDataCapabilityResponse>(
+      '/v1/service-profit/data-capability',
+    );
+  }
   private toParams(values: ServiceProfitOpportunityQuery): HttpParams {
     return Object.entries(values).reduce(
       (params, [key, value]) => value === undefined ? params : params.set(key, String(value)),

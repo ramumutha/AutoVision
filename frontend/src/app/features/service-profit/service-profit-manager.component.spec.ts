@@ -10,6 +10,7 @@ import { ServiceProfitOpportunityPage, ServiceProfitOpportunityResponse, Service
 describe('ServiceProfitManagerComponent', () => {
   let fixture: ComponentFixture<ServiceProfitManagerComponent>;
   let api: {
+    getDataCapability: ReturnType<typeof vi.fn>;
     getSummary: ReturnType<typeof vi.fn>;
     getOpportunities: ReturnType<typeof vi.fn>;
     getOpportunity: ReturnType<typeof vi.fn>;
@@ -56,6 +57,7 @@ describe('ServiceProfitManagerComponent', () => {
 
   beforeEach(() => {
     api = {
+      getDataCapability: vi.fn().mockReturnValue(of({ assessmentState: 'NOT_ASSESSED', sourceDatasetId: null, sourceDatasetVersion: null, assessmentPolicyVersion: null, assessedAt: null, capabilities: [] })),
       getSummary: vi.fn().mockReturnValue(of(summary)),
       getOpportunities: vi.fn().mockReturnValue(of(queue)),
       getOpportunity: vi.fn().mockReturnValue(of(detail)),
@@ -118,7 +120,7 @@ describe('ServiceProfitManagerComponent', () => {
     expect(text).toContain('Arjun Mehta');
     expect(text).toContain('CUST-001');
     expect(text).toContain('KA01AV1001');
-    expect(text).toContain('Demo Motors City Prime · 2022');
+    expect(text).toContain('Demo Motors City Prime \u00B7 2022');
     expect(text).toContain('RO-1001');
     expect(text).toContain('Front brake pad replacement');
     expect(text).toContain('$320');
