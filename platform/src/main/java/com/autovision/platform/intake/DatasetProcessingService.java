@@ -111,6 +111,34 @@ public class DatasetProcessingService {
         return findingRepository.save(finding);
     }
 
+        @Transactional
+        public StagedSourceRecord markRecordPassed(
+                        UUID tenantId,
+                        UUID datasetProcessingId,
+                        UUID stagedSourceRecordId
+        ) {
+                requireDataset(tenantId, datasetProcessingId);
+                StagedSourceRecord record = recordRepository
+                                .findByIdAndTenantId(stagedSourceRecordId, tenantId)
+                                .orElseThrow(() -> new EntityNotFoundException("Staged source record was not found"));
+                if (!datasetProcessingId.equals(record.getDatasetProcessingId())) {
+                        throw new IllegalArgumentException("Staged source record does not belong to dataset");
+                }
+                record.markValidationPassed();
+                return recordRepository.save(record);
+        }
+
+        @Transactional
+        public DatasetProcessing markValidationFailed(
+                        UUID tenantId,
+                        UUID datasetProcessingId,
+                        OffsetDateTime now
+        ) {
+                DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
+                processing.markValidationFailed(now);
+                return datasetRepository.save(processing);
+        }
+
     @Transactional
     public StagedSourceRecord quarantineRecord(
             UUID tenantId,

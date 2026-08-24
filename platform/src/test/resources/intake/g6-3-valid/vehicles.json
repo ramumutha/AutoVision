@@ -1,0 +1,10 @@
+[
+  {
+    "sourceRecordId": "vehicle-1",
+    "sourceVersion": "1",
+    "payload": {
+      "customerSourceRecordId": "customer-1",
+      "vin": "TESTVIN0000000001"
+    }
+  }
+]

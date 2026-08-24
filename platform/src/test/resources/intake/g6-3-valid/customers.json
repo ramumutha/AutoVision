@@ -1,0 +1,9 @@
+[
+  {
+    "sourceRecordId": "customer-1",
+    "sourceVersion": "1",
+    "payload": {
+      "name": "Test Customer"
+    }
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "contractId": "AV-R1-CDF-001",
+  "contractVersion": "1.0",
+  "datasetId": "dataset-g63-valid",
+  "datasetVersion": "1",
+  "tenantId": "10000000-0000-4000-8000-000000000001",
+  "dealerId": "20000000-0000-4000-8000-000000000001",
+  "sourceSystem": "controlled-test-export",
+  "sourceSchemaVersion": "2026-01",
+  "deliveryType": "FULL",
+  "mappingVersion": "not-materialized",
+  "recordFiles": {
+    "CUSTOMER": "customers.json",
+    "VEHICLE": "vehicles.json",
+    "SERVICE_ORDER": "service-orders.json"
+  }
+}

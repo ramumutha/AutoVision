@@ -1,0 +1,11 @@
+[
+  {
+    "sourceRecordId": "order-1",
+    "sourceParentId": "vehicle-1",
+    "sourceVersion": "1",
+    "payload": {
+      "vehicleSourceRecordId": "vehicle-1",
+      "description": "Scheduled service"
+    }
+  }
+]
