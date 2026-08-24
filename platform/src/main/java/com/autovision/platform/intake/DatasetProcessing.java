@@ -106,6 +106,20 @@ public class DatasetProcessing {
     @Column(name = "materialization_failure_reason", length = 1000)
     private String materializationFailureReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "materialization_failure_stage", length = 40)
+    private MaterializationFailureStage materializationFailureStage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "materialization_failure_code", length = 100)
+    private MaterializationFailureCode materializationFailureCode;
+
+    @Column(name = "materialization_failure_attempt")
+    private Integer materializationFailureAttempt;
+
+    @Column(name = "materialization_failure_replayable")
+    private Boolean materializationFailureReplayable;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -285,6 +299,25 @@ public class DatasetProcessing {
         updatedAt = now;
     }
 
+    public void recordMaterializationFailure(
+            String key,
+            String materializationVersion,
+            String failureReason,
+            MaterializationFailureStage failureStage,
+            MaterializationFailureCode failureCode,
+            boolean replayable,
+            OffsetDateTime now
+    ) {
+        if (failureStage == null || failureCode == null) {
+            throw new IllegalArgumentException("Materialization failure stage and code are required");
+        }
+        markMaterializationFailed(key, materializationVersion, failureReason, now);
+        materializationFailureStage = failureStage;
+        materializationFailureCode = failureCode;
+        materializationFailureAttempt = materializationAttemptCount;
+        materializationFailureReplayable = replayable;
+    }
+
     private boolean sameMaterialization(String key, String version) {
         return key != null && version != null
                 && key.trim().equals(materializationKey)
@@ -342,6 +375,10 @@ public class DatasetProcessing {
     public OffsetDateTime getMaterializationFailedAt() { return materializationFailedAt; }
     public int getMaterializationAttemptCount() { return materializationAttemptCount; }
     public String getMaterializationFailureReason() { return materializationFailureReason; }
+    public MaterializationFailureStage getMaterializationFailureStage() { return materializationFailureStage; }
+    public MaterializationFailureCode getMaterializationFailureCode() { return materializationFailureCode; }
+    public Integer getMaterializationFailureAttempt() { return materializationFailureAttempt; }
+    public Boolean getMaterializationFailureReplayable() { return materializationFailureReplayable; }
     public long getVersion() { return version; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
