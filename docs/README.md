@@ -62,6 +62,7 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 
 - [Demo readiness matrix](product/demo/demo-readiness-matrix.md): feature-by-feature evidence and GREEN/AMBER/RED status.
 - [Service Profit demo script](product/demo/demo-script.md): repeatable product narrative and operational guardrails.
+- [Demo business question register](product/demo/demo-business-question-register.md): evidence-backed dealer objections, answers, limitations, and reusable-media implications.
 - [Demo data catalog](product/demo/demo-data-catalog.md): synthetic dataset, sources, and ten R1 scenarios.
 - [Known demo limitations](product/demo/demo-known-limitations.md): data, capability, product, evidence, and operational constraints.
 

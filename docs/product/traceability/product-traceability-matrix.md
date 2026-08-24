@@ -27,14 +27,15 @@ flowchart LR
 | TR-SP-004 | Dense table workflow is unsuitable for mobile | Implemented responsive behavior; dealer mobile research pending | PDR-002, PDR-004 | SP-F012, SP-F013 | SP-R004: <=720px uses concise cards, compact filters, routed detail, query-preserving Back, and no document overflow | ADR-003, ADR-004, ADR-005 | Mobile list/filter/detail-page components | Focused Angular specs and responsive/Axe Playwright tests | Mobile manager walkthrough | 390x844 and 430x932 workflow/overflow tests pass; usability KPI RESEARCH REQUIRED |
 | TR-SP-005 | Context is needed without premature master-data ownership | R1 context implementation and system boundary | PDR-005 | SP-F008 | SP-R005: detail renders tenant-contained customer/vehicle/service projection and tolerates null/partial data | ADR-002, ADR-004 | Context entity/service/response and reusable detail | Context repository/service/API/detail tests | Contextual opportunity detail | Null/partial/full tests pass; data-completeness KPI RESEARCH REQUIRED |
 | TR-SP-006 | Users must access only authorized tenant data | Auth/tenant architecture and access tests | PDR-006 | SP-F002, SP-F009 | SP-R006: server derives tenant from authenticated mapping and rejects unauthorized/direct access | ADR-001 | Keycloak config, tenant resolver, access services, guarded routes | Security/access/controller integration tests | Authenticated login and manager load | 401/403/cross-tenant tests pass |
+| TR-SP-007 | Reviewed opportunities need accountable internal handling and outcomes | RS-005; current workflow gap; dealer validation pending | PDR-007 | SP-F016, SP-F016-A | SP-R007 candidate: authenticated user self-claims permitted opportunity, records due state and controlled disposition, and retains auditable history without sending customer communication | ADR-001, ADR-002, ADR-004; new ADR only if boundaries change | None | None | Future: Detected → Reviewed → Accountable follow-up → Outcome/disposition | Workflow fit, handling, disposition, conversion, and recovered-revenue measures RESEARCH REQUIRED |
 
 ## Known Traceability Gaps
 
 - External dealer pain, market reach, willingness-to-pay, and production ROI evidence are absent.
 - Historical slice dates and original requirement IDs were not recorded; G1 assigns stable governance IDs without rewriting history.
-- SP-F016..SP-F019 have no approved requirements, implementation, tests, demo, target release, or KPI.
+- SP-F016-A has a bounded candidate requirement in PDR-007 but no implementation, tests, demo data, target release, validated workflow, or KPI. SP-F016..SP-F019 otherwise remain unimplemented and uncommitted.
 - Production data-quality, false-positive, conversion, and handling-time measures require governed telemetry/research.
 
 ## Maintenance
 
-Product maintains problem/evidence/PDR/feature/KPI columns. Architecture maintains ADR links. Engineering maintains implementation references. QA maintains automated-test evidence. Demo owners maintain scenario/readiness links. Update the matrix when any linked record changes status.
+Product maintains problem/evidence/PDR/feature/KPI columns. Architecture maintains ADR links. Engineering maintains implementation references. QA maintains automated-test evidence. Demo owners maintain scenario/readiness links. Candidate traces with `None` implementation/test evidence remain proposals and must not be presented as implemented. Update the matrix when any linked record changes status.

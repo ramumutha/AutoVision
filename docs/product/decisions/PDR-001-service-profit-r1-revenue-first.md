@@ -23,9 +23,13 @@ The slice connects platform capability to an understandable revenue workflow wit
 - Production ROI, adoption, and market-fit KPIs require research.
 - Demo evidence proves behavior, not production outcomes.
 
+## Relationship to the Next Candidate
+
+[PDR-007](PDR-007-bounded-internal-follow-up-disposition.md) defines `SP-F016-A`, a bounded internal follow-up/disposition candidate. It does not change implemented R1 scope, approve a release, or authorize customer outreach. PDR-001 remains the authoritative decision for frozen R1 behavior.
+
 ## Related Sources
 
-[Product vision](../strategy/product-vision.md), [release strategy](../strategy/release-strategy.md), [feature register](../roadmap/feature-register.md), [manager UX](../service-profit-manager-ux.md), and [demo data research](../research/data-availability-research.md).
+[Product vision](../strategy/product-vision.md), [release strategy](../strategy/release-strategy.md), [feature register](../roadmap/feature-register.md), [manager UX](../service-profit-manager-ux.md), [demo data research](../research/data-availability-research.md), and [PDR-007](PDR-007-bounded-internal-follow-up-disposition.md).
 
 ## Review Trigger
 

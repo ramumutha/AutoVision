@@ -14,6 +14,10 @@ This roadmap communicates product direction without converting every idea into a
 
 **RESEARCH REQUIRED:** validate dealer pain, production data readiness, measurable outcome KPIs, target markets/personas, and commercial packaging.
 
+### Next Implementation Candidate
+
+**DEFERRED — RELEASE UNASSIGNED:** `SP-F016-A` is the bounded internal follow-up/disposition candidate defined by [PDR-007](../decisions/PDR-007-bounded-internal-follow-up-disposition.md). It may proceed to implementation planning after dealer workflow research validates ownership and disposition semantics. Selection does not approve a release target or customer outreach.
+
 ### Uncommitted Opportunities
 
 - **DEFERRED:** customer outreach/follow-up workflow;

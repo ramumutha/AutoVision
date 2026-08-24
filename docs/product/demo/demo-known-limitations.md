@@ -18,6 +18,7 @@
 ## Product Workflow
 
 - Customer outreach, follow-up, consent, and disposition workflow are not implemented.
+- PDR-007 defines a bounded internal follow-up/disposition candidate, but it has no implementation, release target, validated dealer workflow, or demo evidence.
 - Rich longitudinal management analytics and benchmarking are not implemented.
 - Current role/location business context is not available and must not be fabricated.
 - A complete external design/theme-system adoption is not approved or implemented.
@@ -34,4 +35,4 @@
 - Demo automation must not enable direct access grants, bypass JWT validation, or weaken tenant checks.
 - Resetting Docker volumes is destructive and not part of normal demo operation.
 
-Present these limitations during demonstrations and keep them synchronized with the [readiness matrix](demo-readiness-matrix.md), [data research](../research/data-availability-research.md), and [local runtime](../../development/local-runtime.md).
+Present these limitations during demonstrations and keep them synchronized with the [readiness matrix](demo-readiness-matrix.md), [data research](../research/data-availability-research.md), and [local runtime](../../development/local-runtime.md). Use the [demo business question register](demo-business-question-register.md) when preparing live Q&A, PPT material, or recorded demonstrations so answers remain tied to current evidence.

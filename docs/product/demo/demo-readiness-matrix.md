@@ -20,9 +20,10 @@ Ratings describe demo readiness, not production readiness or market validation.
 | Mobile cards/routed detail | Yes | Focused Angular + responsive/Axe E2E | Shared queue/detail fixture | 390/430 tested | Guarded route | Mobile access to same decision flow | Step 7 | Device/user research not recorded | GREEN |
 | Data readiness/capability | Yes | Policy/loader/manifest tests | Coverage/capability manifest | Not a primary manager screen | Demo profile gated | Makes partial source capability explicit | Presenter note | Coverage values are synthetic expectations | AMBER |
 | Gross-profit attribution | Partial | Capability/demo tests | Cost coverage 62%; partial capability | Potential/revenue story only | Yes | Margin story requires caution | Optional note | Partial cost data | AMBER |
+| Internal follow-up/disposition (`SP-F016-A`) | No | None | None | No | Security model defined only | Potential accountability/pilot-learning story | Future journey only | PDR accepted; workflow research and release approval pending | RED |
 | Customer outreach/follow-up | No | None | None | No | Not designed | Unvalidated | None | Deferred; do not demo as implemented | RED |
 | Rich management analytics | No | None | None | No | Not designed | Unvalidated | None | Research required | RED |
 
 ## Gate Ownership
 
-Demo owner verifies the script and data. Engineering verifies runtime and automated gates. QA verifies the critical path and known limitations. Product owns the value narrative and must not present synthetic results as production outcomes.
+Demo owner verifies the script and data. Engineering verifies runtime and automated gates. QA verifies the critical path and known limitations. Product owns the value narrative and must not present synthetic results as production outcomes. Anticipated stakeholder questions and evidence-safe answers are governed by the [demo business question register](demo-business-question-register.md).

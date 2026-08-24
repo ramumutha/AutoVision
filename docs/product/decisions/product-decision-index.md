@@ -10,5 +10,6 @@ Product Decision Records (PDRs) capture approved product choices and their impli
 | [PDR-004](PDR-004-responsive-detail-pattern.md) | Desktop/tablet use inline detail; mobile uses routed detail | Accepted | Not recorded | SP-F011..SP-F013 |
 | [PDR-005](PDR-005-service-profit-context-projection.md) | Customer/Vehicle context remains a Service Profit projection | Accepted | Not recorded | SP-F008 |
 | [PDR-006](PDR-006-no-fabricated-business-context.md) | Do not fabricate role/location current context | Accepted | Not recorded | SP-F009, SP-F018 |
+| [PDR-007](PDR-007-bounded-internal-follow-up-disposition.md) | Define bounded internal follow-up and disposition as the next candidate | Accepted | 2026-08-24 | SP-F016, SP-F016-A |
 
 Use [PDR-template.md](PDR-template.md) for new decisions. Product owns decision status; affected feature, roadmap, traceability, UX, and demo records must be updated when a PDR changes.

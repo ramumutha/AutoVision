@@ -11,6 +11,7 @@ Demonstrate the implemented Service Profit R1 manager workflow using the synthet
 3. Start the normal compose file plus `docker-compose.service-profit-demo.yml`.
 4. Confirm the browser application, Keycloak, platform health, and authenticated `/api/v1/me` flow.
 5. Do not place credentials or tokens in screenshots, recordings, notes, or logs.
+6. Review the [demo business question register](demo-business-question-register.md) and select answers relevant to the audience. Do not improvise unsupported pricing, ROI, integration, or automation claims.
 
 ## Narrative
 
@@ -45,6 +46,10 @@ At desktop/tablet, show inline detail beneath one selected row. At 390px or 430p
 ## Close
 
 Summarize implemented value: prioritized opportunities, explainable evidence, commercial context, tenant-safe access, and safety states. State current limitations: synthetic India dataset, partial disposition/cost capability, no outreach workflow, no rich analytics, and no validated production KPI uplift.
+
+If discussing the next candidate, describe the future journey as `Detected → Reviewed → Accountable follow-up → Outcome/disposition → eventual conversion/revenue measurement`. State that [PDR-007](../decisions/PDR-007-bounded-internal-follow-up-disposition.md) defines only the internal follow-up/disposition candidate; it is not implemented or release-approved, and conversion/revenue attribution remains future work.
+
+Use the [business question register](demo-business-question-register.md) for Q&A and reusable PPT/video language. The product should eventually answer ownership, due state, actionability restriction, and disposition directly in the detail journey so a presenter does not need to explain those basic states verbally.
 
 ## Failure Handling
 
