@@ -10,5 +10,6 @@ Architecture Decision Records (ADRs) capture durable technical choices. Use [ADR
 | [ADR-004](ADR-004-single-service-profit-detail-presentation.md) | One reusable Service Profit dealer detail presentation | Accepted | Not recorded |
 | [ADR-005](ADR-005-url-backed-service-profit-state.md) | URL-backed Service Profit filter/sort state | Accepted | Not recorded |
 | [ADR-006](ADR-006-flyway-migration-immutability.md) | Flyway migration immutability | Accepted | Not recorded |
+| [ADR-007](ADR-007-controlled-dealer-data-intake-boundary.md) | Controlled dealer data intake boundary and provider-neutral canonical staging | Accepted for G6.1; implementation deferred | 2026-08-24 |
 
 Architecture owns status. Superseding an ADR requires a new record and updates to affected product decisions, standards, implementation, tests, and traceability.
