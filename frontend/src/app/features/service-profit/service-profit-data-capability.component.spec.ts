@@ -33,7 +33,7 @@ describe('ServiceProfitDataCapabilityComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(ServiceProfitDataCapabilityComponent);
-    fixture.componentRef.setInput('data', data);
+    fixture.componentRef.setInput('view', { state: 'available', data });
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -45,10 +45,10 @@ describe('ServiceProfitDataCapabilityComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const text = element.textContent ?? '';
 
-    expect(text).toContain('Data capability');
-    expect(text).toContain('Revenue attribution');
+    expect(element.querySelector('h2')).toBeNull();
+    expect(text).toContain('Revenue data');
     expect(text).toContain('Available');
-    expect(text).toContain('Gross profit attribution');
+    expect(text).toContain('Gross profit data');
     expect(text).toContain('Partial');
 
     expect(text).not.toContain('overallScore');
@@ -110,8 +110,8 @@ describe('ServiceProfitDataCapabilityComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const text = element.textContent ?? '';
 
-    expect(text).toContain('Revenue attribution');
-    expect(text).toContain('Gross profit attribution');
+    expect(text).toContain('Revenue data');
+    expect(text).toContain('Gross profit data');
     expect(
       Array.from(element.querySelectorAll('av-status'))
         .map((status) => status.textContent?.trim()),
@@ -131,8 +131,8 @@ describe('ServiceProfitDataCapabilityComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain('Data capability not yet assessed');
-    expect(element.textContent).not.toContain('Revenue attribution');
-    expect(element.textContent).not.toContain('Gross profit attribution');
+    expect(element.textContent).not.toContain('Revenue data');
+    expect(element.textContent).not.toContain('Gross profit data');
 
     element.querySelector<HTMLButtonElement>('.details-toggle')?.click();
     fixture.detectChanges();
@@ -165,5 +165,23 @@ describe('ServiceProfitDataCapabilityComponent', () => {
     expect(
       element.querySelector('#service-profit-data-capability-details'),
     ).toBeNull();
+  });
+
+  it('keeps loading and API failure distinct from assessed capability statuses', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ServiceProfitDataCapabilityComponent],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ServiceProfitDataCapabilityComponent);
+    fixture.componentRef.setInput('view', { state: 'loading' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Checking data capability');
+    expect(fixture.nativeElement.querySelector('.details-toggle')).toBeNull();
+
+    fixture.componentRef.setInput('view', { state: 'failed' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Data capability unavailable');
+    expect(fixture.nativeElement.textContent).not.toContain('UnavailableUnavailable');
+    expect(fixture.nativeElement.querySelector('av-status')).toBeNull();
   });
 });

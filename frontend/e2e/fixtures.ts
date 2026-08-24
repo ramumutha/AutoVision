@@ -130,7 +130,16 @@ export async function installServiceProfitFixtures(page: Page): Promise<void> {
     explanation: { headline: 'Previously declined work was identified', rationale: 'The source service line records a customer decline.', evidenceBasis: 'Confirmed DMS service history.', recommendedAction: 'No action while suppression remains active.' },
     version: 1, createdAt: '2026-08-20T10:00:00Z', updatedAt: '2026-08-21T10:00:00Z',
   };
+  const dataCapability = {
+    assessmentState: 'ASSESSED', sourceDatasetId: 'AUTOVISION-SERVICE-PROFIT-R1-DEMO', sourceDatasetVersion: '1.0.0',
+    assessmentPolicyVersion: 'service-profit-data-readiness-r1', assessedAt: '2026-08-24T05:00:00Z',
+    capabilities: [
+      { capability: 'REVENUE_ATTRIBUTION', status: 'AVAILABLE', reason: 'Invoice linkage supports revenue attribution.' },
+      { capability: 'GROSS_PROFIT_ATTRIBUTION', status: 'PARTIAL', reason: 'Cost data is incomplete.' },
+    ],
+  };
 
+  await page.route('**/api/v1/service-profit/data-capability', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dataCapability) }));
   await page.route('**/api/v1/service-profit/opportunities/summary*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(summary) }));
   await page.route(`**/api/v1/service-profit/opportunities/${SERVICE_PROFIT_OPPORTUNITY_ID}`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(detail) }));
   await page.route('**/api/v1/service-profit/opportunities?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [queueItem], page: 0, size: 25, totalElements: 1, totalPages: 1 }) }));

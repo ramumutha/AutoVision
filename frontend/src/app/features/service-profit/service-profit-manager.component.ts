@@ -1,22 +1,22 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
+import { AvMoneyPipe } from '../../shared/formatting/av-money.pipe';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitBusinessLens, ServiceProfitBusinessNavigationComponent } from './service-profit-business-navigation.component';
-import { ServiceProfitDataCapabilityComponent } from './service-profit-data-capability.component';
+import { ServiceProfitDataCapabilityComponent, ServiceProfitDataCapabilityView } from './service-profit-data-capability.component';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
 import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
 import { ServiceProfitMobileListComponent } from './service-profit-mobile-list.component';
 import { ServiceProfitMobileFilterState } from './service-profit-mobile-filters.component';
 import {
   ServiceProfitActionability,
-  ServiceProfitDataCapabilityResponse,
   ServiceProfitOpportunityFilters,
   ServiceProfitOpportunityQueueItem,
   ServiceProfitOpportunityResponse,
@@ -33,7 +33,7 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitBusinessNavigationComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
+  imports: [DatePipe, AvMoneyPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitBusinessNavigationComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
@@ -50,7 +50,7 @@ export class ServiceProfitManagerComponent {
 
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
   protected readonly navigationSummary = signal<ServiceProfitOpportunitySummary | null>(null);
-  protected readonly dataCapability = signal<ServiceProfitDataCapabilityResponse | null>(null);
+  protected readonly dataCapability = signal<ServiceProfitDataCapabilityView>({ state: 'loading' });
   protected readonly queue = signal<ServiceProfitOpportunityQueueItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadError = signal<ApiError | null>(null);
@@ -101,7 +101,8 @@ export class ServiceProfitManagerComponent {
 
   constructor() {
     this.api.getDataCapability().pipe(
-      catchError(() => of(null)),
+      map((data) => ({ state: 'available' as const, data })),
+      catchError(() => of({ state: 'failed' as const })),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe((capability) => this.dataCapability.set(capability));
     const queryState$ = this.route.queryParamMap.pipe(

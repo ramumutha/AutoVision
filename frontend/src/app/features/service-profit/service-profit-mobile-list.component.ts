@@ -1,13 +1,13 @@
-import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { Params, RouterLink } from '@angular/router';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
+import { AvMoneyPipe } from '../../shared/formatting/av-money.pipe';
 import { ServiceProfitActionability, ServiceProfitOpportunityQueueItem, ServiceProfitPriority } from './service-profit.models';
 
 @Component({
   selector: 'app-service-profit-mobile-list',
-  imports: [CurrencyPipe, RouterLink, AvStatusComponent],
+  imports: [AvMoneyPipe, RouterLink, AvStatusComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ul class="mobile-opportunity-list" [attr.aria-label]="localization.text('opportunitySummaries')">
@@ -22,7 +22,7 @@ import { ServiceProfitActionability, ServiceProfitOpportunityQueueItem, ServiceP
               <span class="opportunity-type">{{ label(opportunity.opportunityType) }}</span>
             </span>
             <span class="decision-summary">
-              <span class="potential">{{ opportunity.potentialAmount | currency:opportunity.currencyCode:'symbol':'1.0-2' }}</span>
+              <span class="potential">{{ opportunity.potentialAmount | avMoney:opportunity.currencyCode:localization.locale() }}</span>
               <av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" />
               <av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" />
               <span class="evidence">{{ label(opportunity.evidenceStrength) }} {{ localization.text('evidence') }}</span>

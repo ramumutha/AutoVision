@@ -135,14 +135,15 @@ describe('ServiceProfitManagerComponent data capability', () => {
     expect(api.getOpportunities).toHaveBeenCalledOnce();
 
     expect(capability).not.toBeNull();
+    expect(capability?.closest('.kpi-primary')).not.toBeNull();
     expect(capability?.textContent).toContain(
-      'Revenue attribution',
+      'Revenue data',
     );
     expect(capability?.textContent).toContain(
       'Available',
     );
     expect(capability?.textContent).toContain(
-      'Gross profit attribution',
+      'Gross profit data',
     );
     expect(capability?.textContent).toContain(
       'Partial',
@@ -170,11 +171,17 @@ describe('ServiceProfitManagerComponent data capability', () => {
       'Recover declined brake work',
     );
 
-    expect(
-      element.querySelector(
-        'app-service-profit-data-capability',
-      ),
-    ).toBeNull();
+    const capability = element.querySelector(
+      'app-service-profit-data-capability',
+    );
+
+    expect(capability).not.toBeNull();
+    expect(capability?.textContent).toContain(
+      'Data capability unavailable',
+    );
+    expect(capability?.textContent).not.toContain(
+      'Data capability not yet assessed',
+    );
 
     expect(text).not.toContain(
       'Unable to load Service Profit',

@@ -53,6 +53,10 @@ for (const [name, viewport, mobile] of serviceProfitViewports) {
     await expect(page.getByRole('heading', { name: 'Service Profit Manager' })).toBeVisible();
     const businessNavigation = page.getByRole('group', { name: 'Opportunity business views' });
     await expect(businessNavigation).toBeVisible();
+    const recoverablePotential = page.locator('.kpi-primary');
+    await expect(recoverablePotential.getByText('Revenue data')).toBeVisible();
+    await expect(recoverablePotential.getByText('Gross profit data')).toBeVisible();
+    await expect(recoverablePotential.getByText('$320')).toBeVisible();
 
     if (mobile) {
       const kpiButtons = businessNavigation.getByRole('button');

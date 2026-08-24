@@ -73,11 +73,11 @@ describe('ServiceProfitManagerComponent', () => {
     await createComponent();
     const element = fixture.nativeElement as HTMLElement;
     const text = element.textContent ?? '';
-    const currencyRows = Array.from(element.querySelectorAll('.currency-values p')).map((row) => row.textContent?.replaceAll(/\s/g, ''));
+    const currencyRows = Array.from(element.querySelectorAll('.currency-values p')).map((row) => row.textContent?.trim());
     expect(api.getSummary).toHaveBeenCalledOnce();
     expect(api.getOpportunities).toHaveBeenCalledOnce();
-    expect(currencyRows).toEqual(['100USD', '75EUR']);
-    expect(currencyRows).not.toContain('175USD');
+    expect(currencyRows).toEqual(['$100', '€75']);
+    expect(currencyRows).not.toContain('$175');
     expect(text).toContain('Recover declined brake work');
   });
 

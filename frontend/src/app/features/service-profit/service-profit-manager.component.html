@@ -20,12 +20,13 @@
         @if (managerSummary.potentialByCurrency.length) {
           <div class="currency-values">
             @for (potential of managerSummary.potentialByCurrency; track potential.currencyCode) {
-              <p><strong>{{ potential.amount | number:'1.0-2' }}</strong> <span>{{ potential.currencyCode }}</span></p>
+              <p><strong>{{ potential.amount | avMoney:potential.currencyCode:localization.locale() }}</strong></p>
             }
           </div>
         } @else {
           <p class="kpi-value">{{ localization.text('notAvailable') }}</p>
         }
+        <app-service-profit-data-capability [view]="dataCapability()" />
       </article>
       <app-service-profit-business-navigation
         [summary]="navigationSummary() ?? managerSummary"
@@ -34,9 +35,6 @@
     </div>
   </section>
 
-  @if (dataCapability(); as capability) {
-    <app-service-profit-data-capability [data]="capability" />
-  }
   <section class="queue-section" aria-labelledby="opportunity-queue-heading" [attr.aria-busy]="loading() || refreshing()">
     <div class="section-heading">
       <div>
@@ -81,7 +79,7 @@
                 <td class="secondary-tablet">{{ label(opportunity.opportunityType) }}</td>
                 <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
                 <td class="secondary-tablet">{{ label(opportunity.evidenceStrength) }}</td>
-                <td class="amount">{{ opportunity.potentialAmount | number:'1.0-2' }} {{ opportunity.currencyCode }}</td>
+                <td class="amount">{{ opportunity.potentialAmount | avMoney:opportunity.currencyCode:localization.locale() }}</td>
                 <td><av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" /></td>
                 <td class="secondary-tablet">{{ opportunity.detectedAt | date:'medium' }}</td>
               </tr>

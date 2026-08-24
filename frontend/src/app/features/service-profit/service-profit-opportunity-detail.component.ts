@@ -1,12 +1,13 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
+import { AvMoneyPipe } from '../../shared/formatting/av-money.pipe';
 import { ServiceProfitOpportunityResponse, ServiceProfitVehicleContext } from './service-profit.models';
 
 @Component({
   selector: 'app-service-profit-opportunity-detail',
-  imports: [CurrencyPipe, DatePipe, AvStatusComponent],
+  imports: [AvMoneyPipe, DatePipe, AvStatusComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let selectedOpportunity = opportunity();
@@ -25,7 +26,7 @@ import { ServiceProfitOpportunityResponse, ServiceProfitVehicleContext } from '.
       <div class="commercial-summary">
         <div class="detail-value">
           <h3>{{ localization.text('recoverablePotential') }}</h3>
-          <p class="commercial-value">{{ selectedOpportunity.potentialAmount | currency:selectedOpportunity.currencyCode:'symbol':'1.0-2' }}</p>
+          <p class="commercial-value">{{ selectedOpportunity.potentialAmount | avMoney:selectedOpportunity.currencyCode:localization.locale() }}</p>
         </div>
         <dl class="detail-facts">
           <div><dt>{{ localization.text('priority') }}</dt><dd>{{ label(selectedOpportunity.priority) }}</dd></div>
