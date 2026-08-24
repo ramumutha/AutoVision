@@ -38,3 +38,5 @@ Keep answers concise in live demos. Put decision-critical information on screen 
 ## Use and Maintenance
 
 Evidence cells should name a stable scenario, feature/decision ID, or canonical linked document rather than an unsupported assertion. The demo owner keeps answers aligned with the [demo script](demo-script.md), [readiness matrix](demo-readiness-matrix.md), and [known limitations](demo-known-limitations.md). Product owns status, commercial language, and follow-up evidence. Engineering and QA verify implementation and test references. Any question that cannot be answered from current evidence must remain `RESEARCH REQUIRED` or `NOT SUPPORTED`.
+
+Use the [RS-005 dealer workflow package](../research/RS-005-dealer-follow-up-workflow-validation.md) to research ownership, outcomes, objection language, pilot proof expectations, and what future demos or reusable media must show directly. Update this register only from recorded evidence and approved product decisions; participant expectations are not implemented capability or sales claims.

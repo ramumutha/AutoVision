@@ -50,10 +50,11 @@ Use these exact states: **Captured**, **Researching**, **Validated**, **Decision
 | RS-002 | Are current dealer pain hypotheses externally validated? | No repository source | No interview or external study corpus is recorded | High confidence in the evidence gap | Captured | Future workflow/analytics features | Product research plan required |
 | RS-003 | How portable is data readiness across DMS providers/markets? | R1 synthetic India dataset only | Current implementation is DMS-neutral, but cross-provider data availability is unvalidated | Medium confidence in gap | Captured | SP-F004 and future integrations | Select research markets/providers |
 | RS-004 | Which vehicle classes/powertrains need distinct policies? | No repository source | Applicability beyond current generic/synthetic scenarios is unknown | High confidence in gap | Captured | Detection policy features | Define research scope |
-| RS-005 | Do self-claiming, due-state, and proposed disposition semantics fit dealer operations? | Repository workflow analysis and PDR-007; no dealer study recorded | A bounded model is defined, but ownership, vocabulary, retention, and pilot measures remain unvalidated | High confidence in the evidence gap; low confidence in workflow fit | Captured | SP-F016, SP-F016-A, SP-F017 | Validate with target dealer managers/advisors before release approval |
+| RS-005 | Do self-claiming, due-state, and proposed disposition semantics fit dealer operations? | [Dealer follow-up workflow validation package](RS-005-dealer-follow-up-workflow-validation.md), repository workflow analysis, and PDR-007; no dealer study recorded | A bounded model and executable research package exist, but no participant findings validate ownership, vocabulary, retention, or pilot measures | High confidence in the evidence gap; no fieldwork confidence yet | Captured | SP-F016, SP-F016-A, SP-F017 | Conduct governed fieldwork and apply the documented decision gate before release approval |
 
 ## Related Research Summaries
 
 - [Dealer pain points](dealer-pain-points.md)
 - [Market opportunities](market-opportunities.md)
 - [Data availability research](data-availability-research.md)
+- [RS-005 dealer follow-up workflow validation package](RS-005-dealer-follow-up-workflow-validation.md)

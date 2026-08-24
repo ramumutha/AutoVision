@@ -16,6 +16,7 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 - [Dealer pain points](product/research/dealer-pain-points.md): repository-supported problems versus hypotheses requiring validation.
 - [Market opportunities](product/research/market-opportunities.md): opportunity areas without unsupported market claims.
 - [Data availability research](product/research/data-availability-research.md): current synthetic R1 coverage, capability, and limitations.
+- [RS-005 dealer follow-up workflow validation](product/research/RS-005-dealer-follow-up-workflow-validation.md): interview guide, evidence capture, decision gate, and pilot-evidence preparation for SP-F016-A.
 
 ## Roadmap
 
