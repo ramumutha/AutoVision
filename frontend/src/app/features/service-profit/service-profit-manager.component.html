@@ -27,10 +27,10 @@
           <p class="kpi-value">{{ localization.text('notAvailable') }}</p>
         }
       </article>
-      <article class="kpi"><h3>{{ localization.text('totalOpportunities') }}</h3><p class="kpi-value">{{ managerSummary.totalOpportunities }}</p></article>
-      <article class="kpi"><h3>{{ localization.text('highPriority') }}</h3><p class="kpi-value danger-value">{{ managerSummary.highPriorityCount }}</p></article>
-      <article class="kpi"><h3>{{ localization.text('reviewRequired') }}</h3><p class="kpi-value warning-value">{{ managerSummary.reviewRequiredCount }}</p></article>
-      <article class="kpi"><h3>{{ localization.text('readyToAction') }}</h3><p class="kpi-value success-value">{{ managerSummary.readyCount }}</p></article>
+      <app-service-profit-business-navigation
+        [summary]="navigationSummary() ?? managerSummary"
+        [selectedLens]="businessLens()"
+        (lensSelected)="selectBusinessLens($event)" />
     </div>
   </section>
 
@@ -40,7 +40,10 @@
   <section class="queue-section" aria-labelledby="opportunity-queue-heading" [attr.aria-busy]="loading() || refreshing()">
     <div class="section-heading">
       <div>
-        <h2 id="opportunity-queue-heading">{{ localization.text('opportunitiesNeedingAttention') }}</h2>
+        <h2 id="opportunity-queue-heading">{{ resultContext() }}</h2>
+        <p class="result-count" aria-live="polite">
+          {{ managerSummary.totalOpportunities }} {{ opportunityCountLabel(managerSummary.totalOpportunities) }}
+        </p>
         <p>{{ localization.text('opportunityQueueContext') }}</p>
       </div>
     </div>

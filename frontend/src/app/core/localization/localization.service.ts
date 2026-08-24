@@ -54,6 +54,8 @@ const ENGLISH = {
   unableToRefreshServiceProfit: 'Unable to refresh Service Profit', existingServiceProfitDataRetained: 'The previously loaded data is still available. Try refreshing again.',
   recoverableCommercialValue: 'Recoverable commercial value', recoverablePotential: 'Recoverable Potential',
   totalOpportunities: 'Total Opportunities', highPriority: 'High Priority', reviewRequired: 'Review Required', readyToAction: 'Ready to Action',
+  businessNavigation: 'Opportunity business views',
+  allOpportunities: 'All Opportunities', filteredOpportunities: 'Filtered Opportunities', opportunitySingular: 'opportunity', opportunityPlural: 'opportunities',
   opportunitiesNeedingAttention: 'Opportunities needing attention', opportunityQueueContext: 'Select an opportunity to review why it was identified and what to do next.',
   priority: 'Priority', opportunityType: 'Opportunity Type', opportunityTypes: 'Opportunity types', opportunityFilters: 'Opportunity filters', actionability: 'Actionability', all: 'All', opportunity: 'Opportunity',
   sortBy: 'Sort by', newest: 'Newest', oldest: 'Oldest', highestPotential: 'Highest potential', lowestPotential: 'Lowest potential',

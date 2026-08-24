@@ -51,8 +51,18 @@ for (const [name, viewport, mobile] of serviceProfitViewports) {
     await installServiceProfitFixtures(page);
     await page.goto('/service-profit?priority=HIGH&sort=POTENTIAL_DESC');
     await expect(page.getByRole('heading', { name: 'Service Profit Manager' })).toBeVisible();
+    const businessNavigation = page.getByRole('group', { name: 'Opportunity business views' });
+    await expect(businessNavigation).toBeVisible();
 
     if (mobile) {
+      const kpiButtons = businessNavigation.getByRole('button');
+      await expect(kpiButtons).toHaveCount(4);
+      const firstBox = await kpiButtons.nth(0).boundingBox();
+      const secondBox = await kpiButtons.nth(1).boundingBox();
+      const thirdBox = await kpiButtons.nth(2).boundingBox();
+      expect(firstBox).not.toBeNull();
+      expect(secondBox?.y).toBe(firstBox?.y);
+      expect(thirdBox?.y).toBeGreaterThan(firstBox?.y ?? 0);
       await expect(page.getByRole('link', { name: /Recover declined brake work/ })).toBeVisible();
       await expect(page.getByRole('button', { name: /Sort & Filter/ })).toBeVisible();
       await page.getByRole('link', { name: /Recover declined brake work/ }).click();

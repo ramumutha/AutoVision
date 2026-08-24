@@ -1,13 +1,14 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
-import { EMPTY, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
+import { ServiceProfitBusinessLens, ServiceProfitBusinessNavigationComponent } from './service-profit-business-navigation.component';
 import { ServiceProfitDataCapabilityComponent } from './service-profit-data-capability.component';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
 import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
@@ -32,7 +33,7 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
+  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitBusinessNavigationComponent, ServiceProfitDataCapabilityComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent, ServiceProfitMobileListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
@@ -44,9 +45,11 @@ export class ServiceProfitManagerComponent {
   private readonly router = inject(Router);
   private readonly refreshRequests = new Subject<void>();
   private readonly detailRequests = new Subject<string | null>();
+  private navigationSummaryOpportunityType: ServiceProfitOpportunityType | null | undefined;
   protected readonly localization = inject(LocalizationService);
 
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
+  protected readonly navigationSummary = signal<ServiceProfitOpportunitySummary | null>(null);
   protected readonly dataCapability = signal<ServiceProfitDataCapabilityResponse | null>(null);
   protected readonly queue = signal<ServiceProfitOpportunityQueueItem[]>([]);
   protected readonly loading = signal(true);
@@ -55,6 +58,22 @@ export class ServiceProfitManagerComponent {
   protected readonly refreshError = signal<ApiError | null>(null);
   protected readonly filters = signal<ServiceProfitOpportunityFilters>({});
   protected readonly sort = signal<ServiceProfitOpportunitySort>('DETECTED_DESC');
+  protected readonly businessLens = computed<ServiceProfitBusinessLens | null>(() => {
+    const filters = this.filters();
+    if (!filters.priority && !filters.actionability) return 'TOTAL';
+    if (filters.priority === 'HIGH' && !filters.actionability) return 'HIGH_PRIORITY';
+    if (!filters.priority && filters.actionability === 'REVIEW_REQUIRED') return 'REVIEW_REQUIRED';
+    if (!filters.priority && filters.actionability === 'READY') return 'READY_TO_ACTION';
+    return null;
+  });
+  protected readonly resultContext = computed(() => {
+    const lens = this.businessLens();
+    if (lens === 'TOTAL') return this.localization.text('allOpportunities');
+    if (lens === 'HIGH_PRIORITY') return this.localization.text('highPriority');
+    if (lens === 'REVIEW_REQUIRED') return this.localization.text('reviewRequired');
+    if (lens === 'READY_TO_ACTION') return this.localization.text('readyToAction');
+    return this.localization.text('filteredOpportunities');
+  });
   protected readonly selected = signal<ServiceProfitOpportunityResponse | null>(null);
   protected readonly selectedOpportunityId = signal<string | null>(null);
   protected readonly detailLoading = signal(false);
@@ -104,11 +123,12 @@ export class ServiceProfitManagerComponent {
     ).pipe(
       tap(({ background }) => this.beginManagerLoad(background)),
       switchMap(({ state, background }) => forkJoin({
+        navigationSummary: this.navigationSummaryRequest(state, background),
         summary: this.api.getSummary(state.filters),
         queue: this.api.getOpportunities({ ...state.filters, page: 0, size: 25, sort: state.sort }),
       }).pipe(
-        map((data) => ({ background, data, error: null })),
-        catchError((error: ApiError) => of({ background, data: null, error })),
+        map((data) => ({ state, background, data, error: null })),
+        catchError((error: ApiError) => of({ state, background, data: null, error })),
       )),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe((result) => this.finishManagerLoad(result));
@@ -160,6 +180,26 @@ export class ServiceProfitManagerComponent {
       queryParams: { sort: this.isSupportedSort(value) ? value : null },
       queryParamsHandling: 'merge',
     });
+  }
+
+  protected selectBusinessLens(lens: ServiceProfitBusinessLens): void {
+    const queryParams: { priority: ServiceProfitPriority | null; actionability: ServiceProfitActionability | null } = {
+      priority: null,
+      actionability: null,
+    };
+    if (lens === 'HIGH_PRIORITY') queryParams.priority = 'HIGH';
+    if (lens === 'REVIEW_REQUIRED') queryParams.actionability = 'REVIEW_REQUIRED';
+    if (lens === 'READY_TO_ACTION') queryParams.actionability = 'READY';
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  protected opportunityCountLabel(count: number): string {
+    return this.localization.text(count === 1 ? 'opportunitySingular' : 'opportunityPlural');
   }
 
   protected updateMobileState(state: ServiceProfitMobileFilterState): void {
@@ -241,9 +281,29 @@ export class ServiceProfitManagerComponent {
     this.loadError.set(null);
   }
 
+  private navigationSummaryRequest(
+    state: ServiceProfitManagerQueryState,
+    background: boolean,
+  ): Observable<ServiceProfitOpportunitySummary | null> {
+    if (!state.filters.priority && !state.filters.actionability) return of(null);
+
+    const opportunityType = state.filters.opportunityType ?? null;
+    const retained = this.navigationSummary();
+    if (!background && retained && this.navigationSummaryOpportunityType === opportunityType) {
+      return of(retained);
+    }
+
+    return this.api.getSummary(opportunityType ? { opportunityType } : {});
+  }
+
   private finishManagerLoad(result: {
+    state: ServiceProfitManagerQueryState;
     background: boolean;
-    data: { summary: ServiceProfitOpportunitySummary; queue: { items: ServiceProfitOpportunityQueueItem[] } } | null;
+    data: {
+      summary: ServiceProfitOpportunitySummary;
+      navigationSummary: ServiceProfitOpportunitySummary | null;
+      queue: { items: ServiceProfitOpportunityQueueItem[] };
+    } | null;
     error: ApiError | null;
   }): void {
     if (result.background) this.refreshing.set(false);
@@ -255,6 +315,13 @@ export class ServiceProfitManagerComponent {
     }
     if (result.data) {
       this.summary.set(result.data.summary);
+      if (result.data.navigationSummary) {
+        this.navigationSummary.set(result.data.navigationSummary);
+        this.navigationSummaryOpportunityType = result.state.filters.opportunityType ?? null;
+      } else if (!result.state.filters.priority && !result.state.filters.actionability) {
+        this.navigationSummary.set(result.data.summary);
+        this.navigationSummaryOpportunityType = result.state.filters.opportunityType ?? null;
+      }
       this.queue.set(result.data.queue.items);
       const selectedId = this.selectedOpportunityId();
       if (selectedId && !result.data.queue.items.some((opportunity) => opportunity.id === selectedId)) {
