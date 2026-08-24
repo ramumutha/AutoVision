@@ -193,10 +193,15 @@ describe('ServiceProfitManagerComponent data capability', () => {
 
     const element = fixture.nativeElement as HTMLElement;
 
-    const priority =
-      element.querySelector<HTMLSelectElement>(
-        '.filters select',
-      );
+    element.querySelector<HTMLButtonElement>(
+      '.disclosure-trigger',
+    )?.click();
+
+    fixture.detectChanges();
+
+    const priority = element.querySelectorAll<HTMLSelectElement>(
+      '.filter-panel select',
+    )[1];
 
     if (!priority) {
       throw new Error(
@@ -209,6 +214,10 @@ describe('ServiceProfitManagerComponent data capability', () => {
     priority.dispatchEvent(
       new Event('change'),
     );
+
+    element.querySelector<HTMLButtonElement>(
+      '.apply-action',
+    )?.click();
 
     await fixture.whenStable();
 

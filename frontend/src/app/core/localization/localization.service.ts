@@ -61,7 +61,7 @@ const ENGLISH = {
   sortBy: 'Sort by', newest: 'Newest', oldest: 'Oldest', highestPotential: 'Highest potential', lowestPotential: 'Lowest potential',
   evidenceStrength: 'Evidence Strength', potential: 'Potential', detected: 'Detected', noOpportunities: 'No opportunities match these filters',
   opportunitySummaries: 'Opportunity summaries', evidence: 'evidence', openDetails: 'Open details',
-  sortAndFilter: 'Sort & Filter', applyFilters: 'Apply', clearFilters: 'Clear', activeFilters: 'active filters',
+  filters: 'Filters', sortAndFilter: 'Sort & Filters', applyFilters: 'Apply', clearFilters: 'Clear filters', activeFilters: 'active filters',
   noOpportunitiesContext: 'Change a filter or refresh to check for newly detected opportunities.', loadingOpportunity: 'Loading opportunity details',
   unableToLoadOpportunity: 'Unable to load opportunity details', detailSessionExpired: 'Your session could not be renewed. Sign in again to view this opportunity.', detailNotAuthorized: 'You are not authorized to view this opportunity.', opportunityDetail: 'Opportunity detail', selected: 'Selected', suppressed: 'Suppressed',
   backToOpportunities: 'Back to opportunities', opportunityUnavailable: 'Opportunity unavailable', opportunityNotFound: 'This opportunity could not be found or is no longer available.',

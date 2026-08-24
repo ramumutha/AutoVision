@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -43,9 +43,12 @@ export class ServiceProfitManagerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
   private readonly refreshRequests = new Subject<void>();
   private readonly detailRequests = new Subject<string | null>();
+  private readonly opportunityControls = viewChild(ServiceProfitOpportunityControlsComponent);
   private navigationSummaryOpportunityType: ServiceProfitOpportunityType | null | undefined;
+  private restoreFiltersFocus = false;
   protected readonly localization = inject(LocalizationService);
 
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
@@ -166,15 +169,6 @@ export class ServiceProfitManagerComponent {
     if (selectedId) this.requestDetail(selectedId);
   }
 
-  protected updateFilter(key: keyof ServiceProfitOpportunityFilters, value: string): void {
-    const queryKey = key === 'opportunityType' ? 'type' : key;
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { [queryKey]: value || null },
-      queryParamsHandling: 'merge',
-    });
-  }
-
   protected updateSort(value: string): void {
     void this.router.navigate([], {
       relativeTo: this.route,
@@ -203,10 +197,12 @@ export class ServiceProfitManagerComponent {
     return this.localization.text(count === 1 ? 'opportunitySingular' : 'opportunityPlural');
   }
 
-  protected updateMobileState(state: ServiceProfitMobileFilterState): void {
+  protected applySecondaryFilters(state: ServiceProfitMobileFilterState): void {
+    this.restoreFiltersFocus = true;
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
+        type: state.opportunityType,
         priority: state.priority,
         actionability: state.actionability,
         sort: state.sort === 'DETECTED_DESC' ? null : state.sort,
@@ -310,6 +306,7 @@ export class ServiceProfitManagerComponent {
     if (result.background) this.refreshing.set(false);
     else this.loading.set(false);
     if (result.error) {
+      this.restoreFiltersFocus = false;
       if (result.background) this.refreshError.set(result.error);
       else this.loadError.set(result.error);
       return;
@@ -327,6 +324,10 @@ export class ServiceProfitManagerComponent {
       const selectedId = this.selectedOpportunityId();
       if (selectedId && !result.data.queue.items.some((opportunity) => opportunity.id === selectedId)) {
         this.clearDetailSelection();
+      }
+      if (this.restoreFiltersFocus) {
+        this.restoreFiltersFocus = false;
+        afterNextRender(() => this.opportunityControls()?.focusFiltersTrigger(), { injector: this.injector });
       }
     }
   }

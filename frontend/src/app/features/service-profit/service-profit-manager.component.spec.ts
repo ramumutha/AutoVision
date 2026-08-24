@@ -291,10 +291,13 @@ describe('ServiceProfitManagerComponent', () => {
     fixture.detectChanges();
     api.getOpportunities.mockReturnValueOnce(of({ ...queue, items: [remainingItem] }));
 
-    const priority = element.querySelector<HTMLSelectElement>('.filters select');
+    element.querySelector<HTMLButtonElement>('.disclosure-trigger')?.click();
+    fixture.detectChanges();
+    const priority = element.querySelectorAll<HTMLSelectElement>('.filter-panel select')[1];
     if (!priority) throw new Error('Priority filter was not rendered');
     priority.value = 'HIGH';
     priority.dispatchEvent(new Event('change'));
+    element.querySelector<HTMLButtonElement>('.apply-action')?.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -344,99 +347,6 @@ describe('ServiceProfitManagerComponent', () => {
     expect(api.getOpportunities).toHaveBeenCalledTimes(2);
   });
 
-  it('groups Priority, Actionability, and Sort with native accessible labels', async () => {
-    await createComponent();
-    const filters = (fixture.nativeElement as HTMLElement).querySelector<HTMLFieldSetElement>('fieldset.filters');
-    const selects = filters?.querySelectorAll<HTMLSelectElement>('select');
-
-    expect(filters?.tagName).toBe('FIELDSET');
-    expect(filters?.getAttribute('aria-label')).toBeNull();
-    expect(filters?.querySelector('legend')?.textContent).toBe('Opportunity filters');
-    expect(Array.from(selects ?? []).map((select) => select.labels?.[0]?.textContent?.trim())).toEqual([
-      'Priority AllHighMediumLow',
-      'Actionability AllReadyReview RequiredContact Data MissingBlockedSuppressed',
-      'Sort by NewestOldestHighest potentialLowest potential',
-    ]);
-  });
-
-  it('renders accessible single-select opportunity type navigation', async () => {
-    await createComponent();
-    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.opportunity-type-navigation');
-    const buttons = Array.from(group?.querySelectorAll('button') ?? []);
-
-    expect(group?.getAttribute('role')).toBe('group');
-    expect(group?.getAttribute('aria-label')).toBe('Opportunity types');
-    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
-      'All4', 'Declined Work', 'Deferred Work', 'Due Service', 'Overdue Service', 'Inactive Customer',
-    ]);
-    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('uses native focusable buttons for keyboard-accessible type selection', async () => {
-    await createComponent();
-    const typeButton = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button')[1];
-
-    typeButton.focus();
-    expect(typeButton.tagName).toBe('BUTTON');
-    expect(typeButton.type).toBe('button');
-    expect(document.activeElement).toBe(typeButton);
-    typeButton.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(typeButton.getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('applies and clears the server-side opportunity type query', async () => {
-    await createComponent();
-    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button'));
-
-    buttons[1].click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(api.getSummary).toHaveBeenLastCalledWith({ opportunityType: 'DECLINED_WORK' });
-    expect(buttons[1].getAttribute('aria-pressed')).toBe('true');
-
-    buttons[0].click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(api.getSummary).toHaveBeenLastCalledWith({});
-  });
-
-  it('shows only authoritative opportunity type counts, including zero', async () => {
-    api.getSummary.mockReturnValue(of({
-      ...summary,
-      byOpportunityType: [
-        { key: 'DECLINED_WORK', count: 3 },
-        { key: 'DEFERRED_WORK', count: 0 },
-      ],
-    }));
-    await createComponent();
-    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button'));
-
-    expect(buttons[1].querySelector('.type-count')?.textContent).toBe('3');
-    expect(buttons[2].querySelector('.type-count')?.textContent).toBe('0');
-    expect(buttons[3].querySelector('.type-count')).toBeNull();
-  });
-
-  it('applies priority and actionability as server-side filters', async () => {
-    await createComponent();
-    const selects = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('.filters select');
-    const priority = selects[0];
-    priority.value = 'HIGH';
-    priority.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(api.getSummary).toHaveBeenLastCalledWith({ priority: 'HIGH' });
-    expect(api.getOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({ priority: 'HIGH' }));
-
-    const actionability = selects[1];
-    actionability.value = 'REVIEW_REQUIRED';
-    actionability.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(api.getSummary).toHaveBeenLastCalledWith({ priority: 'HIGH', actionability: 'REVIEW_REQUIRED' });
-  });
-
   it.each([
     ['DETECTED_DESC', 'Newest'],
     ['DETECTED_ASC', 'Oldest'],
@@ -444,7 +354,7 @@ describe('ServiceProfitManagerComponent', () => {
     ['POTENTIAL_ASC', 'Lowest potential'],
   ] as const)('applies the supported %s sort option labelled %s', async (sortValue, sortLabel) => {
     await createComponent();
-    const sort = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('.filters select')[2];
+    const sort = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('.desktop-sort select')!;
     expect(sort.labels?.[0]?.textContent).toContain('Sort by');
     expect(Array.from(sort.options).find((option) => option.value === sortValue)?.textContent).toBe(sortLabel);
 

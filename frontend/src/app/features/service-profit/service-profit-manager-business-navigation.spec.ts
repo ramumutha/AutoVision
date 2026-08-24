@@ -162,10 +162,14 @@ describe('ServiceProfitManagerComponent business navigation', () => {
   it('loads a new navigation summary when Type changes under an active KPI', async () => {
     await createComponent('/?priority=HIGH');
     api.getSummary.mockClear();
-    const typeButton = (fixture.nativeElement as HTMLElement)
-      .querySelectorAll<HTMLButtonElement>('.opportunity-type-navigation button')[1];
-
-    typeButton.click();
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('.disclosure-trigger')?.click();
+    fixture.detectChanges();
+    const type = element.querySelector<HTMLSelectElement>('.filter-panel select');
+    if (!type) throw new Error('Opportunity Type filter was not rendered');
+    type.value = 'DECLINED_WORK';
+    type.dispatchEvent(new Event('change'));
+    element.querySelector<HTMLButtonElement>('.apply-action')?.click();
     await fixture.whenStable();
     fixture.detectChanges();
 

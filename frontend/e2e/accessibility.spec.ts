@@ -32,8 +32,11 @@ test('@a11y scans mobile Service Profit cards, filters, and routed detail', asyn
   await page.goto('/service-profit');
   await expect(page.getByRole('link', { name: /Recover declined brake work/ })).toBeVisible();
   await expectAccessible(page);
-  await page.getByRole('button', { name: /Sort & Filter/ }).click();
+  const filtersTrigger = page.getByRole('button', { name: /Sort & Filters/ });
+  await filtersTrigger.click();
   await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible();
+  await expect(filtersTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(filtersTrigger).toHaveAttribute('aria-controls', 'service-profit-secondary-filters');
   await expectAccessible(page);
   await page.getByRole('link', { name: /Recover declined brake work/ }).click();
   await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();

@@ -53,6 +53,8 @@ for (const [name, viewport, mobile] of serviceProfitViewports) {
     await expect(page.getByRole('heading', { name: 'Service Profit Manager' })).toBeVisible();
     const businessNavigation = page.getByRole('group', { name: 'Opportunity business views' });
     await expect(businessNavigation).toBeVisible();
+    await expect(page.locator('.opportunity-type-navigation')).toHaveCount(0);
+    await expect(page.locator('.filter-panel')).toHaveCount(0);
     const recoverablePotential = page.locator('.kpi-primary');
     await expect(recoverablePotential.getByText('Revenue data')).toBeVisible();
     await expect(recoverablePotential.getByText('Gross profit data')).toBeVisible();
@@ -68,13 +70,24 @@ for (const [name, viewport, mobile] of serviceProfitViewports) {
       expect(secondBox?.y).toBe(firstBox?.y);
       expect(thirdBox?.y).toBeGreaterThan(firstBox?.y ?? 0);
       await expect(page.getByRole('link', { name: /Recover declined brake work/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /Sort & Filter/ })).toBeVisible();
+      const filtersTrigger = page.getByRole('button', { name: /Sort & Filters/ });
+      await expect(filtersTrigger).toBeVisible();
+      await expect(page.locator('.desktop-sort')).toBeHidden();
+      await filtersTrigger.click();
+      const filterPanel = page.locator('.filter-panel');
+      await expect(filterPanel.getByLabel('Opportunity Type')).toBeVisible();
+      await expect(filterPanel.getByLabel('Priority')).toBeVisible();
+      await expect(filterPanel.getByLabel('Actionability')).toBeVisible();
+      await expect(filterPanel.getByLabel('Sort by')).toBeVisible();
+      await page.getByRole('button', { name: 'Apply' }).click();
       await page.getByRole('link', { name: /Recover declined brake work/ }).click();
       await expect(page).toHaveURL(/service-profit\/opportunities\/.*priority=HIGH.*sort=POTENTIAL_DESC/);
       await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
       await page.getByRole('button', { name: 'Back to opportunities' }).click();
       await expect(page).toHaveURL(/service-profit\?priority=HIGH&sort=POTENTIAL_DESC/);
     } else {
+      await expect(page.getByRole('button', { name: /^Filters/ })).toBeVisible();
+      await expect(page.locator('.desktop-sort')).toBeVisible();
       await expect(page.getByRole('table')).toBeVisible();
       await page.getByRole('button', { name: 'Recover declined brake work' }).click();
       await expect(page.getByRole('heading', { name: 'Previously declined work was identified' })).toBeVisible();
@@ -83,3 +96,41 @@ for (const [name, viewport, mobile] of serviceProfitViewports) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 }
+
+test('@responsive Service Profit secondary filters preserve URL and browser history', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installServiceProfitFixtures(page);
+  await page.goto('/service-profit?type=DECLINED_WORK&sort=POTENTIAL_DESC');
+
+  const trigger = page.getByRole('button', { name: /^Filters/ });
+  await trigger.click();
+  const panel = page.locator('.filter-panel');
+  await expect(panel.getByLabel('Opportunity Type')).toHaveValue('DECLINED_WORK');
+  await expect(panel.getByLabel('Sort by')).toHaveValue('POTENTIAL_DESC');
+  await panel.getByLabel('Opportunity Type').selectOption('DEFERRED_WORK');
+  await panel.getByLabel('Priority').selectOption('HIGH');
+  await expect(page).toHaveURL(/type=DECLINED_WORK.*sort=POTENTIAL_DESC/);
+
+  await panel.getByRole('button', { name: 'Apply' }).click();
+  await expect(trigger).toBeFocused();
+  await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual({
+    type: 'DEFERRED_WORK', sort: 'POTENTIAL_DESC', priority: 'HIGH',
+  });
+  await expect(page.getByRole('group', { name: 'Opportunity business views' }).getByRole('button', { name: /High Priority/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(trigger.locator('.active-count')).toHaveText('1');
+
+  await page.goBack();
+  await expect(page).toHaveURL(/type=DECLINED_WORK.*sort=POTENTIAL_DESC/);
+  await page.goForward();
+  await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual({
+    type: 'DEFERRED_WORK', sort: 'POTENTIAL_DESC', priority: 'HIGH',
+  });
+
+  await trigger.click();
+  await panel.getByRole('button', { name: 'Clear filters' }).click();
+  await panel.getByRole('button', { name: 'Apply' }).click();
+  await expect(page).toHaveURL(/sort=POTENTIAL_DESC/);
+  expect(new URL(page.url()).searchParams.has('type')).toBe(false);
+  expect(new URL(page.url()).searchParams.has('priority')).toBe(false);
+  expect(new URL(page.url()).searchParams.has('actionability')).toBe(false);
+});
