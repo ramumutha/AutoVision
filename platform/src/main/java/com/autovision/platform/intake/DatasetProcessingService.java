@@ -147,9 +147,9 @@ public class DatasetProcessingService {
     ) {
         DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
         List<StagedSourceRecord> records = recordsFor(tenantId, datasetProcessingId);
-        if (records.stream().anyMatch(record -> record.getState() != StagedRecordState.STAGED
-                || record.getValidationStatus() != StagedRecordValidationStatus.PASSED
-                || !record.isMaterializationEligible())) {
+        if (records.stream().anyMatch(record -> record.getState() == StagedRecordState.STAGED
+                && (record.getValidationStatus() != StagedRecordValidationStatus.PASSED
+                || !record.isMaterializationEligible()))) {
             throw new IllegalStateException("Dataset contains records that are not eligible for materialization");
         }
         processing.markReadyForMaterialization(now);
