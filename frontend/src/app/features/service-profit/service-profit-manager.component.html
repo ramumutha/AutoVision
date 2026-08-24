@@ -53,29 +53,48 @@
         <table>
           <thead><tr>
             <th scope="col">{{ localization.text('opportunity') }}</th>
-            <th scope="col">{{ localization.text('opportunityType') }}</th>
+            <th class="secondary-tablet" scope="col">{{ localization.text('opportunityType') }}</th>
             <th scope="col">{{ localization.text('priority') }}</th>
-            <th scope="col">{{ localization.text('evidenceStrength') }}</th>
+            <th class="secondary-tablet" scope="col">{{ localization.text('evidenceStrength') }}</th>
             <th scope="col">{{ localization.text('potential') }}</th>
             <th scope="col">{{ localization.text('actionability') }}</th>
-            <th scope="col">{{ localization.text('detected') }}</th>
+            <th class="secondary-tablet" scope="col">{{ localization.text('detected') }}</th>
           </tr></thead>
           <tbody>
             @for (opportunity of queue(); track opportunity.id) {
-              <tr [class.selected]="selectedOpportunityId() === opportunity.id">
-                <td>
-                  <button class="opportunity-button" type="button" (click)="loadDetail(opportunity.id)" [attr.aria-pressed]="selectedOpportunityId() === opportunity.id">
+              <tr class="opportunity-row" [class.selected]="selectedOpportunityId() === opportunity.id">
+                <th scope="row">
+                  <button class="opportunity-button" type="button" (click)="toggleOpportunityDetail(opportunity.id)"
+                    [attr.aria-expanded]="selectedOpportunityId() === opportunity.id" [attr.aria-controls]="detailRegionId(opportunity.id)">
                     {{ opportunity.title }}
                     @if (selectedOpportunityId() === opportunity.id) { <span class="selection-label">{{ localization.text('selected') }}</span> }
                   </button>
-                </td>
-                <td>{{ label(opportunity.opportunityType) }}</td>
+                </th>
+                <td class="secondary-tablet">{{ label(opportunity.opportunityType) }}</td>
                 <td><av-status [label]="label(opportunity.priority)" [tone]="priorityTone(opportunity.priority)" /></td>
-                <td>{{ label(opportunity.evidenceStrength) }}</td>
+                <td class="secondary-tablet">{{ label(opportunity.evidenceStrength) }}</td>
                 <td class="amount">{{ opportunity.potentialAmount | number:'1.0-2' }} {{ opportunity.currencyCode }}</td>
                 <td><av-status [label]="label(opportunity.actionability)" [tone]="actionabilityTone(opportunity.actionability)" /></td>
-                <td>{{ opportunity.detectedAt | date:'medium' }}</td>
+                <td class="secondary-tablet">{{ opportunity.detectedAt | date:'medium' }}</td>
               </tr>
+              @if (selectedOpportunityId() === opportunity.id) {
+                <tr class="inline-detail-row">
+                  <td colspan="7">
+                    @if (detailLoading()) {
+                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
+                    } @else if (detailError()) {
+                      <div class="inline-detail-state" [id]="detailRegionId(opportunity.id)" role="region" [attr.aria-label]="localization.text('opportunityDetail')">
+                        <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')"
+                          [message]="detailErrorMessage(detailError())" />
+                      </div>
+                    } @else if (selected(); as selectedOpportunity) {
+                      @if (selectedOpportunity.id === opportunity.id) {
+                        <app-service-profit-opportunity-detail [opportunity]="selectedOpportunity" />
+                      }
+                    }
+                  </td>
+                </tr>
+              }
             }
           </tbody>
         </table>
@@ -83,109 +102,5 @@
     } @else {
       <av-feedback [title]="localization.text('noOpportunities')" [message]="localization.text('noOpportunitiesContext')" />
     }
-  </section>
-}
-
-@if (detailLoading()) {
-  <div class="detail-loading" role="status" aria-live="polite">{{ localization.text('loadingOpportunity') }}</div>
-} @else if (detailError()) {
-  <av-feedback kind="error" [title]="localization.text('unableToLoadOpportunity')"
-    [message]="detailError()?.status === 401 ? localization.text('detailSessionExpired') : localization.text('tryAgain')" />
-} @else if (selected(); as opportunity) {
-  <section class="detail" aria-labelledby="opportunity-detail-heading">
-    <header class="detail-header">
-      <div><p class="eyebrow">{{ localization.text('opportunityDetail') }}</p><h2 id="opportunity-detail-heading">{{ opportunity.title }}</h2></div>
-      <div class="detail-statuses">
-        <av-status [label]="label(opportunity.status)" [tone]="isSuppressed(opportunity) ? 'neutral' : 'info'" />
-        <av-status [label]="isSuppressed(opportunity) ? localization.text('suppressed') : label(opportunity.actionability)" [tone]="isSuppressed(opportunity) ? 'neutral' : actionabilityTone(opportunity.actionability)" />
-      </div>
-    </header>
-    <div class="commercial-summary kpi kpi-primary">
-      <div class="detail-value">
-        <h3>{{ localization.text('recoverablePotential') }}</h3>
-        <p class="kpi-value">{{ opportunity.potentialAmount | currency:opportunity.currencyCode:'symbol':'1.0-2' }}</p>
-      </div>
-      <dl class="detail-facts">
-        <div><dt>{{ localization.text('priority') }}</dt><dd>{{ label(opportunity.priority) }}</dd></div>
-        <div><dt>{{ localization.text('actionability') }}</dt><dd>{{ label(opportunity.actionability) }}</dd></div>
-        <div><dt>{{ localization.text('opportunityType') }}</dt><dd>{{ label(opportunity.opportunityType) }}</dd></div>
-      </dl>
-    </div>
-    @if (isSuppressed(opportunity)) {
-      <aside class="suppression" [attr.aria-label]="localization.text('suppressedOpportunity')">
-        <strong>{{ localization.text('doNotAction') }}</strong>
-        <span>{{ localization.text('suppressedOpportunity') }}</span>
-        <span>{{ opportunity.suppressionReason ? label(opportunity.suppressionReason) : localization.text('suppressed') }}</span>
-        @if (opportunity.suppressedAt) { <time [attr.datetime]="opportunity.suppressedAt">{{ opportunity.suppressedAt | date:'medium' }}</time> }
-      </aside>
-    }
-    @if (requiresReview(opportunity)) {
-      <aside class="suppression review-required" role="note">
-        <strong>{{ localization.text('reviewRequired') }}</strong>
-        <span>{{ localization.text('reviewBeforeCustomerContact') }}</span>
-      </aside>
-    }
-    @if (hasCustomerContext(opportunity) || hasVehicleContext(opportunity) || hasServiceContext(opportunity)) {
-      <div class="context-grid explanation">
-        @if (hasCustomerContext(opportunity) && opportunity.context?.customer; as customer) {
-          <section class="context-section customer-context" aria-labelledby="customer-context-heading">
-            <h3 id="customer-context-heading">{{ localization.text('customer') }}</h3>
-            @if (customer.displayName) { <strong class="context-primary">{{ customer.displayName }}</strong> }
-            <dl>
-              @if (customer.reference) { <div><dt>{{ localization.text('customerRef') }}</dt><dd>{{ customer.reference }}</dd></div> }
-              @if (customer.phone) { <div><dt>{{ localization.text('phone') }}</dt><dd>{{ customer.phone }}</dd></div> }
-              @if (customer.email) { <div><dt>{{ localization.text('email') }}</dt><dd>{{ customer.email }}</dd></div> }
-              @if (customer.contactable === true) { <div><dt>{{ localization.text('contactable') }}</dt><dd>{{ localization.text('yes') }}</dd></div> }
-            </dl>
-            @if (customer.contactable === false) { <p>{{ localization.text('contactInformationIncomplete') }}</p> }
-          </section>
-        }
-        @if (hasVehicleContext(opportunity) && opportunity.context?.vehicle; as vehicle) {
-          <section class="context-section vehicle-context" aria-labelledby="vehicle-context-heading">
-            <h3 id="vehicle-context-heading">{{ localization.text('vehicle') }}</h3>
-            <strong class="context-primary">{{ vehiclePrimary(vehicle) }}</strong>
-            @if (vehicleDescription(vehicle); as description) { <p>{{ description }}</p> }
-            <dl>
-              @if (vehicle.vin) { <div><dt>{{ localization.text('vin') }}</dt><dd>{{ vehicle.vin }}</dd></div> }
-              @if (vehicle.powertrain) { <div><dt>{{ localization.text('powertrain') }}</dt><dd>{{ vehicle.powertrain }}</dd></div> }
-            </dl>
-          </section>
-        }
-        @if (hasServiceContext(opportunity) && opportunity.context?.service; as service) {
-          <section class="context-section service-context" aria-labelledby="service-context-heading">
-            <h3 id="service-context-heading">{{ localization.text('serviceContextHeading') }}</h3>
-            <dl>
-              @if (service.orderReference) { <div><dt>{{ localization.text('repairOrder') }}</dt><dd>{{ service.orderReference }}</dd></div> }
-              @if (service.serviceDate) { <div><dt>{{ localization.text('serviceDate') }}</dt><dd>{{ service.serviceDate | date:'mediumDate' }}</dd></div> }
-              @if (service.description) { <div><dt>{{ localization.text('serviceItem') }}</dt><dd>{{ service.description }}</dd></div> }
-              @if (service.advisorContext) { <div><dt>{{ localization.text('advisorContext') }}</dt><dd>{{ service.advisorContext }}</dd></div> }
-            </dl>
-          </section>
-        }
-      </div>
-    }
-    <section class="explanation" aria-labelledby="explanation-heading">
-      <div>
-        <p class="eyebrow">{{ localization.text('whyAutoVisionFoundThis') }}</p>
-        <h3 id="explanation-heading">{{ opportunity.explanation.headline }}</h3>
-        <p>{{ opportunity.explanation.rationale }}</p>
-        <dl><div><dt>{{ localization.text('evidenceBasis') }}</dt><dd>{{ opportunity.explanation.evidenceBasis }}</dd></div></dl>
-      </div>
-      <aside class="suppression recommended-action">
-        <h3>{{ localization.text('recommendedAction') }}</h3>
-        <p>{{ opportunity.explanation.recommendedAction }}</p>
-      </aside>
-    </section>
-    <details class="audit-details provenance">
-      <summary>{{ localization.text('evidenceAndAuditDetails') }}</summary>
-      <dl>
-        <div><dt>{{ localization.text('evidenceStrength') }}</dt><dd>{{ label(opportunity.evidenceStrength) }}</dd></div>
-        <div><dt>{{ localization.text('detected') }}</dt><dd>{{ opportunity.detectedAt | date:'medium' }}</dd></div>
-        <div><dt>{{ localization.text('sourceSystem') }}</dt><dd>{{ opportunity.sourceSystem }}</dd></div>
-        <div><dt>{{ localization.text('sourceEntityType') }}</dt><dd>{{ opportunity.sourceEntityType }}</dd></div>
-        <div><dt>{{ localization.text('sourceEntityId') }}</dt><dd>{{ opportunity.sourceEntityId }}</dd></div>
-        <div><dt>{{ localization.text('policyVersion') }}</dt><dd>{{ opportunity.policyVersion }}</dd></div>
-      </dl>
-    </details>
   </section>
 }

@@ -1,7 +1,7 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { ParamMap, ActivatedRoute, Router } from '@angular/router';
-import { Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
+import { EMPTY, Subject, catchError, distinctUntilChanged, forkJoin, map, merge, of, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
@@ -9,6 +9,7 @@ import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component
 import { AvStatusComponent, AvStatusTone } from '../../shared/design-system/av-status.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
 import { ServiceProfitOpportunityControlsComponent } from './service-profit-opportunity-controls.component';
+import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
 import {
   ServiceProfitActionability,
   ServiceProfitOpportunityFilters,
@@ -18,7 +19,6 @@ import {
   ServiceProfitOpportunitySummary,
   ServiceProfitOpportunityType,
   ServiceProfitPriority,
-  ServiceProfitVehicleContext,
 } from './service-profit.models';
 
 interface ServiceProfitManagerQueryState {
@@ -28,7 +28,7 @@ interface ServiceProfitManagerQueryState {
 
 @Component({
   selector: 'app-service-profit-manager',
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitOpportunityControlsComponent],
+  imports: [DatePipe, DecimalPipe, AvFeedbackComponent, AvStatusComponent, ServiceProfitOpportunityControlsComponent, ServiceProfitOpportunityDetailComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './service-profit-manager.component.html',
   styleUrl: './service-profit-manager.component.scss',
@@ -39,7 +39,7 @@ export class ServiceProfitManagerComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly refreshRequests = new Subject<void>();
-  private readonly detailRequests = new Subject<string>();
+  private readonly detailRequests = new Subject<string | null>();
   protected readonly localization = inject(LocalizationService);
 
   protected readonly summary = signal<ServiceProfitOpportunitySummary | null>(null);
@@ -100,11 +100,19 @@ export class ServiceProfitManagerComponent {
 
     this.detailRequests.pipe(
       tap((opportunityId) => {
+        if (opportunityId === null) {
+          this.selectedOpportunityId.set(null);
+          this.selected.set(null);
+          this.detailLoading.set(false);
+          this.detailError.set(null);
+          return;
+        }
         this.selectedOpportunityId.set(opportunityId);
+        this.selected.set(null);
         this.detailLoading.set(true);
         this.detailError.set(null);
       }),
-      switchMap((opportunityId) => this.api.getOpportunity(opportunityId).pipe(
+      switchMap((opportunityId) => opportunityId === null ? EMPTY : this.api.getOpportunity(opportunityId).pipe(
         map((detail) => ({ detail, error: null })),
         catchError((error: ApiError) => of({ detail: null, error })),
       )),
@@ -119,7 +127,7 @@ export class ServiceProfitManagerComponent {
   protected refresh(): void {
     this.refreshRequests.next();
     const selectedId = this.selectedOpportunityId();
-    if (selectedId) this.loadDetail(selectedId);
+    if (selectedId) this.requestDetail(selectedId);
   }
 
   protected updateFilter(key: keyof ServiceProfitOpportunityFilters, value: string): void {
@@ -139,8 +147,22 @@ export class ServiceProfitManagerComponent {
     });
   }
 
-  protected loadDetail(opportunityId: string): void {
-    this.detailRequests.next(opportunityId);
+  protected toggleOpportunityDetail(opportunityId: string): void {
+    if (this.selectedOpportunityId() === opportunityId) {
+      this.clearDetailSelection();
+      return;
+    }
+    this.requestDetail(opportunityId);
+  }
+
+  protected detailRegionId(opportunityId: string): string {
+    return `opportunity-detail-${opportunityId}`;
+  }
+
+  protected detailErrorMessage(error: ApiError | null): string {
+    if (error?.status === 401) return this.localization.text('detailSessionExpired');
+    if (error?.status === 403) return this.localization.text('detailNotAuthorized');
+    return this.localization.text('tryAgain');
   }
 
   protected label(value: string): string {
@@ -155,43 +177,6 @@ export class ServiceProfitManagerComponent {
     if (actionability === 'READY') return 'success';
     if (actionability === 'REVIEW_REQUIRED' || actionability === 'CONTACT_DATA_MISSING') return 'warning';
     return actionability === 'SUPPRESSED' ? 'neutral' : 'danger';
-  }
-
-  protected isSuppressed(opportunity: ServiceProfitOpportunityResponse): boolean {
-    return opportunity.status === 'SUPPRESSED' || opportunity.actionability === 'SUPPRESSED' || !!opportunity.suppressionReason;
-  }
-
-  protected requiresReview(opportunity: ServiceProfitOpportunityResponse): boolean {
-    return opportunity.actionability === 'REVIEW_REQUIRED';
-  }
-
-  protected hasCustomerContext(opportunity: ServiceProfitOpportunityResponse): boolean {
-    const customer = opportunity.context?.customer;
-    return !!customer && Object.values(customer).some((value) => value !== null && value !== '');
-  }
-
-  protected hasVehicleContext(opportunity: ServiceProfitOpportunityResponse): boolean {
-    const vehicle = opportunity.context?.vehicle;
-    return !!vehicle && Object.values(vehicle).some((value) => value !== null && value !== '');
-  }
-
-  protected hasServiceContext(opportunity: ServiceProfitOpportunityResponse): boolean {
-    const service = opportunity.context?.service;
-    return !!service && Object.values(service).some((value) => value !== null && value !== '');
-  }
-
-  protected vehiclePrimary(vehicle: ServiceProfitVehicleContext): string {
-    return vehicle.registration
-      || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
-      || vehicle.vin
-      || '';
-  }
-
-  protected vehicleDescription(vehicle: ServiceProfitVehicleContext): string {
-    return [[vehicle.make, vehicle.model].filter(Boolean).join(' '), vehicle.modelYear]
-      .flat()
-      .filter(Boolean)
-      .join(' · ');
   }
 
   private readQueryState(params: ParamMap): ServiceProfitManagerQueryState {
@@ -244,6 +229,18 @@ export class ServiceProfitManagerComponent {
     if (result.data) {
       this.summary.set(result.data.summary);
       this.queue.set(result.data.queue.items);
+      const selectedId = this.selectedOpportunityId();
+      if (selectedId && !result.data.queue.items.some((opportunity) => opportunity.id === selectedId)) {
+        this.clearDetailSelection();
+      }
     }
+  }
+
+  private requestDetail(opportunityId: string): void {
+    this.detailRequests.next(opportunityId);
+  }
+
+  private clearDetailSelection(): void {
+    this.detailRequests.next(null);
   }
 }

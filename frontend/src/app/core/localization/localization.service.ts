@@ -59,7 +59,7 @@ const ENGLISH = {
   sortBy: 'Sort by', newest: 'Newest', oldest: 'Oldest', highestPotential: 'Highest potential', lowestPotential: 'Lowest potential',
   evidenceStrength: 'Evidence Strength', potential: 'Potential', detected: 'Detected', noOpportunities: 'No opportunities match these filters',
   noOpportunitiesContext: 'Change a filter or refresh to check for newly detected opportunities.', loadingOpportunity: 'Loading opportunity details',
-  unableToLoadOpportunity: 'Unable to load opportunity details', detailSessionExpired: 'Your session could not be renewed. Sign in again to view this opportunity.', opportunityDetail: 'Opportunity detail', selected: 'Selected', suppressed: 'Suppressed',
+  unableToLoadOpportunity: 'Unable to load opportunity details', detailSessionExpired: 'Your session could not be renewed. Sign in again to view this opportunity.', detailNotAuthorized: 'You are not authorized to view this opportunity.', opportunityDetail: 'Opportunity detail', selected: 'Selected', suppressed: 'Suppressed',
   suppressedOpportunity: 'Suppressed opportunity', doNotAction: 'Do not action', reviewBeforeCustomerContact: 'Review is required before customer contact.', whyAutoVisionFoundThis: 'Why AutoVision found this', evidenceBasis: 'Evidence basis',
   recommendedAction: 'Recommended action', evidenceAndAuditDetails: 'Evidence & audit details', sourceAndProvenance: 'Source and provenance', sourceSystem: 'Source system',
   sourceEntityType: 'Source entity type', sourceEntityId: 'Source entity ID', policyVersion: 'Policy version',

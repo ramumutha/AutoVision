@@ -160,7 +160,10 @@ describe('ServiceProfitManagerComponent', () => {
     expect(text).not.toContain('hidden-vehicle-uuid');
 
     api.getOpportunity.mockReturnValue(of({ ...detail, context: null }));
-    element.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    const opportunityButton = element.querySelector<HTMLButtonElement>('.opportunity-button');
+    opportunityButton?.click();
+    fixture.detectChanges();
+    opportunityButton?.click();
     fixture.detectChanges();
     expect(element.querySelector('.context-grid')).toBeNull();
     expect((element.textContent ?? '')).toContain('Previously declined work was identified');
@@ -188,6 +191,140 @@ describe('ServiceProfitManagerComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Unable to load opportunity details');
     expect(text).toContain('Your session could not be renewed. Sign in again to view this opportunity.');
+  });
+
+  it('renders detail loading immediately after the selected table row', async () => {
+    api.getOpportunity.mockReturnValue(new Subject<ServiceProfitOpportunityResponse>());
+    await createComponent();
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLTableRowElement>('.opportunity-row');
+
+    row?.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+
+    const inlineRow = row?.nextElementSibling as HTMLTableRowElement | null;
+    expect(inlineRow?.classList.contains('inline-detail-row')).toBe(true);
+    expect(inlineRow?.parentElement?.tagName).toBe('TBODY');
+    expect(inlineRow?.querySelector('td')?.colSpan).toBe(7);
+    expect(inlineRow?.textContent).toContain('Loading opportunity details');
+  });
+
+  it('renders loaded detail immediately after the selected table row', async () => {
+    await createComponent();
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLTableRowElement>('.opportunity-row');
+
+    row?.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+
+    const inlineRow = row?.nextElementSibling as HTMLTableRowElement | null;
+    expect(inlineRow?.querySelector('app-service-profit-opportunity-detail')).not.toBeNull();
+    expect(inlineRow?.textContent).toContain('Previously declined work was identified');
+  });
+
+  it('renders detail errors immediately after the selected table row', async () => {
+    api.getOpportunity.mockReturnValue(throwError(() => ({ status: 403, message: 'Forbidden' })));
+    await createComponent();
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLTableRowElement>('.opportunity-row');
+
+    row?.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+
+    expect(row?.nextElementSibling?.classList.contains('inline-detail-row')).toBe(true);
+    expect(row?.nextElementSibling?.textContent).toContain('Unable to load opportunity details');
+    expect(row?.nextElementSibling?.textContent).toContain('You are not authorized to view this opportunity.');
+  });
+
+  it('moves the single inline detail when another opportunity is selected', async () => {
+    const secondItem = { ...queue.items[0], id: 'opportunity-2', title: 'Recover overdue service' };
+    api.getOpportunities.mockReturnValue(of({ ...queue, items: [queue.items[0], secondItem], totalElements: 2 }));
+    api.getOpportunity.mockImplementation((opportunityId: string) => of({
+      ...detail,
+      id: opportunityId,
+      title: opportunityId === 'opportunity-2' ? 'Recover overdue service' : detail.title,
+    }));
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    const buttons = element.querySelectorAll<HTMLButtonElement>('.opportunity-button');
+
+    buttons[0].click();
+    fixture.detectChanges();
+    buttons[1].click();
+    fixture.detectChanges();
+
+    expect(element.querySelectorAll('.inline-detail-row')).toHaveLength(1);
+    const rows = element.querySelectorAll<HTMLTableRowElement>('.opportunity-row');
+    expect(rows[0].nextElementSibling?.classList.contains('inline-detail-row')).toBe(false);
+    expect(rows[1].nextElementSibling?.textContent).toContain('Recover overdue service');
+  });
+
+  it('prevents stale detail responses from appearing under a newer selection', async () => {
+    const secondItem = { ...queue.items[0], id: 'opportunity-2', title: 'Second queue opportunity' };
+    const firstResponse = new Subject<ServiceProfitOpportunityResponse>();
+    const secondResponse = new Subject<ServiceProfitOpportunityResponse>();
+    api.getOpportunities.mockReturnValue(of({ ...queue, items: [queue.items[0], secondItem], totalElements: 2 }));
+    api.getOpportunity.mockImplementation((opportunityId: string) => opportunityId === 'opportunity-1' ? firstResponse : secondResponse);
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    const buttons = element.querySelectorAll<HTMLButtonElement>('.opportunity-button');
+
+    buttons[0].click();
+    fixture.detectChanges();
+    buttons[1].click();
+    fixture.detectChanges();
+    secondResponse.next({ ...detail, id: 'opportunity-2', title: 'Latest detail' });
+    secondResponse.complete();
+    fixture.detectChanges();
+    firstResponse.next({ ...detail, title: 'Stale detail' });
+    firstResponse.complete();
+    fixture.detectChanges();
+
+    expect(element.querySelector('.inline-detail-row')?.textContent).toContain('Latest detail');
+    expect(element.textContent).not.toContain('Stale detail');
+  });
+
+  it('clears an expanded opportunity when filtering removes it from the queue', async () => {
+    const remainingItem = { ...queue.items[0], id: 'opportunity-2', title: 'Remaining opportunity' };
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('.opportunity-button')?.click();
+    fixture.detectChanges();
+    api.getOpportunities.mockReturnValueOnce(of({ ...queue, items: [remainingItem] }));
+
+    const priority = element.querySelector<HTMLSelectElement>('.filters select');
+    if (!priority) throw new Error('Priority filter was not rendered');
+    priority.value = 'HIGH';
+    priority.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(element.querySelector('.inline-detail-row')).toBeNull();
+    expect(element.querySelector<HTMLButtonElement>('.opportunity-button')?.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('exposes disclosure ARIA and collapses the selected row on a second activation', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    const button = element.querySelector<HTMLButtonElement>('.opportunity-button');
+
+    expect(button?.getAttribute('aria-expanded')).toBe('false');
+    expect(button?.getAttribute('aria-controls')).toBe('opportunity-detail-opportunity-1');
+    button?.click();
+    fixture.detectChanges();
+    expect(button?.getAttribute('aria-expanded')).toBe('true');
+    expect(element.querySelector('#opportunity-detail-opportunity-1')?.getAttribute('role')).toBe('region');
+
+    button?.click();
+    fixture.detectChanges();
+    expect(button?.getAttribute('aria-expanded')).toBe('false');
+    expect(element.querySelector('.inline-detail-row')).toBeNull();
+    expect(api.getOpportunity).toHaveBeenCalledOnce();
+  });
+
+  it('marks secondary table columns for compact tablet presentation', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelectorAll('thead .secondary-tablet')).toHaveLength(3);
+    expect(element.querySelectorAll('.opportunity-row .secondary-tablet')).toHaveLength(3);
   });
 
   it('provides a compact accessible refresh control that invokes refresh', async () => {

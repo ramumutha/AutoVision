@@ -4,7 +4,7 @@
 
 `/service-profit` is a lazy standalone Angular route protected by `authenticatedGuard`. The route renders `ServiceProfitManagerComponent` inside `AvShellComponent`.
 
-Planned for C2-C: `/service-profit/opportunities/:opportunityId` will provide dedicated mobile detail. It is not implemented in C2-A.
+Planned for C2-C: `/service-profit/opportunities/:opportunityId` will provide dedicated mobile detail. It is not implemented in C2-B.
 
 ```mermaid
 flowchart LR
@@ -23,6 +23,8 @@ flowchart LR
 `ServiceProfitManagerComponent` owns manager query state, summary and queue loading, selection state, responsive presentation, and display-oriented domain labels. It does not authorize requests or calculate authoritative opportunity counts.
 
 `ServiceProfitOpportunityControlsComponent` presents opportunity-type navigation, Priority and Actionability filters, Sort, refresh state, and refresh feedback. It emits explicit user intents to the manager and does not own URL or API state.
+
+`ServiceProfitOpportunityDetailComponent` receives one `ServiceProfitOpportunityResponse` and owns dealer-facing presentation only. It does not call an API, own selection or routing, mutate data, or perform authorization. Desktop/tablet inline detail uses it now; the planned C2-C mobile page will reuse the same component.
 
 `ServiceProfitApiService` translates typed filters, pagination, and sort values into `/api/v1/service-profit/opportunities` requests. It also loads summary and detail endpoints.
 
@@ -70,9 +72,23 @@ sequenceDiagram
 
 ## Selection State
 
-Current: selecting an opportunity title stores its ID, loads detail, marks the row selected, and renders the detail panel after the queue. Suppression, review-required state, context, explanation, evidence, and provenance remain sourced from the detail response.
+The manager owns selected ID, loading, error, and response state. Selecting an opportunity title stores its ID and requests authoritative detail. A valid sibling table row is inserted immediately after the selected queue row with one cell spanning all seven columns. That cell contains loading, error, or `ServiceProfitOpportunityDetailComponent`.
 
-Planned for C2-B: desktop/tablet detail immediately under or adjacent to the selected row.
+Only one inline detail row exists. Selecting another opportunity moves it. Selecting the same opportunity again emits a null selection command, collapses the row, and cancels any pending detail request. If a queue reload no longer contains the selected ID, the manager clears the orphan selection.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant M as Manager
+    participant A as API service
+    participant D as Detail component
+    U->>M: Select queue opportunity
+    M->>A: GET opportunity detail
+    Note over M,A: switchMap cancels older selection
+    A-->>M: Authoritative detail
+    M->>D: Pass response input
+    D-->>U: Present inline dealer detail
+```
 
 Planned for C2-C: mobile cards navigate to a dedicated full-detail route and preserve list query state for browser Back.
 
@@ -85,10 +101,10 @@ The frontend guard protects navigation for user experience. The shared auth inte
 CSS owns presentation; there is no runtime viewport service.
 
 - `<=720px`: type navigation scrolls horizontally and toolbar controls wrap compactly.
-- `721px–1100px`: compact/tablet layout.
+- `721px–1100px`: compact/tablet table hides Opportunity Type, Evidence Strength, and Detected while inline detail retains them.
 - `>1100px`: desktop layout.
 
-Current: the opportunity table remains at all sizes and can scroll horizontally. Planned C2-C replaces it with mobile decision cards and consolidates mobile Sort/Filter controls.
+Current: the opportunity table and inline detail remain the mobile fallback. Planned C2-C replaces them with mobile decision cards, routed detail, and consolidated mobile Sort/Filter controls.
 
 ## Loading And Errors
 
@@ -96,7 +112,7 @@ Initial and query-driven loads show the manager loading state. A failed initial/
 
 Background refresh keeps loaded content visible, marks the queue busy, disables Refresh, and reports refresh failure without discarding data.
 
-Detail loading and errors remain independent. A detail `401` displays the existing session-renewal guidance.
+Detail loading and errors remain independent and render inside the selected opportunity's inline row. A detail `401` displays session-renewal guidance; `403` explicitly reports that the user cannot view the opportunity.
 
 ## Accessibility Architecture
 
@@ -105,15 +121,11 @@ Detail loading and errors remain independent. A detail `401` displays the existi
 - Labels wrap their associated select controls.
 - The queue exposes `aria-busy`; loading uses polite live status.
 - Selected opportunity text and safety notices prevent color-only communication.
+- Opportunity titles are table row headers. Disclosure buttons use `aria-expanded` and `aria-controls`; loaded detail is a uniquely labelled region.
 - The profile popup exposes `aria-expanded`, closes globally on Escape, and restores trigger focus.
 - Native `<details>` provides keyboard-accessible audit disclosure.
 
 ## Important Deferred Items
-
-C2-B:
-
-- desktop/tablet inline or adjacent detail placement;
-- detail focus and scroll behavior for the selected row.
 
 C2-C:
 
@@ -134,4 +146,4 @@ npm test
 npm run build
 ```
 
-Do not invoke bare Vitest. Add manager interaction tests beside the manager component, shell popup tests beside the shell component, and query serialization tests beside `ServiceProfitApiService`.
+Do not invoke bare Vitest. Add selection/request tests beside the manager, presentation tests beside `ServiceProfitOpportunityDetailComponent`, shell popup tests beside the shell, and query serialization tests beside `ServiceProfitApiService`.

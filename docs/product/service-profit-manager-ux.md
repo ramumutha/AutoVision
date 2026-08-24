@@ -55,7 +55,9 @@ The authenticated-user trigger toggles the profile popup. The popup closes after
 
 ## Progressive Disclosure
 
-The queue should present the minimum information needed to choose an opportunity. Detailed customer, vehicle, service, explanation, evidence, and provenance data is disclosed after selection. Audit details use native disclosure behavior and are collapsed initially.
+The queue presents the minimum information needed to choose an opportunity. On desktop and tablet, selecting an opportunity inserts its detail immediately after that table row. Only one opportunity is expanded at a time; selecting another moves the detail, and selecting the expanded opportunity again collapses it.
+
+Loading and errors appear in the same inline position, so feedback remains beside the selected record. Detailed customer, vehicle, service, explanation, evidence, and provenance data is disclosed after selection. Audit details use native disclosure behavior and are collapsed initially.
 
 ## Safety States
 
@@ -71,11 +73,11 @@ Current ranges are:
 - compact/tablet: `721px` through `1100px`;
 - desktop: above `1100px`.
 
-Current C2-A behavior keeps the existing opportunity table and bottom detail panel. It adds the responsive type rail and a compact filter/sort/refresh toolbar.
+Current desktop/tablet behavior keeps the opportunity table and inserts detail immediately after the selected row. At compact/tablet widths, Opportunity Type, Evidence Strength, and Detected are hidden from the table; they remain available in detail. The type rail and filter/sort/refresh toolbar remain responsive.
 
-Planned for C2-B: desktop/tablet selection will reveal detail adjacent to or immediately under the selected opportunity.
+Suppressed detail retains the Do not action safeguard. `REVIEW_REQUIRED` detail retains review-before-contact guidance.
 
-Planned for C2-C: mobile will use concise decision cards, a consolidated Sort/Filter interaction, and a dedicated full-detail route.
+Planned for C2-C: mobile will replace the current table fallback with concise decision cards, a consolidated Sort/Filter interaction, and a dedicated full-detail route.
 
 ## Accessibility Expectations
 
@@ -86,7 +88,8 @@ Planned for C2-C: mobile will use concise decision cards, a consolidated Sort/Fi
 - Suppression, review requirements, and selection are expressed in text, not color alone.
 - The profile menu supports outside dismissal, Escape, and focus restoration.
 - Existing table headers retain `scope="col"`; opportunity selection remains a native button.
+- Opportunity titles are row headers. Selection buttons expose `aria-expanded` and `aria-controls`, and inline detail is a labelled region.
 
 ## Safe Test Locations
 
-Interaction tests belong in `frontend/src/app/features/service-profit/service-profit-manager.component.spec.ts`. Profile-menu tests belong in `frontend/src/app/shell/av-shell.component.spec.ts`. API query serialization tests belong in `frontend/src/app/features/service-profit/service-profit-api.service.spec.ts`.
+Inline selection and request tests belong in `frontend/src/app/features/service-profit/service-profit-manager.component.spec.ts`. Dealer-detail presentation tests belong in `frontend/src/app/features/service-profit/service-profit-opportunity-detail.component.spec.ts`. Profile-menu tests belong in `frontend/src/app/shell/av-shell.component.spec.ts`. API query serialization tests belong in `frontend/src/app/features/service-profit/service-profit-api.service.spec.ts`.
