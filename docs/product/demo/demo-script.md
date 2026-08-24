@@ -21,11 +21,11 @@ Sign in through the configured public SPA/PKCE flow. Explain that the UI guard i
 
 ### 2. Open the manager summary
 
-Navigate to `/service-profit`. Show recoverable potential per currency, total opportunities, high priority, review required, and ready to action. Explain that counts come from the summary API, not the first queue page.
+Navigate to `/service-profit`. Show recoverable potential per currency, total opportunities, high priority, review required, and ready to action. Explain that counts come from the summary API, not the first queue page. Open capability information on demand from Recoverable Potential when discussing data confidence or attribution.
 
 ### 3. Triage the queue
 
-Use Opportunity Type as primary navigation, then Priority/Actionability and Sort. Refresh once to show retained-content behavior. Explain that state is URL-backed and requests cancel stale results.
+Use the KPI lenses to focus attention, then use Group By to organize the queue. Expand only the relevant group or groups, and use supported Potential or Detected sorting where useful. Refresh once to show retained-content behavior. Explain that groups are presentation organization, not hidden business filters, and that requests cancel stale results.
 
 ### 4. Review an evidence-backed opportunity
 
@@ -41,11 +41,11 @@ Open SP-DEMO-010. Point out moderate/derived evidence and `REVIEW_REQUIRED`. Exp
 
 ### 7. Demonstrate responsive behavior
 
-At desktop/tablet, show inline detail beneath one selected row. At 390px or 430px width, show concise cards, compact Sort & Filter, routed detail, and Back restoration. Avoid presenting viewport tests as customer research.
+At desktop/tablet, show inline detail beneath one selected row. At 390px or 430px width, show concise cards, routed detail, and Back restoration. Avoid presenting viewport tests as customer research.
 
 ## Close
 
-Summarize implemented value: prioritized opportunities, explainable evidence, commercial context, tenant-safe access, and safety states. State current limitations: synthetic India dataset, partial disposition/cost capability, no outreach workflow, no rich analytics, and no validated production KPI uplift.
+Summarize implemented value: recoverable commercial potential, KPI focus, organized groups, explainable evidence, commercial context, tenant-safe access, and safety states. State current limitations: synthetic India dataset, partial disposition/cost capability, no outreach workflow, no rich analytics, search deferred, and no validated production KPI uplift.
 
 If discussing the next candidate, describe the future journey as `Detected → Reviewed → Accountable follow-up → Outcome/disposition → eventual conversion/revenue measurement`. State that [PDR-007](../decisions/PDR-007-bounded-internal-follow-up-disposition.md) defines only the internal follow-up/disposition candidate; it is not implemented or release-approved, and conversion/revenue attribution remains future work.
 

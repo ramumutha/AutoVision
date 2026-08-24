@@ -18,28 +18,49 @@ The summary shows:
 
 Currency amounts must never be combined across currency codes.
 
-## Opportunity Type Navigation
+The manager follows this information order: **Money -> Focus -> Organize -> Inspect -> Act**.
+Recoverable Potential is the primary commercial signal. Data-capability information is
+available on demand from that presentation so data confidence and attribution limits are
+visible without dominating the dashboard.
 
-Opportunity types are a labelled, single-select group: All, Declined Work, Deferred Work, Due Service, Overdue Service, and Inactive Customer. Selecting a type updates the server-side `opportunityType` filter. Selecting All clears it.
+## Business Focus
 
-A count is shown only when supplied by the summary API. Counts are not calculated from the first 25 queue rows. The selected button uses text, border treatment, and `aria-pressed`; selection is not communicated by color alone.
+The four KPI lenses are labelled business views: Total Opportunities, High Priority,
+Review Required, and Ready to Action. Each lens updates the authoritative manager query
+and its count comes from the summary API. Selecting a lens is not a client-side filter
+over the currently loaded rows.
 
-On mobile, the type controls form a horizontally scrollable touch rail. On larger screens they wrap into a compact strip.
+The Opportunities heading shows the authoritative count. Counts are not calculated from
+the first queue page. The selected button uses text, border treatment, and `aria-pressed`;
+selection is not communicated by color alone.
+
+## Grouping And Organization
+
+Group By offers None, Opportunity Type, Priority, and Actionability. Grouped sections are
+collapsed by default, can be expanded independently, and allow multiple open groups.
+Grouping organizes the queue for scanning; it does not add a hidden business filter and
+does not replace the KPI lenses.
 
 ## Sorting And Filtering
 
-Priority and Actionability are server-side filters. Sort supports only values implemented by the API:
+Desktop sorting supports only values implemented by the API:
 
-- Newest;
-- Oldest;
-- Highest potential;
-- Lowest potential.
+- Potential descending (`POTENTIAL_DESC`);
+- Potential ascending (`POTENTIAL_ASC`);
+- Detected newest (`DETECTED_DESC`);
+- Detected oldest (`DETECTED_ASC`).
 
-The current values are stored in the URL as `type`, `priority`, `actionability`, and `sort`. A browser refresh, Back, or Forward therefore preserves or restores the view. Invalid values safely fall back to All filters and Newest sort.
+The primary R1 manager does not expose the advanced filter surface. The underlying API
+and query capability remains available for reusable or future experiences. This keeps
+KPI business lenses and Group By as the simpler dealer-manager workflow.
 
-Filtering and sorting never rearrange the partially loaded queue in the browser.
+Supported query state remains URL-backed for compatible links and future/opt-in controls.
+Filtering and sorting never rearrange a partially loaded queue in the browser. Search is
+not implemented: **SEARCH DEFERRED — authoritative server search contract required.**
+The server-paginated endpoint has no approved contract for searching the complete
+opportunity dataset, so client-only search would be misleading.
 
-On mobile, Priority, Actionability, and Sort are consolidated behind one Sort & Filter disclosure. Changes remain pending until Apply. Clear resets both filters to All and Sort to Newest; Opportunity Type remains separate. The active count includes only non-default Priority and Actionability filters.
+Mobile may provide appropriate sorting controls where desktop headers are not present.
 
 ## Refresh
 
@@ -98,3 +119,15 @@ Suppressed detail retains the Do not action safeguard. `REVIEW_REQUIRED` detail 
 ## Safe Test Locations
 
 Inline selection and request tests belong in `frontend/src/app/features/service-profit/service-profit-manager.component.spec.ts`. Mobile card, mobile filter, and routed-page tests remain in their focused component specs. Dealer-detail presentation tests belong beside `ServiceProfitOpportunityDetailComponent`. Profile-menu tests belong beside the shell. API query serialization tests belong beside `ServiceProfitApiService`.
+
+## Deferred UX Polish
+
+These are accepted, non-blocking follow-up items for the next frontend refinement cycle:
+
+- **UX-POLISH-01:** refine Data Capability dialog close-button spacing, border, and placement so it does not visually interfere with Assessment Policy content.
+- **UX-POLISH-02:** refine Opportunities heading/count baseline alignment consistently across desktop, tablet, and mobile.
+- **UX-POLISH-03:** replace plain initial loading text with a subtle accessible progress or skeleton treatment.
+- **UX-POLISH-04:** validate Refresh scope against actual behavior. If it reloads all Service Profit data, move it to a clearly global manager location; if it reloads only the opportunity workspace, retain it beside Group By.
+
+These items do not change SP-F004 IMPLEMENTED status or demo readiness, and are not
+production-readiness blockers.

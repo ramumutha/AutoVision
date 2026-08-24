@@ -22,6 +22,17 @@
 - Rich longitudinal management analytics and benchmarking are not implemented.
 - Current role/location business context is not available and must not be fabricated.
 - A complete external design/theme-system adoption is not approved or implemented.
+- The primary R1 manager intentionally does not expose the advanced filter surface. The underlying API/query filtering capability remains available; do not describe filtering as removed from the platform.
+- Search is not implemented. **SEARCH DEFERRED — authoritative server search contract required.** The current endpoint is server-paginated and does not provide an approved authoritative contract for searching the complete opportunity dataset.
+
+## Deferred UX Polish
+
+The following accepted items are non-blocking and belong to the next frontend refinement
+cycle: **UX-POLISH-01** Data Capability dialog close-button spacing/border/placement;
+**UX-POLISH-02** Opportunities heading/count baseline alignment across breakpoints;
+**UX-POLISH-03** accessible progress/skeleton treatment for initial loading; and
+**UX-POLISH-04** validation of Refresh placement against its actual refresh scope.
+These items do not change SP-F004 IMPLEMENTED status or demo readiness.
 
 ## Evidence
 

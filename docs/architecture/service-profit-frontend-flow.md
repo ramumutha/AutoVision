@@ -24,9 +24,9 @@ flowchart LR
 
 `AvShellComponent` owns global navigation and the authenticated-user popup. It closes the popup on outside click, Escape, Sign out, and route navigation. Escape restores focus to the trigger.
 
-`ServiceProfitManagerComponent` owns manager query state, summary and queue loading, desktop/tablet selection state, responsive presentation, and display-oriented domain labels. It does not authorize requests or calculate authoritative opportunity counts.
+`ServiceProfitManagerComponent` owns manager query state, summary and queue loading, desktop/tablet selection state, responsive presentation, and display-oriented domain labels. It does not authorize requests or calculate authoritative opportunity counts. Its primary R1 presentation is limited to KPI lenses, Group By, Refresh, grouped queue, sorting, and detail; advanced filters remain opt-in/reusable rather than exposed by the primary manager.
 
-`ServiceProfitOpportunityControlsComponent` presents opportunity-type navigation, desktop/tablet filters and Sort, refresh state, and refresh feedback. `ServiceProfitMobileFiltersComponent` owns only pending mobile disclosure values and emits one applied state. Neither owns URL or API state.
+`ServiceProfitOpportunityControlsComponent` presents reusable opportunity controls, sorting, refresh state, and refresh feedback. Its advanced filter surface is opt-in. `ServiceProfitMobileFiltersComponent` owns only pending mobile disclosure values and emits one applied state. Neither owns URL or API state.
 
 `ServiceProfitMobileListComponent` presents semantic decision cards and creates routed links with the manager's supported query state. It does not load detail.
 
@@ -50,6 +50,12 @@ Summary and queue requests run together. RxJS `switchMap` cancels an older reque
 
 No client-side sorting or count calculation is performed on the 25 loaded queue rows.
 
+Grouped retrieval uses the authoritative summary facets `byOpportunityType`, `byPriority`,
+and `byActionability` to identify groups, then preserves server-side query semantics for
+each grouped request. A single paginated response must not be presented as the complete
+dealer population. Grouping is organization/presentation, not an additional hidden
+business filter.
+
 ## Filter And Sort State
 
 The URL is the source of interaction state:
@@ -61,7 +67,7 @@ The URL is the source of interaction state:
 | `actionability` | existing actionability values | All |
 | `sort` | detected/potential ascending or descending | `DETECTED_DESC` |
 
-Unknown values are ignored by explicit allow-list parsing. Controls navigate with merged query parameters, so browser refresh, Back, and Forward are predictable. No tenant, customer, vehicle, or other sensitive identifiers are added by these controls.
+Unknown values are ignored by explicit allow-list parsing. Controls or compatible links navigate with merged query parameters, so browser refresh, Back, and Forward are predictable. The primary R1 manager does not expose advanced filters. No tenant, customer, vehicle, or other sensitive identifiers are added by these controls. Search is deferred because the server-paginated endpoint lacks an approved authoritative search contract for the complete opportunity dataset.
 
 ```mermaid
 sequenceDiagram
@@ -69,7 +75,7 @@ sequenceDiagram
     participant R as Angular Router
     participant M as Manager
     participant A as API service
-    U->>R: Select type/filter/sort
+    U->>R: Select KPI lens or sort
     R->>M: queryParamMap
     M->>M: Validate and set signals
     M->>A: Summary + queue request
@@ -126,7 +132,7 @@ The frontend guard protects navigation for user experience. The shared auth inte
 
 CSS owns presentation; there is no runtime viewport service.
 
-- `<=720px`: type navigation scrolls horizontally, Sort & Filter uses one disclosure, and semantic cards replace the table. Cards route to full detail.
+- `<=720px`: KPI navigation remains available, appropriate mobile sorting controls may be used, and semantic cards replace the table. Cards route to full detail.
 - `721px–1100px`: compact/tablet table hides Opportunity Type, Evidence Strength, and Detected while inline detail retains them.
 - `>1100px`: desktop layout.
 
@@ -150,7 +156,7 @@ The routed page has independent loading and error state. It adds an explicit `40
 - Opportunity titles are table row headers. Disclosure buttons use `aria-expanded` and `aria-controls`; loaded detail is a uniquely labelled region.
 - The profile popup exposes `aria-expanded`, closes globally on Escape, and restores trigger focus.
 - Native `<details>` provides keyboard-accessible audit disclosure.
-- Mobile cards use semantic lists and descriptive native links. The mobile filter trigger exposes disclosure state, and its grouped selects retain native labels.
+- Mobile cards use semantic lists and descriptive native links. Reusable mobile filter controls, when explicitly enabled, expose disclosure state and retain native labels.
 
 ## Tests
 
