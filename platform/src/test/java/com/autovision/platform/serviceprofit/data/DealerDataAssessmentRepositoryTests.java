@@ -234,6 +234,67 @@ class DealerDataAssessmentRepositoryTests {
         );
     }
 
+
+    @Test
+    void findsLatestCompletedAssessmentAndIgnoresNewerDraft() {
+
+        UUID tenantId = UUID.randomUUID();
+        UUID principalId = UUID.randomUUID();
+
+        OffsetDateTime olderTime =
+                OffsetDateTime.parse(
+                        "2026-08-22T08:00:00Z"
+                );
+
+        OffsetDateTime newerTime =
+                OffsetDateTime.parse(
+                        "2026-08-22T09:00:00Z"
+                );
+
+        DealerDataAssessment completed =
+                newAssessment(
+                        tenantId,
+                        principalId,
+                        olderTime,
+                        "COMPLETED-DATASET",
+                        "1.0.0"
+                );
+
+        completed.complete(
+                principalId,
+                olderTime.plusMinutes(5)
+        );
+
+        assessmentRepository.saveAndFlush(completed);
+
+        assessmentRepository.saveAndFlush(
+                newAssessment(
+                        tenantId,
+                        principalId,
+                        newerTime,
+                        "DRAFT-DATASET",
+                        "2.0.0"
+                )
+        );
+
+        DealerDataAssessment found =
+                assessmentRepository
+                        .findFirstByTenantIdAndStatusOrderByCreatedAtDesc(
+                                tenantId,
+                                DealerDataAssessmentStatus.COMPLETED
+                        )
+                        .orElseThrow();
+
+        assertEquals(
+                completed.getId(),
+                found.getId()
+        );
+
+        assertEquals(
+                DealerDataAssessmentStatus.COMPLETED,
+                found.getStatus()
+        );
+    }
     private DealerDataAssessment newAssessment(
             UUID tenantId,
             UUID principalId,

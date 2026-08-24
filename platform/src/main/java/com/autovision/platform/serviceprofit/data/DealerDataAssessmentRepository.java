@@ -30,5 +30,9 @@ public interface DealerDataAssessmentRepository
             UUID tenantId,
             String sourceDatasetId,
             String sourceDatasetVersion
-    );}
-
+    );
+    Optional<DealerDataAssessment> findFirstByTenantIdAndStatusOrderByCreatedAtDesc(
+            UUID tenantId,
+            DealerDataAssessmentStatus status
+    );
+}
