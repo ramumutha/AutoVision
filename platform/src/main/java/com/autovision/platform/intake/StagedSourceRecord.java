@@ -119,6 +119,7 @@ public class StagedSourceRecord {
     public void markValidationPassed() {
         requireStaged();
         validationStatus = StagedRecordValidationStatus.PASSED;
+        materializationEligible = true;
     }
 
     public void markValidationFailed() {

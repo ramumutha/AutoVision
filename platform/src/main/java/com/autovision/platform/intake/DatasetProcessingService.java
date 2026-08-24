@@ -140,6 +140,65 @@ public class DatasetProcessingService {
         }
 
     @Transactional
+    public DatasetProcessing markReadyForMaterialization(
+            UUID tenantId,
+            UUID datasetProcessingId,
+            OffsetDateTime now
+    ) {
+        DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
+        List<StagedSourceRecord> records = recordsFor(tenantId, datasetProcessingId);
+        if (records.stream().anyMatch(record -> record.getState() != StagedRecordState.STAGED
+                || record.getValidationStatus() != StagedRecordValidationStatus.PASSED
+                || !record.isMaterializationEligible())) {
+            throw new IllegalStateException("Dataset contains records that are not eligible for materialization");
+        }
+        processing.markReadyForMaterialization(now);
+        return datasetRepository.save(processing);
+    }
+
+    @Transactional
+    public DatasetProcessing beginMaterialization(
+            UUID tenantId,
+            UUID datasetProcessingId,
+            String materializationKey,
+            String materializationVersion,
+            UUID correlationId,
+            OffsetDateTime now
+    ) {
+        DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
+        processing.beginMaterialization(materializationKey, materializationVersion, correlationId, now);
+        return datasetRepository.save(processing);
+    }
+
+    @Transactional
+    public DatasetProcessing markMaterialized(
+            UUID tenantId,
+            UUID datasetProcessingId,
+            String materializationKey,
+            String materializationVersion,
+            OffsetDateTime now
+    ) {
+        DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
+        processing.markMaterialized(materializationKey, materializationVersion, now);
+        return datasetRepository.save(processing);
+    }
+
+    @Transactional
+    public DatasetProcessing markMaterializationFailed(
+            UUID tenantId,
+            UUID datasetProcessingId,
+            String materializationKey,
+            String materializationVersion,
+            String failureReason,
+            OffsetDateTime now
+    ) {
+        DatasetProcessing processing = requireDataset(tenantId, datasetProcessingId);
+        processing.markMaterializationFailed(
+                materializationKey, materializationVersion, failureReason, now);
+        return datasetRepository.save(processing);
+    }
+
+    @Transactional
     public StagedSourceRecord quarantineRecord(
             UUID tenantId,
             UUID datasetProcessingId,
