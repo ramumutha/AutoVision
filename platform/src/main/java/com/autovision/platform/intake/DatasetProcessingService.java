@@ -221,8 +221,6 @@ public class DatasetProcessingService {
         }
         record.markValidationFailed();
         record.quarantine();
-        processing.quarantine(now);
-        datasetRepository.save(processing);
         return recordRepository.save(record);
     }
 

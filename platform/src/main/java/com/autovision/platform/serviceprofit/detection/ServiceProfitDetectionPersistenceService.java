@@ -1,10 +1,12 @@
 package com.autovision.platform.serviceprofit.detection;
 
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunity;
+import com.autovision.platform.serviceprofit.ServiceProfitOpportunityEvidenceService;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityRepository;
 import com.autovision.platform.serviceprofit.ServiceProfitSuppressionReason;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -13,11 +15,21 @@ import java.util.UUID;
 public class ServiceProfitDetectionPersistenceService {
 
     private final ServiceProfitOpportunityRepository repository;
+        private final ServiceProfitOpportunityEvidenceService evidenceService;
 
+        @Autowired
     public ServiceProfitDetectionPersistenceService(
-            ServiceProfitOpportunityRepository repository
+                        ServiceProfitOpportunityRepository repository,
+                        ServiceProfitOpportunityEvidenceService evidenceService
     ) {
         this.repository = repository;
+                this.evidenceService = evidenceService;
+        }
+
+        public ServiceProfitDetectionPersistenceService(
+                        ServiceProfitOpportunityRepository repository
+        ) {
+                this(repository, null);
     }
 
     @Transactional
@@ -65,6 +77,7 @@ public class ServiceProfitDetectionPersistenceService {
                 );
 
         if (existing.isPresent()) {
+                        persistEvidence(result, existing.get(), detectedAt);
             return new ServiceProfitPersistenceResult(
                     ServiceProfitPersistenceOutcome.EXISTING,
                     existing.get()
@@ -119,9 +132,28 @@ public class ServiceProfitDetectionPersistenceService {
         ServiceProfitOpportunity persisted =
                 repository.save(opportunity);
 
+        persistEvidence(result, persisted, detectedAt);
+
         return new ServiceProfitPersistenceResult(
                 outcome,
                 persisted
         );
     }
+
+        private void persistEvidence(
+                        ServiceProfitDetectionResult result,
+                        ServiceProfitOpportunity opportunity,
+                        OffsetDateTime capturedAt
+        ) {
+                if (evidenceService != null && !result.evidence().isEmpty()) {
+                        evidenceService.persist(
+                                        opportunity,
+                                        result.evidence(),
+                                        result.sourceSystem(),
+                                        result.evidenceClass(),
+                                        result.evidenceStrength(),
+                                        capturedAt
+                        );
+                }
+        }
 }

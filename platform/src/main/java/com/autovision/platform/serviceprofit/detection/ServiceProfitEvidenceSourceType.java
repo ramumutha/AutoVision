@@ -4,6 +4,7 @@ public enum ServiceProfitEvidenceSourceType {
     REPAIR_ORDER,
     SERVICE_JOB,
     RECOMMENDATION,
+    DISPOSITION,
     ADVISOR_NOTE,
     SERVICE_HISTORY,
     INVOICE,

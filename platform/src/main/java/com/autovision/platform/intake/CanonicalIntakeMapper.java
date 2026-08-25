@@ -139,7 +139,11 @@ public class CanonicalIntakeMapper {
 
     private StagedSourceRecord findByReference(Map<String, StagedSourceRecord> records, String field, String id) {
         if (records == null || id == null) return null;
-        return records.values().stream().filter(record -> id.equals(text(payload(record), field))).findFirst().orElse(null);
+        return records.values().stream()
+            .filter(this::eligible)
+            .filter(record -> id.equals(text(payload(record), field)))
+            .findFirst()
+            .orElse(null);
     }
 
     private JsonNode payload(StagedSourceRecord record) {
@@ -222,7 +226,12 @@ public class CanonicalIntakeMapper {
             ServiceProfitEvidenceSourceType sourceType;
             try { sourceType = ServiceProfitEvidenceSourceType.valueOf(record.getRecordType().name()); }
             catch (IllegalArgumentException exception) { continue; }
-            result.add(new ServiceProfitEvidenceRef(sourceType, record.getSourceRecordId(), record.getCreatedAt()));
+                result.add(new ServiceProfitEvidenceRef(
+                    sourceType,
+                    record.getSourceRecordId(),
+                    record.getSourceParentId(),
+                    record.getCreatedAt()
+                ));
         }
         return List.copyOf(result);
     }

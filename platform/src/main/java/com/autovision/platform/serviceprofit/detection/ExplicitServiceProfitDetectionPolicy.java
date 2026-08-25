@@ -94,7 +94,8 @@ public class ExplicitServiceProfitDetectionPolicy {
                 input.sourceServiceLineId(),
                 input.sourceQuoteId(),
 
-                POLICY_VERSION
+                POLICY_VERSION,
+                input.evidence()
         );
     }
 

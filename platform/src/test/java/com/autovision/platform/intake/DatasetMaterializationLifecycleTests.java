@@ -69,8 +69,14 @@ class DatasetMaterializationLifecycleTests {
     }
 
     @Test
-    void quarantinedDatasetCannotBecomeReady() {
+    void mixedDatasetCanBecomeReadyWhenQuarantinedRecordsAreExcluded() {
         DatasetProcessing processing = persistedDataset("READY-2");
+        StagedSourceRecord safe = service.stageRecord(
+                processing.getTenantId(), processing.getId(), StagedRecordType.CUSTOMER,
+                "CUSTOMER-SAFE", null, "1", null,
+                new ObjectMapper().createObjectNode(), NOW
+        );
+        service.markRecordPassed(processing.getTenantId(), processing.getId(), safe.getId());
         StagedSourceRecord record = service.stageRecord(
                 processing.getTenantId(), processing.getId(), StagedRecordType.CUSTOMER,
                 "CUSTOMER-2", null, "1", null,
@@ -78,14 +84,9 @@ class DatasetMaterializationLifecycleTests {
         );
         service.quarantineRecord(processing.getTenantId(), processing.getId(), record.getId(), NOW.plusMinutes(1));
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> service.markReadyForMaterialization(
-                        processing.getTenantId(), processing.getId(), NOW.plusMinutes(2)
-                )
-        );
+        service.markReadyForMaterialization(processing.getTenantId(), processing.getId(), NOW.plusMinutes(2));
         assertEquals(
-                DatasetProcessingStatus.QUARANTINED,
+                DatasetProcessingStatus.READY_FOR_MATERIALIZATION,
                 service.requireDataset(processing.getTenantId(), processing.getId()).getStatus()
         );
     }

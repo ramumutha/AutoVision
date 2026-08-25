@@ -113,7 +113,8 @@ public class LifecycleServiceProfitDetectionPolicy {
                 input.sourceServiceLineId(),
                 input.sourceQuoteId(),
 
-                config.policyVersion()
+                config.policyVersion(),
+                input.evidence()
         );
     }
 

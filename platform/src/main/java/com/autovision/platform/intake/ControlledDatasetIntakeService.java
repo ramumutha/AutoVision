@@ -119,9 +119,6 @@ public class ControlledDatasetIntakeService {
         quarantined = (int) persistenceService.recordsFor(envelope.tenantId(), processing.getId()).stream()
                 .filter(record -> record.getState() == StagedRecordState.QUARANTINED).count();
         int staged = parsed.records().size() - quarantined;
-        if (errors > 0 && processing.getStatus() == DatasetProcessingStatus.STAGED) {
-            persistenceService.markValidationFailed(envelope.tenantId(), processing.getId(), receivedAt);
-        }
         return result(processing, parsed.records().size(), staged, quarantined,
                 fatal, errors, warnings, info, false);
     }

@@ -231,7 +231,7 @@ class DatasetProcessingPersistenceTests {
         assertEquals(StagedRecordValidationStatus.FAILED, quarantined.getValidationStatus());
         assertFalse(quarantined.isMaterializationEligible());
         assertEquals(
-                DatasetProcessingStatus.QUARANTINED,
+                DatasetProcessingStatus.STAGED,
                 datasetRepository.findById(processing.getId()).orElseThrow().getStatus()
         );
         assertEquals(1, service.findingsFor(tenantId, processing.getId()).size());

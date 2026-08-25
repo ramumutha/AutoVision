@@ -1,0 +1,28 @@
+{
+  "contractId": "AV-R1-CDF-001",
+  "contractVersion": "1.0",
+  "datasetId": "partner-validation-r1",
+  "datasetVersion": "1",
+  "tenantId": "10000000-0000-4000-8000-000000000001",
+  "dealerId": "20000000-0000-4000-8000-000000000001",
+  "locationId": "30000000-0000-4000-8000-000000000001",
+  "sourceSystem": "partner-validation-export",
+  "sourceSchemaVersion": "2026-08",
+  "deliveryType": "FULL",
+  "mappingVersion": "r1-partner-validation-1",
+  "recordFiles": {
+    "ORGANIZATION": "organization.json",
+    "CUSTOMER": "customers.json",
+    "VEHICLE": "vehicles.json",
+    "SERVICE_ORDER": "service-orders.json",
+    "SERVICE_JOB": "service-jobs.json",
+    "SERVICE_LINE": "service-lines.json",
+    "RECOMMENDATION": "recommendations.json",
+    "DISPOSITION": "dispositions.json",
+    "NOTE": "notes.json",
+    "SERVICE_HISTORY": "service-history.json",
+    "INVOICE": "invoices.json",
+    "INVOICE_LINE": "invoice-lines.json",
+    "COST": "costs.json"
+  }
+}

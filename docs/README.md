@@ -63,6 +63,8 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 ## Operations
 
 - [Controlled dealer data intake operator runbook](operations/controlled-dealer-data-intake-operator-runbook.md): controlled FULL intake, reconciliation, replay, recovery, and safe operational handling.
+- [First-partner controlled data request](operations/first-partner-data-request.md): minimum authorized FULL-file data needed for a pilot.
+- [R1 G6.6 pilot readiness gate](operations/r1-g6-6-pilot-readiness.md): fixture-based acceptance evidence, KPI availability, and open pilot blocker.
 
 ## Demo Readiness
 
