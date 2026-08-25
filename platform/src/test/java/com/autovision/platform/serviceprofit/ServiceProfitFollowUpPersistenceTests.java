@@ -140,6 +140,35 @@ class ServiceProfitFollowUpPersistenceTests {
                 ServiceProfitFollowUpEventType.valueOf("HANDLING_STATUS_CHANGED"));
     }
 
+    @Test
+    void approvedDispositionVocabularyIsCompleteAndRejectsArbitraryValues() {
+        assertEquals(java.util.List.of(
+                        "NONE",
+                        "FOLLOW_UP_REQUIRED",
+                        "INTEREST_RECORDED",
+                        "DECLINED_RECORDED",
+                        "NO_RESPONSE_RECORDED",
+                        "NO_FURTHER_ACTION"
+                ),
+                java.util.Arrays.stream(ServiceProfitFollowUpDisposition.values())
+                        .map(Enum::name)
+                        .toList());
+        assertThrows(IllegalArgumentException.class,
+                () -> ServiceProfitFollowUpDisposition.valueOf("AUTHORIZED"));
+    }
+
+    @Test
+    void approvedDispositionValuesCanBeRepresentedInAppendOnlyHistory() {
+        for (ServiceProfitFollowUpDisposition disposition : ServiceProfitFollowUpDisposition.values()) {
+            ServiceProfitFollowUpHistory history = ServiceProfitFollowUpHistory.record(
+                    UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                    ServiceProfitFollowUpEventType.DISPOSITION_CHANGED,
+                    ServiceProfitFollowUpDisposition.NONE.name(), disposition.name(), 0, 1, NOW);
+
+            assertEquals(disposition.name(), history.getNewValue());
+        }
+    }
+
     private ServiceProfitFollowUpPersistenceService service(
             ServiceProfitOpportunityRepository opportunities,
             ServiceProfitFollowUpRepository followUps,
