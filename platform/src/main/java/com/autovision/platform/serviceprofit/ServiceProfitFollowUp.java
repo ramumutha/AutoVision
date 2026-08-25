@@ -124,6 +124,38 @@ public class ServiceProfitFollowUp {
 
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 
+        void claim(UUID principalId, OffsetDateTime claimedAt) {
+                requireId(principalId, "Follow-up owner principal ID is required");
+                requireTime(claimedAt, "Follow-up claim time is required");
+                if (ownerPrincipalId != null) {
+                        throw new IllegalStateException("Follow-up is already owned");
+                }
+                ownerPrincipalId = principalId;
+                this.claimedAt = claimedAt;
+                updatedAt = claimedAt;
+        }
+
+        void changeDueAt(OffsetDateTime dueAt, OffsetDateTime changedAt) {
+                requireTime(dueAt, "Next action due time is required");
+                requireTime(changedAt, "Follow-up update time is required");
+                nextActionDueAt = dueAt;
+                updatedAt = changedAt;
+        }
+
+        void changeDisposition(ServiceProfitFollowUpDisposition disposition, OffsetDateTime changedAt) {
+                if (disposition == null) throw new IllegalArgumentException("Follow-up disposition is required");
+                requireTime(changedAt, "Follow-up update time is required");
+                currentDisposition = disposition;
+                updatedAt = changedAt;
+        }
+
+        void complete(OffsetDateTime completedAt) {
+                requireTime(completedAt, "Follow-up completion time is required");
+                if (handlingStatus == ServiceProfitFollowUpHandlingStatus.COMPLETED) return;
+                handlingStatus = ServiceProfitFollowUpHandlingStatus.COMPLETED;
+                updatedAt = completedAt;
+        }
+
     private static void requireId(UUID value, String message) {
         if (value == null) throw new IllegalArgumentException(message);
     }
