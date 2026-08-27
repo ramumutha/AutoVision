@@ -30,6 +30,7 @@ class ServiceProfitFollowUpAuthorizationProvisioningTests {
 
         @BeforeEach
         void createPermissionFixture() {
+                jdbcClient.sql("DROP TABLE IF EXISTS platform.permissions").update();
                 jdbcClient.sql("""
                                 CREATE TABLE IF NOT EXISTS platform.permissions (
                                         id UUID PRIMARY KEY,

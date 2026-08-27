@@ -3,6 +3,7 @@ package com.autovision.platform.serviceprofit.detection;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunity;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityEvidenceService;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityRepository;
+import com.autovision.platform.serviceprofit.ServiceProfitFollowUpActivationService;
 import com.autovision.platform.serviceprofit.ServiceProfitSuppressionReason;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +17,17 @@ public class ServiceProfitDetectionPersistenceService {
 
     private final ServiceProfitOpportunityRepository repository;
         private final ServiceProfitOpportunityEvidenceService evidenceService;
+        private final ServiceProfitFollowUpActivationService activationService;
 
         @Autowired
     public ServiceProfitDetectionPersistenceService(
                         ServiceProfitOpportunityRepository repository,
-                        ServiceProfitOpportunityEvidenceService evidenceService
+                                        ServiceProfitOpportunityEvidenceService evidenceService,
+                                        ServiceProfitFollowUpActivationService activationService
     ) {
         this.repository = repository;
                 this.evidenceService = evidenceService;
+                this.activationService = activationService;
         }
 
         public ServiceProfitDetectionPersistenceService(
@@ -31,6 +35,13 @@ public class ServiceProfitDetectionPersistenceService {
         ) {
                 this(repository, null);
     }
+
+        public ServiceProfitDetectionPersistenceService(
+                        ServiceProfitOpportunityRepository repository,
+                        ServiceProfitOpportunityEvidenceService evidenceService
+        ) {
+                this(repository, evidenceService, null);
+        }
 
     @Transactional
     public ServiceProfitPersistenceResult persist(
@@ -78,6 +89,7 @@ public class ServiceProfitDetectionPersistenceService {
 
         if (existing.isPresent()) {
                         persistEvidence(result, existing.get(), detectedAt);
+                        activate(existing.get(), detectedAt);
             return new ServiceProfitPersistenceResult(
                     ServiceProfitPersistenceOutcome.EXISTING,
                     existing.get()
@@ -133,12 +145,19 @@ public class ServiceProfitDetectionPersistenceService {
                 repository.save(opportunity);
 
         persistEvidence(result, persisted, detectedAt);
+        activate(persisted, detectedAt);
 
         return new ServiceProfitPersistenceResult(
                 outcome,
                 persisted
         );
     }
+
+        private void activate(ServiceProfitOpportunity opportunity, OffsetDateTime activatedAt) {
+                if (activationService != null) {
+                        activationService.activate(opportunity, activatedAt);
+                }
+        }
 
         private void persistEvidence(
                         ServiceProfitDetectionResult result,

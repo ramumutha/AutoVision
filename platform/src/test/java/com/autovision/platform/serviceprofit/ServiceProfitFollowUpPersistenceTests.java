@@ -7,13 +7,17 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class ServiceProfitFollowUpPersistenceTests {
 
@@ -41,6 +45,59 @@ class ServiceProfitFollowUpPersistenceTests {
         assertEquals(ServiceProfitFollowUpHandlingStatus.OPEN, result.getHandlingStatus());
         assertEquals(ServiceProfitFollowUpDisposition.NONE, result.getCurrentDisposition());
         verify(history).save(any(ServiceProfitFollowUpHistory.class));
+    }
+
+        @Test
+        void systemEnsureCreatesSystemHistoryWithoutChangingFollowUpDefaults() {
+                UUID tenantId = UUID.randomUUID();
+                UUID opportunityId = UUID.randomUUID();
+                ServiceProfitOpportunity opportunity = opportunity(tenantId, opportunityId);
+                ServiceProfitOpportunityRepository opportunities = mock(ServiceProfitOpportunityRepository.class);
+                ServiceProfitFollowUpRepository followUps = mock(ServiceProfitFollowUpRepository.class);
+                ServiceProfitFollowUpHistoryRepository history = mock(ServiceProfitFollowUpHistoryRepository.class);
+                when(opportunities.findByIdAndTenantId(opportunityId, tenantId)).thenReturn(java.util.Optional.of(opportunity));
+                when(followUps.findByTenantIdAndOpportunityId(tenantId, opportunityId)).thenReturn(java.util.Optional.empty());
+                when(followUps.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+                when(history.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+                ServiceProfitFollowUpPersistenceResult result = service(opportunities, followUps, history)
+                                .ensureSystem(tenantId, opportunityId, NOW);
+
+                assertEquals(true, result.created());
+                assertEquals(ServiceProfitFollowUpHandlingStatus.OPEN, result.followUp().getHandlingStatus());
+                assertNull(result.followUp().getOwnerPrincipalId());
+                assertEquals(ServiceProfitFollowUpDisposition.NONE, result.followUp().getCurrentDisposition());
+                assertNull(result.followUp().getNextActionDueAt());
+                var historyCaptor = org.mockito.ArgumentCaptor.forClass(ServiceProfitFollowUpHistory.class);
+                verify(history).save(historyCaptor.capture());
+                assertEquals(ServiceProfitFollowUpHistoryActorType.SYSTEM, historyCaptor.getValue().getActorType());
+                assertNull(historyCaptor.getValue().getActorPrincipalId());
+                assertEquals(ServiceProfitFollowUpAuditApplication.AUTOVISION_SERVICE_PROFIT,
+                                historyCaptor.getValue().getApplicationId());
+        }
+
+    @Test
+    void systemEnsureResolvesDuplicateCreationAfterInnerTransactionRollsBack() {
+        UUID tenantId = UUID.randomUUID();
+        UUID opportunityId = UUID.randomUUID();
+        ServiceProfitOpportunity opportunity = opportunity(tenantId, opportunityId);
+        ServiceProfitOpportunityRepository opportunities = mock(ServiceProfitOpportunityRepository.class);
+        ServiceProfitFollowUpRepository followUps = mock(ServiceProfitFollowUpRepository.class);
+        ServiceProfitFollowUpHistoryRepository history = mock(ServiceProfitFollowUpHistoryRepository.class);
+        ServiceProfitSystemFollowUpCreationService creator = mock(ServiceProfitSystemFollowUpCreationService.class);
+        ServiceProfitFollowUp existing = ServiceProfitFollowUp.open(UUID.randomUUID(), tenantId, opportunityId, NOW);
+        when(opportunities.findByIdAndTenantId(opportunityId, tenantId)).thenReturn(java.util.Optional.of(opportunity));
+        when(followUps.findByTenantIdAndOpportunityId(tenantId, opportunityId))
+                .thenReturn(java.util.Optional.empty(), java.util.Optional.of(existing));
+        doThrow(new DataIntegrityViolationException("duplicate follow-up"))
+                .when(creator).create(tenantId, opportunityId, NOW);
+
+        ServiceProfitFollowUpPersistenceResult result = new ServiceProfitFollowUpPersistenceService(
+                opportunities, followUps, history, creator).ensureSystem(tenantId, opportunityId, NOW);
+
+        assertFalse(result.created());
+        assertEquals(existing.getId(), result.followUp().getId());
+        verify(history, never()).save(any(ServiceProfitFollowUpHistory.class));
     }
 
     @Test

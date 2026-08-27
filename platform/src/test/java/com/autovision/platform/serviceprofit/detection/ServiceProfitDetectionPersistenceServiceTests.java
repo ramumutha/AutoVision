@@ -3,6 +3,7 @@ package com.autovision.platform.serviceprofit.detection;
 import com.autovision.platform.serviceprofit.ServiceProfitActionability;
 import com.autovision.platform.serviceprofit.ServiceProfitEvidenceClass;
 import com.autovision.platform.serviceprofit.ServiceProfitEvidenceStrength;
+import com.autovision.platform.serviceprofit.ServiceProfitFollowUpActivationService;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunity;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityRepository;
 import com.autovision.platform.serviceprofit.ServiceProfitOpportunityStatus;
@@ -19,6 +20,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -115,6 +117,23 @@ class ServiceProfitDetectionPersistenceServiceTests {
         );
 
         verify(repository).save(any());
+    }
+
+    @Test
+    void firstDetectionActivatesOnlyThePersistedOpportunity() {
+        ServiceProfitOpportunityRepository repository = mock(ServiceProfitOpportunityRepository.class);
+        ServiceProfitFollowUpActivationService activation = mock(ServiceProfitFollowUpActivationService.class);
+        when(repository.findByTenantIdAndOpportunityKey(
+                TENANT_ID, "SP:DECLINED_WORK:TEST:001")).thenReturn(Optional.empty());
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ServiceProfitDetectionPersistenceService service =
+                new ServiceProfitDetectionPersistenceService(repository, null, activation);
+
+        ServiceProfitPersistenceResult result = service.persist(
+                detectionResult(false), PRINCIPAL_ID, DETECTED_AT);
+
+        verify(activation).activate(eq(result.opportunity()), eq(DETECTED_AT));
     }
 
     @Test
