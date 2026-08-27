@@ -52,4 +52,21 @@ describe('ServiceProfitApiService', () => {
     expect(request.request.method).toBe('GET');
     request.flush({});
   });
+
+  it('calls the frozen follow-up work-queue endpoint without a principal id', () => {
+    service.getWorkQueue({
+      handlingStatus: 'OPEN', ownership: 'MINE', dueState: 'OVERDUE', disposition: 'FOLLOW_UP_REQUIRED', page: 2, size: 25,
+    }).subscribe();
+
+    const request = controller.expectOne((candidate) => candidate.url === '/api/v1/service-profit/follow-ups');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('handlingStatus')).toBe('OPEN');
+    expect(request.request.params.get('ownership')).toBe('MINE');
+    expect(request.request.params.get('dueState')).toBe('OVERDUE');
+    expect(request.request.params.get('disposition')).toBe('FOLLOW_UP_REQUIRED');
+    expect(request.request.params.get('page')).toBe('2');
+    expect(request.request.params.get('size')).toBe('25');
+    expect(request.request.params.has('ownerPrincipalId')).toBe(false);
+    request.flush({ items: [], page: 2, size: 25, totalElements: 0, totalPages: 0 });
+  });
 });

@@ -30,6 +30,12 @@ export type ServiceProfitEvidenceClass = 'SOURCE_CONFIRMED' | 'EVIDENCE_DERIVED'
 export type ServiceProfitEvidenceStrength = 'STRONG' | 'MODERATE' | 'WEAK';
 export type ServiceProfitOpportunitySort = 'DETECTED_DESC' | 'DETECTED_ASC' | 'POTENTIAL_DESC' | 'POTENTIAL_ASC';
 export type ServiceProfitGroupBy = 'NONE' | 'OPPORTUNITY_TYPE' | 'PRIORITY' | 'ACTIONABILITY';
+export type ServiceProfitWorkQueueOwnership = 'ALL' | 'MINE' | 'UNASSIGNED';
+export type ServiceProfitWorkQueueDueState = 'ALL' | 'OVERDUE' | 'UPCOMING' | 'NO_DUE_DATE';
+export type ServiceProfitWorkQueueHandlingStatus = 'OPEN' | 'COMPLETED';
+export type ServiceProfitWorkQueueDisposition = 'NONE' | 'FOLLOW_UP_REQUIRED' | 'INTEREST_RECORDED' | 'DECLINED_RECORDED' | 'NO_RESPONSE_RECORDED' | 'NO_FURTHER_ACTION';
+export type ServiceProfitWorkQueueGroupBy = 'DUE_STATE' | 'OWNERSHIP' | 'DISPOSITION' | 'PRIORITY' | 'NONE';
+export type ServiceProfitWorkQueueSort = 'PRIORITY' | 'DUE_DATE' | 'OLDEST' | 'NEWEST';
 
 export type ServiceProfitSuppressionReason =
   | 'WORK_ALREADY_COMPLETED'
@@ -84,6 +90,48 @@ export interface ServiceProfitOpportunityPage {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+export interface ServiceProfitWorkQueueItem {
+  followUpId: string;
+  opportunityId: string;
+  handlingStatus: ServiceProfitWorkQueueHandlingStatus;
+  ownerPrincipalId: string | null;
+  claimedAt: string | null;
+  dueAt: string | null;
+  disposition: ServiceProfitWorkQueueDisposition;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  actionability: ServiceProfitActionability;
+  opportunityStatus: ServiceProfitOpportunityStatus;
+  evidenceClass: ServiceProfitEvidenceClass;
+  evidenceStrength: ServiceProfitEvidenceStrength;
+  priority: ServiceProfitPriority;
+  title: string;
+  summary: string;
+}
+
+export interface ServiceProfitWorkQueuePage {
+  items: ServiceProfitWorkQueueItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface ServiceProfitWorkQueueGroup {
+  key: string;
+  items: ServiceProfitWorkQueueItem[];
+}
+
+export interface ServiceProfitWorkQueueQuery {
+  handlingStatus?: ServiceProfitWorkQueueHandlingStatus;
+  ownership?: ServiceProfitWorkQueueOwnership;
+  dueState?: ServiceProfitWorkQueueDueState;
+  disposition?: ServiceProfitWorkQueueDisposition;
+  page?: number;
+  size?: number;
 }
 
 export interface ServiceProfitOpportunityGroup {
