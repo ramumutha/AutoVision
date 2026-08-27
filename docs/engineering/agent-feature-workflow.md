@@ -37,6 +37,23 @@ Add a branch only when it matters. Link the relevant feature, product decision, 
 
 The agent must not infer approval for roadmap additions, breaking contracts, destructive migrations, new dependencies, or security changes from a short prompt.
 
+## Work Modes
+
+Choose the primary mode that best describes the current work. The mode changes the questions and evidence emphasized below; every standing AutoVision rule remains active in every mode.
+
+| Mode | Emphasis and expected evidence |
+| --- | --- |
+| `DISCOVERY` | Problem, actors, workflow, evidence, unknowns, constraints, measurable outcome; label claims `VERIFIED`, `ASSUMPTION`, `HYPOTHESIS`, or `RESEARCH REQUIRED`. |
+| `PRODUCT` | Outcome, scope, requirements, acceptance criteria, dependencies, risks, release applicability, and traceability to product records. |
+| `UX` | Role, task, hierarchy, cognitive load, Carbon composition, responsive behavior, accessibility, safety/uncertainty, and complete UI states. |
+| `ARCHITECTURE` | Bounded context, canonical ownership, invariants, interfaces, transaction/security boundaries, persistence, failure handling, observability, maintainability, and ADR impact. |
+| `IMPLEMENTATION` | Smallest bounded change, nearest pattern, domain correctness, compatibility, readability, testability, and security. |
+| `TESTING` | Behavior, positive/negative paths, authorization, tenant containment, validation, persistence, concurrency, integration, accessibility, and regression evidence. |
+| `DEVOPS` | Current topology, reproducibility, secure configuration, secrets, container hardening, health, observability, rollback, compatibility, and cost. |
+| `RELEASE` | Acceptance evidence, regression, security, migration, operational readiness, documentation, known limitations, rollback, and traceability; build success alone is insufficient. |
+
+Work Mode never purges or suspends security, tenant isolation, architecture boundaries, Git safety, AI safety, accessibility, documentation, validation, frozen-baseline rules, canonical ownership, or product governance.
+
 ## Example: Frontend Slice
 
 ```text

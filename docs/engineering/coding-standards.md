@@ -60,6 +60,12 @@ Use the repository's existing framework and helper APIs before adding a dependen
 
 Avoid wrappers that merely rename framework APIs. Add an abstraction when it protects a domain contract, centralizes a cross-cutting invariant, or removes meaningful duplication.
 
+### Repository-pinned technology
+
+Checked-in manifests, lockfiles, build files, container definitions, and established implementation patterns define the adopted technology versions. Do not select a latest release or perform a framework, runtime, library, Carbon, database, Node.js, Maven, or Docker upgrade as incidental feature work. An upgrade is a separate maintenance or architecture task and requires a compatibility assessment, migration impact, security assessment, test evidence, and rollback strategy. A bounded security remediation may change a dependency when the risk and validation are explicit.
+
+Before creating a new entity, DTO, controller, service, repository, mapper, validator, exception, UI component, utility, migration, test helper, Docker construct, or configuration mechanism, search for the nearest equivalent. Prefer reuse, extension, and composition in that order; introduce a new abstraction only when the existing boundary cannot express the requirement without harming cohesion or correctness.
+
 ## Comments and Errors
 
 Code should explain the normal path through names and structure. Comments are appropriate for non-obvious invariants, compatibility constraints, or reasoning that cannot be encoded in types. Do not narrate individual assignments.

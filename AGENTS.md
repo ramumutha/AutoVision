@@ -8,14 +8,16 @@ This checklist complements the repository constitution in [.github/copilot-instr
 2. Read `README.md`, `docs/README.md`, applicable `.github/instructions`, and the nearest product/architecture document.
 3. Inspect the bounded owner and a relevant test or call site before editing.
 4. Preserve user-owned changes. Never reset, stash, discard, stage, commit, or push unless explicitly requested.
+5. Declare the primary Work Mode (`DISCOVERY`, `PRODUCT`, `UX`, `ARCHITECTURE`, `IMPLEMENTATION`, `TESTING`, `DEVOPS`, or `RELEASE`) and keep all standing security, architecture, Git, accessibility, documentation, and validation rules active.
 
 ## During Work
 
 1. State the change boundary and keep edits inside it.
-2. Implement the smallest behaviorally complete change at the owning responsibility.
-3. Reuse proven domain abstractions and presentations; do not build speculative generic frameworks.
-4. Keep code, tests, contracts, and documentation readable without agent assistance.
-5. Protect tenant isolation, server-authoritative authorization, secrets, API compatibility, accessibility, localization, and responsive behavior.
+2. Search for the nearest established equivalent before creating a new abstraction, dependency, component, contract, persistence object, migration, or infrastructure construct.
+3. Implement the smallest behaviorally complete change at the owning responsibility.
+4. Reuse proven domain abstractions and presentations; do not build speculative generic frameworks.
+5. Keep code, tests, contracts, and documentation readable without agent assistance.
+6. Protect tenant isolation, server-authoritative authorization, secrets, API compatibility, accessibility, localization, and responsive behavior.
 
 ## Before Completion
 

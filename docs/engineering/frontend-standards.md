@@ -35,6 +35,10 @@ This is preferable to duplicating detail markup or building one giant responsive
 
 Apply the [coding-standard size guidance](coding-standards.md#maintainability-guidance). Angular TS should preferably remain below 300 lines, HTML below 250, and SCSS below 300.
 
+### Carbon-first composition
+
+Before creating a custom interactive control, inspect the current shared design-system components and the repository's adopted IBM Carbon dependencies and patterns. Prefer a Carbon primitive when it represents the interaction accessibly, then compose the domain component around it. Custom interaction behavior is justified only when an established primitive cannot represent the domain workflow without degrading comprehension or accessibility. Do not introduce or upgrade Carbon as incidental feature work.
+
 ## State and Navigation
 
 Use URL-backed state when users expect refresh, deep links, Back, or Forward to preserve filters, sorting, tabs, or views. Validate query parameters against domain allow-lists and use safe defaults. Do not place tenant IDs, sensitive identifiers, or authorization decisions in URL state.
@@ -63,6 +67,10 @@ Responsive behavior is a workflow decision, not just smaller spacing.
 - Preserve visible feedback, touch targets of about 44 CSS pixels where practical, and document-level overflow checks.
 
 Do not hide essential safety states such as suppression or required review. Horizontal scrolling inside an intentional control rail can be acceptable; horizontal document overflow is not.
+
+Information density follows the user role. Manager and enterprise surfaces support comparison, exceptions, trends, and drill-down. Advisor and technician surfaces prioritize speed, current-state clarity, and actionable exceptions. Customer surfaces prioritize plain language, trust, and low cognitive load. Consider desktop, tablet, and mobile for the target role and validate navigation, tables/cards, forms, long text, values, evidence, actions, and failure states explicitly.
+
+Significant interactive surfaces deliberately handle applicable initial, loading, loaded, empty, partial, warning, error, forbidden, disabled, stale/conflict, and offline/degraded states. Framework defaults do not count as validation.
 
 ## Accessibility
 
