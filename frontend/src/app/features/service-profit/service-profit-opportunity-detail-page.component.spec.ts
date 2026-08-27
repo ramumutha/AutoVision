@@ -49,7 +49,7 @@ describe('ServiceProfitOpportunityDetailPageComponent', () => {
     harness.detectChanges();
     expect(api.getOpportunity).toHaveBeenCalledWith('opportunity-1');
     expect(component).toBeInstanceOf(ServiceProfitOpportunityDetailPageComponent);
-    expect(harness.routeNativeElement?.querySelector('app-service-profit-opportunity-detail')).not.toBeNull();
+    expect(harness.routeNativeElement?.querySelector('app-service-profit-opportunity-workspace')).not.toBeNull();
     expect(harness.routeNativeElement?.textContent).toContain('Recover declined brake work');
   });
 
@@ -66,12 +66,12 @@ describe('ServiceProfitOpportunityDetailPageComponent', () => {
   it('preserves list query state when a direct-link Back needs the list fallback', async () => {
     api.getOpportunity.mockReturnValue(of(opportunity));
     const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl('/service-profit/opportunities/opportunity-1?type=DECLINED_WORK&priority=HIGH&actionability=READY&sort=POTENTIAL_DESC', ServiceProfitOpportunityDetailPageComponent);
+    await harness.navigateByUrl('/service-profit/opportunities/opportunity-1?ownership=MINE&handlingStatus=OPEN&dueState=OVERDUE&disposition=FOLLOW_UP_REQUIRED&groupBy=PRIORITY&sort=OLDEST', ServiceProfitOpportunityDetailPageComponent);
     harness.detectChanges();
     history.replaceState({ navigationId: 1 }, '');
     harness.routeNativeElement?.querySelector<HTMLButtonElement>('.back-action')?.click();
     await harness.fixture.whenStable();
-    expect(TestBed.inject(Router).url).toBe('/service-profit?type=DECLINED_WORK&priority=HIGH&actionability=READY&sort=POTENTIAL_DESC');
+    expect(TestBed.inject(Router).url).toBe('/service-profit?ownership=MINE&handlingStatus=OPEN&dueState=OVERDUE&disposition=FOLLOW_UP_REQUIRED&groupBy=PRIORITY&sort=OLDEST');
   });
 
   it('cancels stale detail requests when the route ID changes', async () => {

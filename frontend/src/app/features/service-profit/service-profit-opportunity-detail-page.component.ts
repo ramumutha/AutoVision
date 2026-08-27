@@ -7,12 +7,12 @@ import { ApiError } from '../../core/error/api-error';
 import { LocalizationService } from '../../core/localization/localization.service';
 import { AvFeedbackComponent } from '../../shared/feedback/av-feedback.component';
 import { ServiceProfitApiService } from './service-profit-api.service';
-import { ServiceProfitOpportunityDetailComponent } from './service-profit-opportunity-detail.component';
+import { ServiceProfitOpportunityWorkspaceComponent } from './service-profit-opportunity-workspace.component';
 import { ServiceProfitOpportunityResponse } from './service-profit.models';
 
 @Component({
   selector: 'app-service-profit-opportunity-detail-page',
-  imports: [AvFeedbackComponent, ServiceProfitOpportunityDetailComponent],
+  imports: [AvFeedbackComponent, ServiceProfitOpportunityWorkspaceComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="page-header">
@@ -27,7 +27,7 @@ import { ServiceProfitOpportunityResponse } from './service-profit.models';
         <button class="retry-action" type="button" (click)="retry()">{{ localization.text('retry') }}</button>
       }
     } @else if (opportunity(); as detail) {
-      <app-service-profit-opportunity-detail [opportunity]="detail" />
+      <app-service-profit-opportunity-workspace [opportunity]="detail" />
     }
   `,
   styles: [`
@@ -107,7 +107,7 @@ export class ServiceProfitOpportunityDetailPageComponent {
 
   private listQueryParams(): Params {
     const params = this.route.snapshot.queryParamMap;
-    return ['type', 'priority', 'actionability', 'sort'].reduce<Params>((result, key) => {
+    return ['type', 'priority', 'actionability', 'ownership', 'handlingStatus', 'dueState', 'disposition', 'groupBy', 'sort'].reduce<Params>((result, key) => {
       const value = params.get(key);
       if (value) result[key] = value;
       return result;

@@ -39,6 +39,9 @@ class ServiceProfitWorkQueueControllerIntegrationTests {
     @MockitoBean
     private ServiceProfitWorkQueueQueryService queryService;
 
+        @MockitoBean
+        private ServiceProfitFollowUpReadService followUpReadService;
+
     private final UUID principalId = UUID.fromString("761b3ab6-bd03-48c0-a107-44fa1403b0f3");
     private final UUID tenantId = UUID.fromString("2cf85fea-bc61-4405-be50-00a0ca45df3b");
     private final AuthenticatedTenantContext context =
@@ -71,6 +74,46 @@ class ServiceProfitWorkQueueControllerIntegrationTests {
                 .andExpect(jsonPath("$.items[0].customerAuthorization").doesNotExist())
                 .andExpect(jsonPath("$.items[0].recoveredRevenue").doesNotExist());
         verify(queryService).findPage(context, defaultQuery());
+    }
+
+    @Test
+    void authorizedFollowUpReadReturnsSafeContract() throws Exception {
+        UUID opportunityId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(followUpReadService.readCurrent(context, opportunityId)).thenReturn(new ServiceProfitFollowUpResponse(
+                opportunityId, ServiceProfitFollowUpHandlingStatus.OPEN, ServiceProfitFollowUpOwnership.MINE,
+                null, ServiceProfitWorkQueueDueState.NO_DUE_DATE, ServiceProfitFollowUpDisposition.NONE, 3));
+
+        mockMvc.perform(get("/api/v1/service-profit/opportunities/{opportunityId}/follow-up", opportunityId)
+                        .with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.opportunityId").value(opportunityId.toString()))
+                .andExpect(jsonPath("$.ownership").value("MINE"))
+                .andExpect(jsonPath("$.ownerPrincipalId").doesNotExist())
+                .andExpect(jsonPath("$.tenantId").doesNotExist())
+                .andExpect(jsonPath("$.customerId").doesNotExist())
+                .andExpect(jsonPath("$.recoveredRevenue").doesNotExist());
+        verify(followUpReadService).readCurrent(context, opportunityId);
+    }
+
+    @Test
+    void authorizedHistoryReadReturnsSafeContract() throws Exception {
+        UUID opportunityId = UUID.randomUUID();
+        when(tenantContextResolver.resolve(any())).thenReturn(context);
+        when(followUpReadService.readHistory(context, opportunityId)).thenReturn(List.of(
+                new ServiceProfitFollowUpHistoryResponse(ServiceProfitFollowUpEventType.CREATED,
+                        ServiceProfitFollowUpHistoryActorType.SYSTEM, "AUTOVISION_SERVICE_PROFIT",
+                        "AUTOVISION_SERVICE_PROFIT", OffsetDateTime.parse("2026-08-20T10:00:00Z"), null, "OPEN")));
+
+        mockMvc.perform(get("/api/v1/service-profit/opportunities/{opportunityId}/follow-up/history", opportunityId)
+                        .with(authenticatedJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].actorIdentity").value("AUTOVISION_SERVICE_PROFIT"))
+                .andExpect(jsonPath("$[0].applicationIdentity").value("AUTOVISION_SERVICE_PROFIT"))
+                .andExpect(jsonPath("$[0].actorPrincipalId").doesNotExist())
+                .andExpect(jsonPath("$[0].tenantId").doesNotExist())
+                .andExpect(jsonPath("$[0].financialOutcome").doesNotExist());
+        verify(followUpReadService).readHistory(context, opportunityId);
     }
 
     @Test

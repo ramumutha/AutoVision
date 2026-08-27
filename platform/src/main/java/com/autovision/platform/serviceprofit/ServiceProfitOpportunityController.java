@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -26,19 +27,22 @@ public class ServiceProfitOpportunityController {
     private final ServiceProfitOpportunityAccessService accessService;
     private final ServiceProfitOpportunityQueryService queryService;
         private final ServiceProfitOpportunityContextService contextService;
+        private final ServiceProfitFollowUpReadService followUpReadService;
 
     public ServiceProfitOpportunityController(
             TenantContextResolver tenantContextResolver,
             ServiceProfitOpportunityCommandService commandService,
             ServiceProfitOpportunityAccessService accessService,
             ServiceProfitOpportunityQueryService queryService,
-            ServiceProfitOpportunityContextService contextService
+            ServiceProfitOpportunityContextService contextService,
+            ServiceProfitFollowUpReadService followUpReadService
     ) {
         this.tenantContextResolver = tenantContextResolver;
         this.commandService = commandService;
         this.accessService = accessService;
         this.queryService = queryService;
         this.contextService = contextService;
+        this.followUpReadService = followUpReadService;
     }
 
     @PostMapping
@@ -184,4 +188,20 @@ public class ServiceProfitOpportunityController {
                 contextService.findFor(opportunity).orElse(null)
         );
     }
+
+        @GetMapping("/{opportunityId}/follow-up")
+        public ServiceProfitFollowUpResponse getFollowUp(
+                        @PathVariable UUID opportunityId,
+                        @AuthenticationPrincipal Jwt jwt
+        ) {
+                return followUpReadService.readCurrent(tenantContextResolver.resolve(jwt), opportunityId);
+        }
+
+        @GetMapping("/{opportunityId}/follow-up/history")
+        public List<ServiceProfitFollowUpHistoryResponse> getFollowUpHistory(
+                        @PathVariable UUID opportunityId,
+                        @AuthenticationPrincipal Jwt jwt
+        ) {
+                return followUpReadService.readHistory(tenantContextResolver.resolve(jwt), opportunityId);
+        }
 }

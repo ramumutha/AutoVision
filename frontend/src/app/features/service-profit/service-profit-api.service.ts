@@ -11,6 +11,8 @@ import {
   ServiceProfitOpportunitySummary,
   ServiceProfitWorkQueuePage,
   ServiceProfitWorkQueueQuery,
+  ServiceProfitFollowUpResponse,
+  ServiceProfitFollowUpHistoryResponse,
 } from './service-profit.models';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +47,18 @@ export class ServiceProfitApiService {
     return this.api.get<ServiceProfitWorkQueuePage>('/v1/service-profit/follow-ups', {
       params: this.toParams(query),
     });
+  }
+
+  getOpportunityFollowUp(opportunityId: string): Observable<ServiceProfitFollowUpResponse> {
+    return this.api.get<ServiceProfitFollowUpResponse>(
+      `/v1/service-profit/opportunities/${encodeURIComponent(opportunityId)}/follow-up`,
+    );
+  }
+
+  getOpportunityFollowUpHistory(opportunityId: string): Observable<ServiceProfitFollowUpHistoryResponse[]> {
+    return this.api.get<ServiceProfitFollowUpHistoryResponse[]>(
+      `/v1/service-profit/opportunities/${encodeURIComponent(opportunityId)}/follow-up/history`,
+    );
   }
   private toParams(values: ServiceProfitOpportunityQuery): HttpParams {
     return Object.entries(values).reduce(

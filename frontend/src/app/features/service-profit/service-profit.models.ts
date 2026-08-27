@@ -134,6 +134,34 @@ export interface ServiceProfitWorkQueueQuery {
   size?: number;
 }
 
+export type ServiceProfitFollowUpHandlingStatus = 'OPEN' | 'COMPLETED';
+export type ServiceProfitFollowUpOwnership = 'MINE' | 'ASSIGNED' | 'UNASSIGNED';
+export type ServiceProfitFollowUpDueState = 'OVERDUE' | 'UPCOMING' | 'NO_DUE_DATE';
+export type ServiceProfitFollowUpDisposition = 'NONE' | 'FOLLOW_UP_REQUIRED' | 'INTEREST_RECORDED' | 'DECLINED_RECORDED' | 'NO_RESPONSE_RECORDED' | 'NO_FURTHER_ACTION';
+
+export interface ServiceProfitFollowUpResponse {
+  opportunityId: string;
+  handlingStatus: ServiceProfitFollowUpHandlingStatus;
+  ownership: ServiceProfitFollowUpOwnership;
+  dueAt: string | null;
+  dueState: ServiceProfitFollowUpDueState;
+  disposition: ServiceProfitFollowUpDisposition;
+  version: number;
+}
+
+export type ServiceProfitFollowUpHistoryEventType = 'CREATED' | 'OWNERSHIP_CLAIMED' | 'DUE_DATE_CHANGED' | 'DISPOSITION_CHANGED' | 'HANDLING_STATUS_CHANGED';
+export type ServiceProfitFollowUpHistoryActorType = 'HUMAN' | 'SYSTEM';
+
+export interface ServiceProfitFollowUpHistoryResponse {
+  eventType: ServiceProfitFollowUpHistoryEventType;
+  actorType: ServiceProfitFollowUpHistoryActorType;
+  actorIdentity: 'ME' | 'HUMAN' | 'AUTOVISION_SERVICE_PROFIT';
+  applicationIdentity: 'AUTOVISION_SERVICE_PROFIT' | null;
+  occurredAt: string;
+  previousValue: string | null;
+  newValue: string | null;
+}
+
 export interface ServiceProfitOpportunityGroup {
   key: string;
   authoritativeCount: number;

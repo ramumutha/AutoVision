@@ -69,4 +69,20 @@ describe('ServiceProfitApiService', () => {
     expect(request.request.params.has('ownerPrincipalId')).toBe(false);
     request.flush({ items: [], page: 2, size: 25, totalElements: 0, totalPages: 0 });
   });
+
+  it('calls the authoritative opportunity follow-up read endpoint', () => {
+    service.getOpportunityFollowUp('opportunity/1').subscribe();
+
+    const request = controller.expectOne('/api/v1/service-profit/opportunities/opportunity%2F1/follow-up');
+    expect(request.request.method).toBe('GET');
+    request.flush({});
+  });
+
+  it('calls the authoritative opportunity follow-up history read endpoint', () => {
+    service.getOpportunityFollowUpHistory('opportunity/1').subscribe();
+
+    const request = controller.expectOne('/api/v1/service-profit/opportunities/opportunity%2F1/follow-up/history');
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
 });
