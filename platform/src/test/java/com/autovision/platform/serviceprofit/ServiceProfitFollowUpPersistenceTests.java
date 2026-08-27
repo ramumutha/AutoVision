@@ -88,9 +88,30 @@ class ServiceProfitFollowUpPersistenceTests {
         assertFalse(java.util.Arrays.stream(ServiceProfitFollowUpHistory.class.getDeclaredFields())
                 .anyMatch(field -> field.getName().equals("internalNote")));
         assertEquals(ServiceProfitFollowUpEventType.CREATED, history.getEventType());
+        assertEquals(ServiceProfitFollowUpHistoryActorType.HUMAN, history.getActorType());
+        assertEquals(null, history.getApplicationId());
         assertEquals(0, history.getObservedVersion());
         assertEquals(0, history.getWrittenVersion());
         assertEquals(NOW, history.getOccurredAt());
+    }
+
+    @Test
+    void humanHistoryRequiresAPrincipalIdentity() {
+        assertThrows(IllegalArgumentException.class, () -> ServiceProfitFollowUpHistory.record(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
+                ServiceProfitFollowUpEventType.CREATED, null, "OPEN", 0, 0, NOW));
+    }
+
+    @Test
+    void systemHistoryUsesApplicationIdentityWithoutAFakePrincipal() {
+        ServiceProfitFollowUpHistory history = ServiceProfitFollowUpHistory.recordSystem(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                ServiceProfitFollowUpEventType.CREATED, null, "OPEN", 0, 0, NOW);
+
+        assertEquals(ServiceProfitFollowUpHistoryActorType.SYSTEM, history.getActorType());
+        assertEquals(null, history.getActorPrincipalId());
+        assertEquals(ServiceProfitFollowUpAuditApplication.AUTOVISION_SERVICE_PROFIT,
+                history.getApplicationId());
     }
 
     @Test

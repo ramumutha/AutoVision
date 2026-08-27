@@ -27,8 +27,15 @@ public class ServiceProfitFollowUpHistory {
     @Column(name = "opportunity_id", nullable = false)
     private UUID opportunityId;
 
-    @Column(name = "actor_principal_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "actor_type", nullable = false, length = 16)
+    private ServiceProfitFollowUpHistoryActorType actorType;
+
+    @Column(name = "actor_principal_id")
     private UUID actorPrincipalId;
+
+    @Column(name = "application_id", length = 120)
+    private String applicationId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 40)
@@ -65,31 +72,108 @@ public class ServiceProfitFollowUpHistory {
             long writtenVersion,
             OffsetDateTime occurredAt
     ) {
+            return recordHuman(
+                id, tenantId, followUpId, opportunityId, actorPrincipalId,
+                eventType, previousValue, newValue, observedVersion, writtenVersion, occurredAt);
+            }
+
+            public static ServiceProfitFollowUpHistory recordSystem(
+                UUID id,
+                UUID tenantId,
+                UUID followUpId,
+                UUID opportunityId,
+                ServiceProfitFollowUpEventType eventType,
+                String previousValue,
+                String newValue,
+                long observedVersion,
+                long writtenVersion,
+                OffsetDateTime occurredAt
+            ) {
+            requireCommon(
+                id, tenantId, followUpId, opportunityId, eventType,
+                observedVersion, writtenVersion, occurredAt);
+
+            ServiceProfitFollowUpHistory history = new ServiceProfitFollowUpHistory();
+            history.actorType = ServiceProfitFollowUpHistoryActorType.SYSTEM;
+            history.applicationId = ServiceProfitFollowUpAuditApplication.AUTOVISION_SERVICE_PROFIT;
+            history.assignCommon(
+                id, tenantId, followUpId, opportunityId, eventType,
+                previousValue, newValue, observedVersion, writtenVersion, occurredAt);
+            return history;
+            }
+
+            private static ServiceProfitFollowUpHistory recordHuman(
+                UUID id,
+                UUID tenantId,
+                UUID followUpId,
+                UUID opportunityId,
+                UUID actorPrincipalId,
+                ServiceProfitFollowUpEventType eventType,
+                String previousValue,
+                String newValue,
+                long observedVersion,
+                long writtenVersion,
+                OffsetDateTime occurredAt
+            ) {
+            requireCommon(
+                id, tenantId, followUpId, opportunityId, eventType,
+                observedVersion, writtenVersion, occurredAt);
         requireId(id, "History ID is required");
-        requireId(tenantId, "History tenant ID is required");
-        requireId(followUpId, "History follow-up ID is required");
-        requireId(opportunityId, "History opportunity ID is required");
         requireId(actorPrincipalId, "History actor principal ID is required");
-        if (eventType == null) throw new IllegalArgumentException("History event type is required");
-        if (observedVersion < 0 || writtenVersion < 0) {
-            throw new IllegalArgumentException("History versions must not be negative");
-        }
-        if (occurredAt == null) throw new IllegalArgumentException("History occurrence time is required");
 
         ServiceProfitFollowUpHistory history = new ServiceProfitFollowUpHistory();
-        history.id = id;
-        history.tenantId = tenantId;
-        history.followUpId = followUpId;
-        history.opportunityId = opportunityId;
+            history.actorType = ServiceProfitFollowUpHistoryActorType.HUMAN;
         history.actorPrincipalId = actorPrincipalId;
-        history.eventType = eventType;
-        history.previousValue = previousValue;
-        history.newValue = newValue;
-        history.observedVersion = observedVersion;
-        history.writtenVersion = writtenVersion;
-        history.occurredAt = occurredAt;
+            history.assignCommon(
+                id, tenantId, followUpId, opportunityId, eventType,
+                previousValue, newValue, observedVersion, writtenVersion, occurredAt);
         return history;
     }
+
+            private void assignCommon(
+                UUID id,
+                UUID tenantId,
+                UUID followUpId,
+                UUID opportunityId,
+                ServiceProfitFollowUpEventType eventType,
+                String previousValue,
+                String newValue,
+                long observedVersion,
+                long writtenVersion,
+                OffsetDateTime occurredAt
+            ) {
+            this.id = id;
+            this.tenantId = tenantId;
+            this.followUpId = followUpId;
+            this.opportunityId = opportunityId;
+            this.eventType = eventType;
+            this.previousValue = previousValue;
+            this.newValue = newValue;
+            this.observedVersion = observedVersion;
+            this.writtenVersion = writtenVersion;
+            this.occurredAt = occurredAt;
+            }
+
+            private static void requireCommon(
+                UUID id,
+                UUID tenantId,
+                UUID followUpId,
+                UUID opportunityId,
+                ServiceProfitFollowUpEventType eventType,
+                long observedVersion,
+                long writtenVersion,
+                OffsetDateTime occurredAt
+            ) {
+            requireId(id, "History ID is required");
+            requireId(tenantId, "History tenant ID is required");
+            requireId(followUpId, "History follow-up ID is required");
+            requireId(opportunityId, "History opportunity ID is required");
+            if (eventType == null) throw new IllegalArgumentException("History event type is required");
+            if (observedVersion < 0 || writtenVersion < 0) {
+                throw new IllegalArgumentException("History versions must not be negative");
+            }
+            if (occurredAt == null) throw new IllegalArgumentException("History occurrence time is required");
+            }
 
     public UUID getId() { return id; }
 
@@ -100,6 +184,10 @@ public class ServiceProfitFollowUpHistory {
     public UUID getOpportunityId() { return opportunityId; }
 
     public UUID getActorPrincipalId() { return actorPrincipalId; }
+
+    public ServiceProfitFollowUpHistoryActorType getActorType() { return actorType; }
+
+    public String getApplicationId() { return applicationId; }
 
     public ServiceProfitFollowUpEventType getEventType() { return eventType; }
 
