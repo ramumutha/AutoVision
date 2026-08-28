@@ -1,6 +1,7 @@
 # Controlled Dealer Data Intake Operator Runbook
 
-**Status:** IMPLEMENTED for the bounded R1 G6.5 internal operational layer
+**Status:** IMPLEMENTED for the bounded R1 G6.5 internal operational layer and
+authenticated G6.6-PRE command boundary
 
 This runbook covers controlled `FULL` dataset intake, reconciliation, replay,
 and explicit recovery of abandoned materialization. It does not provide a
@@ -16,6 +17,8 @@ remain authoritative.
 - Confirm the dataset is a `FULL` delivery with a stable dataset ID and version.
 - Confirm checksum, byte size, source schema version, mapping version, and
   processing correlation ID are available.
+- Confirm the operator or application has the controlled intake process
+  permission for the target dealer and, when supplied, location.
 - Confirm the evidence is synthetic or approved controlled input. Never use
   `.env`, credentials, tokens, cookies, or raw authentication material as data.
 
@@ -28,9 +31,18 @@ idempotent no-op; a corrected delivery uses a new dataset version.
 
 ## 3. Controlled Intake Execution
 
-Run the existing controlled intake path. It validates the envelope and typed
-records, persists source lineage, stores safe findings, and quarantines unsafe
-records. No provider-specific adapter is implied.
+Use the secured `POST /api/v1/controlled-data-intake` command with a relative
+`packageReference` beneath the configured controlled-intake package root. The
+platform resolves tenant and actor identity from the authenticated request,
+checks dealer/location authorization, and treats package tenant metadata as an
+assertion. Absolute paths and traversal references are rejected. The existing
+intake path then validates the envelope and typed records, persists source
+lineage, stores safe findings, and quarantines unsafe records. No
+provider-specific adapter is implied.
+
+The safe operational response contains dataset identity, lifecycle status,
+record counts, finding counts, and duplicate status. It does not return raw
+records or payloads.
 
 ## 4. Validation Outcome Interpretation
 
@@ -57,10 +69,18 @@ Missing phone or email does not invalidate detection and does not imply consent.
 
 ## 7. Materialization Execution
 
-Materialization is explicit and uses the existing controlled materializer. It
-must run only after readiness and validation. The materialization identity and
-attempt are durable. Existing Service Profit opportunity idempotency semantics
-apply to repeated processing.
+Materialization requires an explicit approval checkpoint. After reviewing
+validation, quarantine, reconciliation, and capability/readiness evidence, use
+`POST /api/v1/controlled-data-intake/{datasetProcessingId}/approve`. This
+transitions only an eligible `STAGED` dataset to the existing
+`READY_FOR_MATERIALIZATION` state and records the authenticated approving
+actor. Then use
+`POST /api/v1/controlled-data-intake/{datasetProcessingId}/materialize`.
+That command requires the same authorized server-derived scope and executes the
+existing controlled materializer with the authenticated actor identity. A
+`STAGED` dataset cannot bypass approval through this boundary. The
+materialization identity and attempt are durable. Existing Service Profit
+opportunity idempotency semantics apply to repeated processing.
 
 ## 8. Reconciliation Review
 
@@ -116,7 +136,8 @@ It never marks the dataset `MATERIALIZED`.
 
 Events are tenant-contained and retain dataset identity, attempt, actor or
 application, timestamp, stable code, safe reason, correlation, and materialization
-identity where applicable. Event history is evidence of requested and completed
+identity where applicable. Receipt and materialization approval are recorded as
+safe operational events. Event history is evidence of requested and completed
 operations, not proof of external provider behavior.
 
 ## 15. Safe Troubleshooting

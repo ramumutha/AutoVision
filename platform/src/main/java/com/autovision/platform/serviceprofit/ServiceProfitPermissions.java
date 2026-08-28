@@ -14,6 +14,9 @@ public final class ServiceProfitPermissions {
     public static final String FOLLOW_UP_MANAGE =
             "SERVICE_PROFIT_FOLLOW_UP.MANAGE";
 
+    public static final String CONTROLLED_DATA_INTAKE =
+            "SERVICE_PROFIT_CONTROLLED_DATA_INTAKE.PROCESS";
+
     private ServiceProfitPermissions() {
     }
 }

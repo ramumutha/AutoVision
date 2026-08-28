@@ -1,6 +1,8 @@
 package com.autovision.platform.intake;
 
 public enum DatasetOperationalEventType {
+    DATASET_RECEIVED,
+    MATERIALIZATION_AUTHORIZED,
     REPLAY_REQUESTED,
     REPLAY_STARTED,
     REPLAY_SUCCEEDED,

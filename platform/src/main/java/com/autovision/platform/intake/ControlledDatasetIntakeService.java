@@ -2,6 +2,7 @@ package com.autovision.platform.intake;
 
 import com.autovision.platform.organization.DealerRepository;
 import com.autovision.platform.organization.LocationRepository;
+import com.autovision.platform.tenant.AuthenticatedTenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,23 @@ public class ControlledDatasetIntakeService {
         this.persistenceService = persistenceService;
         this.dealerRepository = dealerRepository;
         this.locationRepository = locationRepository;
+    }
+
+    @Transactional
+    public ControlledDatasetProcessingResult process(
+            AuthenticatedTenantContext context,
+            Path packagePath,
+            OffsetDateTime receivedAt
+    ) {
+        if (context == null || context.tenantId() == null || context.userRefId() == null) {
+            throw new IllegalArgumentException("Authenticated tenant context is required");
+        }
+        if (packagePath == null) {
+            throw new IllegalArgumentException("Controlled dataset package is required");
+        }
+        ParsedControlledDataset parsed = adapter.read(packagePath);
+        validateAuthenticatedContainment(context, parsed.envelope());
+        return process(packagePath, receivedAt);
     }
 
     @Transactional
@@ -131,10 +149,33 @@ public class ControlledDatasetIntakeService {
                     "The dealer is not contained by the tenant", null));
         }
         if (envelope.locationId() != null
-                && locationRepository.findByIdAndTenantId(envelope.locationId(), envelope.tenantId()).isEmpty()) {
+            && (envelope.dealerId() == null
+            || locationRepository.findByIdAndTenantIdAndDealerId(
+            envelope.locationId(), envelope.tenantId(), envelope.dealerId()).isEmpty())) {
             findings.add(new IntakeFinding(ValidationStage.CONTAINMENT, ValidationSeverity.FATAL,
                     IntakeValidationCode.INTAKE_LOCATION_CONTAINMENT_MISMATCH, "locationId",
                     "The location is not contained by the tenant", null));
+        }
+    }
+
+    private void validateAuthenticatedContainment(
+            AuthenticatedTenantContext context,
+            ControlledDatasetEnvelope envelope
+    ) {
+        if (!context.tenantId().equals(envelope.tenantId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Controlled dataset tenant does not match authenticated tenant");
+        }
+        if (envelope.dealerId() == null
+                || dealerRepository.findByIdAndTenantId(envelope.dealerId(), context.tenantId()).isEmpty()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Controlled dataset dealer is not authorized for authenticated tenant");
+        }
+        if (envelope.locationId() != null
+                && locationRepository.findByIdAndTenantIdAndDealerId(
+                envelope.locationId(), context.tenantId(), envelope.dealerId()).isEmpty()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Controlled dataset location is not authorized for dealer");
         }
     }
 

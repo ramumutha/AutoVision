@@ -85,6 +85,23 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
 
     Optional<Location> findByIdAndTenantId(UUID id, UUID tenantId);
 
+        @Query("""
+          SELECT l FROM Location l
+           WHERE l.id = :locationId
+             AND l.tenantId = :tenantId
+             AND EXISTS (
+           SELECT b.id FROM Branch b
+            WHERE b.tenantId = :tenantId
+              AND b.dealerId = :dealerId
+              AND b.locationId = l.id
+             )
+          """)
+        Optional<Location> findByIdAndTenantIdAndDealerId(
+          @Param("locationId") UUID locationId,
+          @Param("tenantId") UUID tenantId,
+          @Param("dealerId") UUID dealerId
+        );
+
     /**
      * Defense-in-depth boundary for resource-by-ID reads. The primary
      * authorization decision is made before this query executes. This query
