@@ -63,7 +63,10 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 ## Operations
 
 - [Controlled dealer data intake operator runbook](operations/controlled-dealer-data-intake-operator-runbook.md): controlled FULL intake, reconciliation, replay, recovery, and safe operational handling.
-- [First-partner controlled data request](operations/first-partner-data-request.md): minimum authorized FULL-file data needed for a pilot.
+- [First dealer discovery guide](operations/first-dealer-discovery-guide.md): practical dealer, DMS, service-process, identity, privacy, and pilot discovery questions.
+- [First-partner controlled data request](operations/first-partner-data-request.md): leveled authorized FULL-file data request for a pilot.
+- [First dealer data mapping worksheet](operations/first-dealer-data-mapping-worksheet.md): canonical field mapping, status semantics, data quality, and capability worksheet.
+- [First dealer pilot acceptance checklist](operations/first-dealer-pilot-acceptance-checklist.md): evidence gates from discovery through first Service Profit output review.
 - [R1 G6.6 pilot readiness gate](operations/r1-g6-6-pilot-readiness.md): fixture-based acceptance evidence, KPI availability, and open pilot blocker.
 
 ## Demo Readiness
