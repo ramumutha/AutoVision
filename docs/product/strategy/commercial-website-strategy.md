@@ -1,8 +1,8 @@
 # VSP-W1 Commercial Website Strategy and UX Foundation
 
-**Status:** PLANNED, pending product and architecture review  
-**Work mode:** DISCOVERY  
-**Scope:** Private/local commercial website foundation for VERSPEN, AutoVision, and Service Profit AI  
+**Status:** PLANNED, pending product and architecture review
+**Work mode:** DISCOVERY
+**Scope:** Private/local commercial website foundation for VERSPEN, AutoVision, and Service Profit AI
 **Public launch:** DEFERRED until the separate VERSPEN brand, legal, domain, privacy, and launch gate is approved
 
 ## Decision Summary
@@ -352,7 +352,7 @@ retention, access, processor, and deletion responsibilities.
   customer data, synthetic-demo confusion, or unapproved product screenshots.
 - Define support ownership and incident handling for form delivery and privacy
   requests before enabling the CTA in a public environment.
-- The private/local site may show VERSPEN, but must not use `®`, claim trademark
+- The private/local site may show VERSPEN, but must not use registered-trademark notation, claim trademark
   registration, claim incorporation, invent an address, or imply public launch
   approval.
 

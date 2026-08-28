@@ -8,6 +8,7 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 
 - [Product vision](product/strategy/product-vision.md): product purpose, principles, current R1 focus, and evidence boundary.
 - [Market strategy](product/strategy/market-strategy.md): supported positioning, hypotheses, segmentation questions, and commercial research gaps.
+- [Commercial website strategy](product/strategy/commercial-website-strategy.md): VSP-W1 public-site architecture recommendation, UX foundation, conversion journey, governance, and implementation backlog.
 - [Release strategy](product/strategy/release-strategy.md): progressive delivery, current R1 sequence, gates, and uncommitted future work.
 
 ## Research
