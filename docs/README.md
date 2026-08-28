@@ -35,6 +35,7 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 ## Architecture
 
 - [System overview](architecture/system-overview.md): runtime architecture, boundaries, and design principles.
+- [Public website foundation](architecture/public-website-foundation.md): VSP-W3 independent public Angular application boundary, implemented surface, and deferred deployment/intake work.
 - [Controlled dealer data intake](architecture/controlled-dealer-data-intake.md): provider-neutral intake boundary, canonical contract, validation, quarantine, and G6.1-G6.6 phasing.
 - [Repository map](architecture/repository-map.md): ownership of top-level modules and where changes belong.
 - [Authentication and tenant context](architecture/authentication-and-tenant-context.md): Keycloak, Angular, Spring Security, and tenant mapping contract.
