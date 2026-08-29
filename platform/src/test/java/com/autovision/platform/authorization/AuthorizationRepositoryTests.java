@@ -42,6 +42,7 @@ class AuthorizationRepositoryTests {
         exec("""
                 CREATE TABLE IF NOT EXISTS platform.authorization_principals (
                     id UUID PRIMARY KEY,
+                                        principal_type VARCHAR(32) NOT NULL DEFAULT 'HUMAN',
                     user_ref_id UUID,
                     tenant_id UUID,
                     status VARCHAR(32) NOT NULL
@@ -311,6 +312,34 @@ class AuthorizationRepositoryTests {
 
         assertFalse(evaluate());
     }
+
+        @Test
+        void allowsActiveSystemPermissionForMappedHumanPrincipal() {
+                UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+                UUID roleId = insertRole(true);
+                UUID permissionId = insertPermission("COMMERCIAL_ENQUIRY.OPERATE", true);
+                insertRolePermission(roleId, permissionId);
+                insertSystemAssignment(principalId, roleId, true);
+
+                assertTrue(repository.hasActiveSystemPermission(
+                                userRefId,
+                                "COMMERCIAL_ENQUIRY.OPERATE"
+                ));
+        }
+
+        @Test
+        void deniesSystemPermissionWithoutSystemAssignment() {
+                UUID principalId = insertPrincipal(tenantId, "ACTIVE");
+                UUID roleId = insertRole(true);
+                UUID permissionId = insertPermission("COMMERCIAL_ENQUIRY.OPERATE", true);
+                insertRolePermission(roleId, permissionId);
+                insertAssignment(principalId, roleId, tenantId, true, null, null);
+
+                assertFalse(repository.hasActiveSystemPermission(
+                                userRefId,
+                                "COMMERCIAL_ENQUIRY.OPERATE"
+                ));
+        }
 
     @Test
     void deniesAssignmentForAnotherTenant() {
@@ -822,8 +851,8 @@ class AuthorizationRepositoryTests {
 
         jdbcClient.sql("""
                 INSERT INTO platform.authorization_principals
-                    (id, user_ref_id, tenant_id, status)
-                VALUES (:id, :userRefId, :tenantId, :status)
+                                        (id, principal_type, user_ref_id, tenant_id, status)
+                                VALUES (:id, 'HUMAN', :userRefId, :tenantId, :status)
                 """)
                 .param("id", id)
                 .param("userRefId", principalUserRefId)
@@ -833,6 +862,19 @@ class AuthorizationRepositoryTests {
 
         return id;
     }
+
+        private void insertSystemAssignment(UUID principalId, UUID roleId, boolean active) {
+                jdbcClient.sql("""
+                                INSERT INTO platform.scoped_role_assignments
+                                        (id, principal_id, role_id, scope_type, is_active)
+                                VALUES (:id, :principalId, :roleId, 'SYSTEM', :active)
+                                """)
+                                .param("id", UUID.randomUUID())
+                                .param("principalId", principalId)
+                                .param("roleId", roleId)
+                                .param("active", active)
+                                .update();
+        }
 
     private UUID insertRole(boolean isActive) {
         UUID id = UUID.randomUUID();

@@ -19,12 +19,15 @@ export interface AuthState {
 export class AuthService {
   readonly state = signal<AuthState>({ status: 'UNAUTHENTICATED', roles: [] });
   readonly isAuthenticated = signal(false);
+  readonly isReady = signal(false);
 
   constructor(
     private readonly tokenProvider: TokenProvider,
     private readonly sessionService: SessionService,
     private readonly oidcAdapter: OidcAdapter,
   ) {}
+
+  markReady(): void { this.isReady.set(true); }
 
   login(_returnUrl = '/'): void {
     this.oidcAdapter.authorize();

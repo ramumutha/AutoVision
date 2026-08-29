@@ -10,12 +10,13 @@ class AuthorizationScopeTypeTests {
     void containsExactlyExpectedValues() {
         assertArrayEquals(
                 new AuthorizationScopeType[] {
-                        AuthorizationScopeType.TENANT_GROUP,
-                        AuthorizationScopeType.TENANT,
-                        AuthorizationScopeType.DEALER_GROUP,
-                        AuthorizationScopeType.DEALER,
-                        AuthorizationScopeType.BRANCH,
-                        AuthorizationScopeType.LOCATION
+                    AuthorizationScopeType.SYSTEM,
+                    AuthorizationScopeType.TENANT_GROUP,
+                    AuthorizationScopeType.TENANT,
+                    AuthorizationScopeType.DEALER_GROUP,
+                    AuthorizationScopeType.DEALER,
+                    AuthorizationScopeType.BRANCH,
+                    AuthorizationScopeType.LOCATION
                 },
                 AuthorizationScopeType.values()
         );

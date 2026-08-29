@@ -13,11 +13,10 @@ export class AuthBootstrapService {
   private readonly currentUserApi = inject(CurrentUserApiService);
 
   async initialize(): Promise<void> {
-    await this.configuration.load();
-    const oidc = this.configuration.configuration().oidc;
-    if (!oidc.issuer || !oidc.clientId) return;
-
     try {
+      await this.configuration.load();
+      const oidc = this.configuration.configuration().oidc;
+      if (!oidc.issuer || !oidc.clientId) return;
       const result = await firstValueFrom(this.adapter.checkAuth());
       if (result.isAuthenticated && result.accessToken) {
         this.auth.prepareProviderToken(result);
@@ -32,6 +31,8 @@ export class AuthBootstrapService {
       }
     } catch {
       this.auth.handleUnauthorized();
+    } finally {
+      this.auth.markReady();
     }
   }
 

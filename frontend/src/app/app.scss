@@ -2,3 +2,43 @@
   display: block;
   min-height: 100%;
 }
+
+.access-boundary {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 2rem;
+}
+
+.access-boundary > div {
+  max-width: 34rem;
+}
+
+.eyebrow {
+  color: var(--color-brand, #176b87);
+  font-size: .8rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.access-boundary h1 {
+  color: var(--color-ink, #17343b);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.access-boundary p {
+  color: var(--color-muted, #567078);
+  line-height: 1.6;
+}
+
+.access-boundary button {
+  min-height: 2.75rem;
+  padding: .65rem 1rem;
+  border: 0;
+  border-radius: .25rem;
+  background: var(--color-brand, #176b87);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+}

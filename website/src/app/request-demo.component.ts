@@ -1,28 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MetadataService } from './metadata.service';
 
 @Component({
   selector: 'site-request-demo',
-  imports: [FormsModule, RouterLink],
+  imports: [RouterLink],
   template: `
     <section class="request-page" aria-labelledby="request-title">
       <div class="intro"><p class="eyebrow">Start a conversation</p><h1 id="request-title">Request a Demo</h1><p>Tell us enough to make a useful first conversation about AutoVision and Service Profit AI.</p></div>
-      <form class="demo-form" (submit)="$event.preventDefault()" aria-describedby="form-status">
-        <p id="form-status" class="notice" role="status">Demo requests are not submitted from this W3 foundation. A secure intake boundary will be added in a later governed workstream.</p>
-        <label>Name <span>(required)</span><input name="name" autocomplete="name" required></label>
-        <label>Work email <span>(required)</span><input type="email" name="email" autocomplete="email" required></label>
-        <label>Company or dealership <span>(required)</span><input name="organization" autocomplete="organization" required></label>
-        <label>Country <span>(required)</span><input name="country-name" autocomplete="country-name" required></label>
-        <label>Role <span>(required)</span><select name="role" required><option value="" selected>Select a role</option><option>Dealer principal / owner</option><option>General manager</option><option>Aftersales leader</option><option>Service manager</option><option>Technology or integration partner</option><option>Other</option></select></label>
-        <label>Number of locations <span>(optional)</span><input type="number" name="locations" min="1" inputmode="numeric"></label>
-        <label>Current DMS <span>(optional)</span><input name="dms" autocomplete="off"></label>
-        <label>Message <span>(optional)</span><textarea name="message" rows="5" maxlength="2000"></textarea></label>
-        <p class="privacy-note">Privacy acknowledgement and consent language will be supplied with the approved intake design.</p>
-        <button type="submit" disabled>Submit request</button>
-        <a class="back-link" routerLink="/">Return to AutoVision</a>
-      </form>
+      <div class="demo-form"><p class="notice" role="status">Product Demo requests now use the unified Contact Us workflow.</p><a class="back-link" routerLink="/contact" [queryParams]="{ purpose: 'product-demo', product: 'service-profit-ai' }">Continue to Contact Us</a></div>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

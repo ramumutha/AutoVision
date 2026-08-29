@@ -1,6 +1,7 @@
 # Public Website Foundation
 
-**Status: IMPLEMENTED (VSP-W3 foundation)**
+**Status: IMPLEMENTED (VSP-W3 foundation; W3D runtime amendment; W3E-R1
+pre-auth and access-hub hardening)**
 
 This record defines the independent public website application delivered by
 VSP-W3. Product intent, visual direction, and conversion governance remain in
@@ -17,6 +18,19 @@ share browser storage and runtime state with AutoVision.
 The existing authenticated application and its Docker/Nginx topology are
 unchanged. Public hosting and DNS are **DEFERRED**; W3 supplies a buildable
 application foundation only.
+
+For local Docker development, the independent `website` service serves the
+production Angular artifact through unprivileged Nginx at host port `8090`.
+The existing authenticated `frontend` service remains at host port `8080`;
+Keycloak remains at `8081`, and PostgreSQL remains at `5432`. The platform
+service continues to expose port `8080` only inside the Compose network.
+
+Run the normal local stack with `docker compose up --build` and stop it with
+`docker compose down`. The website container has its own multi-stage
+Node-build/Nginx-runtime Dockerfile and an Nginx SPA fallback, with no public
+website proxy to the platform API. Direct public routes therefore resolve to
+the Angular application while the authenticated product keeps its existing
+API proxy and OIDC boundary.
 
 The site uses a system-first typography stack (`Segoe UI`, `Helvetica Neue`,
 Arial, sans-serif) for enterprise maturity, predictable numerals,
@@ -45,15 +59,49 @@ layout primitives.
   header disclosure supports `aria-expanded`, `aria-controls`, Escape close,
   focus return, and close-on-route-selection without modal focus trapping.
 - Route-level document title, description, and Open Graph metadata.
-- `Request a Demo` as a non-submitting, accessible form shell. It does not
-  collect, transmit, or persist lead data.
+- `Request a Demo` as an accessible contextual shortcut into the shared Contact
+  Us workflow. It does not create a separate demo request model.
+- `Contact Us` as the universal commercial entry point with one adaptive form
+  for Product Demo, Advisory & Implementation, Partnership, and General
+  Enquiry. `Request a Demo` remains a contextual shortcut into this route with
+  allow-listed Product Demo and Service Profit AI query values. The form is
+  still non-submitting until the governed public intake boundary is approved.
 - `Product Demo` as a separate authorized-access journey. Its destination is
   read from `public/site-config.json`, copied to `/assets/site-config.json`,
   and remains intentionally empty until
   the approved AutoVision login URL is configured. The route must hand off to
   the existing login boundary; it must not implement authentication locally.
   An empty, invalid, or non-HTTPS value renders a disabled control with an
-  explicit unavailable message rather than a misleading anchor.
+  explicit unavailable message rather than a misleading anchor. The sole
+  exception is HTTP to `localhost`, `127.0.0.1`, or `[::1]` for local Docker
+  development.
+- Docker Compose mounts the local-only `public/site-config.local.json` over
+  the runtime asset so local `Product Demo` navigation reaches the existing
+  authenticated frontend at `http://localhost:8080`. This local HTTP value is
+  not part of the safe source default and must not be used as a production
+  destination. Production configuration and hosting remain **DEFERRED**.
+- `Product Demo` is an access hub, not a login or product route. It exposes
+  only the approved `VSPAV Service Profit` entry. A configured entry opens the
+  existing authenticated frontend in a new tab with `noopener noreferrer`;
+  the public website remains open. Empty, invalid, or disallowed configuration
+  shows an explicit unavailable state. The runtime shape is
+  `productDemo.serviceProfit.{label,url}`; the legacy `productDemoUrl` shape
+  remains accepted for compatibility.
+- The authenticated frontend has an explicit bootstrap readiness state. Until
+  OIDC and Platform identity confirmation resolve, it renders only a minimal
+  `Sign in to AutoVision` access boundary and never the workspace, product
+  navigation, tenant content, or protected routes. The existing shell renders
+  only for an authenticated session. Logout, session expiry, and failed
+  identity confirmation clear local state and return to that boundary.
+- Authenticated route guards require an authenticated session in every
+  environment; development configuration does not bypass the boundary.
+  OIDC Authorization Code + PKCE, server authorization, tenant isolation, and
+  protected API behavior are unchanged.
+- Browser logging is intentionally sparse. Startup failures emit only a
+  concise high-level message; tokens, credentials, cookies, headers, URLs with
+  query state, protected responses, tenant data, and customer data are not
+  logged. Normal successful authentication and navigation produce no console
+  output.
 
 Metadata is updated per route for title, description, and Open Graph title,
 description, and type. No production canonical hostname, structured data, or

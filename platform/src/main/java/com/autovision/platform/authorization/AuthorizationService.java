@@ -59,6 +59,27 @@ public class AuthorizationService {
         }
     }
 
+        public void requireSystemPermission(
+                        AuthenticatedTenantContext context,
+                        String permissionCode
+        ) {
+                boolean granted = authorizationRepository.hasActiveSystemPermission(
+                                context.userRefId(),
+                                permissionCode
+                );
+
+                log.info(
+                                "system authorization decision permission={} userRefId={} decision={}",
+                                permissionCode,
+                                context.userRefId(),
+                                granted ? "ALLOW" : "DENY"
+                );
+
+                if (!granted) {
+                        throw new AccessDeniedException("Access is denied");
+                }
+        }
+
     /**
      * Resource-aware authorization resolves active local and TENANT_GROUP
      * grants and allows only when at least one grant contains the requested

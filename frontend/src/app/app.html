@@ -1,1 +1,16 @@
-<app-av-shell />
+@if (auth.isReady() && auth.isAuthenticated()) {
+	<app-av-shell />
+} @else {
+	<main class="access-boundary">
+		<div>
+			<p class="eyebrow">AutoVision by VERSPEN</p>
+			<h1>Sign in to AutoVision</h1>
+			<p>Authorized access is required to open the AutoVision workspace.</p>
+			@if (auth.isReady()) {
+				<button type="button" (click)="auth.beginLogin()">Sign in</button>
+			} @else {
+				<p role="status" aria-live="polite">Checking access...</p>
+			}
+		</div>
+	</main>
+}

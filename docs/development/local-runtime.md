@@ -32,6 +32,27 @@ Bootstrap or refresh the local user after the containers are ready. The script r
 
 That script upserts the platform `user_refs` row and the Keycloak user/claim mapping. It does not expose credentials in its output. Use the configured username and local password to sign in through the Angular application. The browser follows the Keycloak Authorization Code + PKCE flow and returns to Angular.
 
+For internal commercial verification validation, use a separate local operator
+identity. Keep these values in the ignored `.env`; do not reuse the dealer/demo
+identity or place credentials in source:
+
+```dotenv
+AUTOVISION_LOCAL_OPERATOR_USERNAME=verspen-commercial-operator
+AUTOVISION_LOCAL_OPERATOR_PASSWORD=change-me-local-operator-password
+AUTOVISION_LOCAL_OPERATOR_USER_REF_ID=00000000-0000-0000-0000-000000000000
+AUTOVISION_LOCAL_OPERATOR_TENANT_ID=00000000-0000-0000-0000-000000000000
+```
+
+After the platform is healthy, run:
+
+```powershell
+.\infra\keycloak\bootstrap\bootstrap-local-commercial-operator.ps1
+```
+
+This creates or refreshes a distinct Keycloak user and assigns only the
+system-scoped `VERSPEN_COMMERCIAL_OPERATOR` role with
+`COMMERCIAL_ENQUIRY.OPERATE`. The ordinary local product user is not changed.
+
 Validate the authenticated contract at `/api/v1/me` from the application session. An unauthenticated request is expected to return `401`; an authenticated, correctly mapped user returns `200`.
 
 ## Stop and restart

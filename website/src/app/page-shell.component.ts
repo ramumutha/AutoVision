@@ -12,7 +12,7 @@ import { MetadataService } from './metadata.service';
         <h1 id="page-title">{{ title }}</h1>
         <p class="lede">{{ description }}</p>
         @if (notFound) { <a class="button primary" routerLink="/">Return home</a> }
-        @else { <p class="foundation-note">This route is ready for W4 content implementation.</p><a class="button primary" routerLink="/request-demo">Request a Demo</a> }
+        @else { <p class="foundation-note">This route is ready for W4 content implementation.</p><a class="button primary" routerLink="/contact">Contact Us</a> }
       </div>
     </section>
   `,

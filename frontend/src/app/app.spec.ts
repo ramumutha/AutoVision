@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { OidcAdapter } from './core/auth/oidc-adapter';
 import { App } from './app';
+import { vi } from 'vitest';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -9,7 +10,7 @@ describe('App', () => {
       imports: [App],
       providers: [
         provideRouter([]),
-        { provide: OidcAdapter, useValue: { logout: () => ({ subscribe: () => undefined }) } },
+        { provide: OidcAdapter, useValue: { logout: () => ({ subscribe: () => undefined }), authorize: vi.fn() } },
       ],
     })
       .compileComponents();
@@ -21,11 +22,12 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the platform shell', async () => {
+  it('keeps the workspace hidden before authentication is ready', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.brand')?.textContent).toContain('AutoVision');
-    expect(compiled.querySelector('main')).toBeTruthy();
+    expect(compiled.querySelector('.access-boundary')).toBeTruthy();
+    expect(compiled.querySelector('app-av-shell')).toBeNull();
+    expect(compiled.textContent).toContain('Checking access');
   });
 });

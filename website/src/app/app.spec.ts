@@ -5,8 +5,10 @@ import { routes } from './app.routes';
 import { ProductDemoService } from './product-demo.service';
 import { PublicHeaderComponent } from './public-header.component';
 import { RequestDemoComponent } from './request-demo.component';
+import { ContactUsComponent } from './contact-us.component';
 import { PageShellComponent } from './page-shell.component';
 import { Meta, Title } from '@angular/platform-browser';
+import { CommercialEnquiryService } from './commercial-enquiry.service';
 
 describe('public website foundation', () => {
   it('boots without authenticated product services', async () => {
@@ -28,17 +30,23 @@ describe('public website foundation', () => {
     const service = new ProductDemoService();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ productDemoUrl: 'https://login.example.test' }) }));
     await service.load();
-    expect(service.url()).toBe('https://login.example.test');
+    expect(service.url()).toBe('https://login.example.test/');
     vi.unstubAllGlobals();
   });
 
-  it('renders Product Demo as a link only when configured', async () => {
+  it('renders the configured Product Demo entry in a new tab', async () => {
     const service = new ProductDemoService();
     service.url.set('https://login.example.test');
+    service.entries.set([{ label: 'Service Profit AI', url: 'https://login.example.test' }]);
     await TestBed.configureTestingModule({ imports: [PublicHeaderComponent], providers: [provideRouter([]), { provide: ProductDemoService, useValue: service }] }).compileComponents();
     const fixture = TestBed.createComponent(PublicHeaderComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.product-demo[href="https://login.example.test"]')).toBeTruthy();
+    (fixture.nativeElement.querySelector('.product-demo') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('.demo-menu a') as HTMLAnchorElement;
+    expect(link?.href).toBe('https://login.example.test/');
+    expect(link?.target).toBe('_blank');
+    expect(link?.rel).toContain('noopener');
     expect(fixture.nativeElement.querySelector('.unavailable')).toBeNull();
   });
 
@@ -47,13 +55,42 @@ describe('public website foundation', () => {
     expect(routes.at(-1)?.data?.['notFound']).toBe(true);
   });
 
-  it('renders the Request Demo form as non-submitting', async () => {
+  it('routes Request a Demo into the shared Contact Us workflow', async () => {
     await TestBed.configureTestingModule({ imports: [RequestDemoComponent], providers: [provideRouter([]), Meta, Title] }).compileComponents();
     const fixture = TestBed.createComponent(RequestDemoComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('form').getAttribute('action')).toBeNull();
-    expect(fixture.nativeElement.querySelector('button[type="submit"]').disabled).toBe(true);
-    expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('not submitted');
+    const link = fixture.nativeElement.querySelector('a.back-link') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/contact?purpose=product-demo&product=service-profit-ai');
+    expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('unified Contact Us');
+  });
+
+  it('allows only approved contextual Contact Us preselection', async () => {
+    await TestBed.configureTestingModule({ imports: [ContactUsComponent], providers: [Meta, Title, { provide: CommercialEnquiryService, useValue: { submit: vi.fn(), verify: vi.fn() } }, { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (key: string) => key === 'purpose' ? 'product-demo' : 'service-profit-ai' } } } }] }).compileComponents();
+    const fixture = TestBed.createComponent(ContactUsComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.purpose()).toBe('PRODUCT_DEMO');
+    expect(fixture.nativeElement.querySelector('select[name="product"]')).toBeTruthy();
+
+  });
+
+  it('fails closed for arbitrary Contact Us query values', async () => {
+    await TestBed.configureTestingModule({ imports: [ContactUsComponent], providers: [Meta, Title, { provide: CommercialEnquiryService, useValue: { submit: vi.fn(), verify: vi.fn() } }, { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'unexpected' } } } }] }).compileComponents();
+    const fixture = TestBed.createComponent(ContactUsComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.purpose()).toBe('GENERAL_ENQUIRY');
+  });
+
+  it('submits a purpose-specific enquiry and reports success', async () => {
+    const submit = vi.fn().mockResolvedValue({ id: 'id', status: 'VERIFICATION_PENDING', createdAt: 'now' });
+    await TestBed.configureTestingModule({ imports: [ContactUsComponent], providers: [Meta, Title, { provide: CommercialEnquiryService, useValue: { submit, verify: vi.fn() } }, { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'unexpected' } } } }] }).compileComponents();
+    const fixture = TestBed.createComponent(ContactUsComponent);
+    const component = fixture.componentInstance;
+    component.companyName = 'Dealer'; component.firstName = 'Ada'; component.lastName = 'Lovelace'; component.businessEmail = 'ada@dealer.example';
+    component.roleOrTitle = 'Owner'; component.countryOrMarket = 'IN'; component.message = 'Please contact us';
+    component.submit();
+    await new Promise(resolve => setTimeout(resolve));
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ purpose: 'GENERAL_ENQUIRY', messageOrRequirement: 'Please contact us' }));
+    expect(component.statusMessage()).toContain('received your enquiry');
   });
 
   it('supports disclosure, Escape close, and route-close behavior', async () => {

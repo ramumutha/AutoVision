@@ -28,6 +28,7 @@ public class AuthorizationScopeEvaluator {
             UUID resourceId
     ) {
         return switch (grant.scopeType()) {
+                        case SYSTEM -> false;
             case TENANT -> containsFromTenant(
                     grant.scopeId(),
                     resourceType,

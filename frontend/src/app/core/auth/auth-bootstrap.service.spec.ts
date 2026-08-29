@@ -23,7 +23,7 @@ const currentUser = {
 
 describe('AuthBootstrapService', () => {
   let events: string[];
-  let auth: { prepareProviderToken: ReturnType<typeof vi.fn>; establishFromProvider: ReturnType<typeof vi.fn>; handleUnauthorized: ReturnType<typeof vi.fn> };
+  let auth: { prepareProviderToken: ReturnType<typeof vi.fn>; establishFromProvider: ReturnType<typeof vi.fn>; handleUnauthorized: ReturnType<typeof vi.fn>; markReady: ReturnType<typeof vi.fn> };
   let currentUserApi: { getCurrentUser: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -32,6 +32,7 @@ describe('AuthBootstrapService', () => {
       prepareProviderToken: vi.fn(() => events.push('prepare')),
       establishFromProvider: vi.fn(() => events.push('establish')),
       handleUnauthorized: vi.fn(() => events.push('unauthorized')),
+      markReady: vi.fn(() => events.push('ready')),
     };
     currentUserApi = { getCurrentUser: vi.fn(() => of(currentUser)) };
     TestBed.configureTestingModule({
@@ -48,7 +49,7 @@ describe('AuthBootstrapService', () => {
   it('confirms Platform identity after token preparation and before session establishment', async () => {
     await TestBed.inject(AuthBootstrapService).initialize();
 
-    expect(events).toEqual(['prepare', 'establish']);
+    expect(events).toEqual(['prepare', 'establish', 'ready']);
     expect(currentUserApi.getCurrentUser).toHaveBeenCalledOnce();
   });
 
@@ -58,13 +59,14 @@ describe('AuthBootstrapService', () => {
 
     expect(currentUserApi.getCurrentUser).not.toHaveBeenCalled();
     expect(auth.handleUnauthorized).toHaveBeenCalledOnce();
+    expect(auth.markReady).toHaveBeenCalledOnce();
   });
 
   it('fails closed when Platform identity confirmation fails', async () => {
     currentUserApi.getCurrentUser.mockReturnValue(throwError(() => ({ status: 503 })));
     await TestBed.inject(AuthBootstrapService).initialize();
 
-    expect(events).toEqual(['prepare', 'unauthorized']);
+    expect(events).toEqual(['prepare', 'unauthorized', 'ready']);
     expect(auth.establishFromProvider).not.toHaveBeenCalled();
   });
 });

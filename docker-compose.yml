@@ -1,4 +1,15 @@
 services:
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    container_name: autovision-website
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./website/public/site-config.local.json:/usr/share/nginx/html/assets/site-config.json:ro
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
@@ -14,6 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: autovision-platform
     environment:
+      SPRING_PROFILES_ACTIVE: local
       AUTOVISION_PLATFORM_DATABASE_URL: jdbc:postgresql://postgres:5432/autovision
       AUTOVISION_PLATFORM_DATABASE_USERNAME: autovision
       AUTOVISION_PLATFORM_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
