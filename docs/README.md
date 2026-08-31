@@ -10,6 +10,8 @@ Status terms are explicit: **IMPLEMENTED**, **PLANNED**, **DEFERRED**, and **RES
 - [Market strategy](product/strategy/market-strategy.md): supported positioning, hypotheses, segmentation questions, and commercial research gaps.
 - [Commercial website strategy](product/strategy/commercial-website-strategy.md): VSP-W1 public-site architecture recommendation, UX foundation, conversion journey, governance, and implementation backlog.
 - [Commercial website UX foundation](product/strategy/commercial-website-ux-foundation.md): VSP-W2 reviewable visual direction, homepage wireframe, component inventory, demo journeys, responsive behavior, and implementation gates.
+- [R1 website content blueprint](product/strategy/r1-website-content-blueprint.md): authoritative frozen English-first SPENMER, product, services, conversion, proof, sitemap, and implementation content baseline.
+- [R1 website homepage freeze](product/strategy/r1-website-homepage-freeze.md): product-owner-approved homepage baseline, deferred items, and next implementation target.
 - [Release strategy](product/strategy/release-strategy.md): progressive delivery, current R1 sequence, gates, and uncommitted future work.
 
 ## Research

@@ -7,8 +7,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -49,6 +52,10 @@ public class CommercialEnquiry {
     @Column(name = "advisory_area", length = 48)
     private AdvisoryArea advisoryArea;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "qualification", columnDefinition = "jsonb")
+    private Map<String, Object> qualification;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private CommercialEnquiryStatus status;
@@ -67,7 +74,7 @@ public class CommercialEnquiry {
             CommercialEmailClassification emailClassification, String roleOrTitle,
             String countryOrMarket, String messageOrRequirement,
             CommercialProductFamily productFamily, CommercialProduct product,
-            AdvisoryArea advisoryArea, OffsetDateTime now) {
+            AdvisoryArea advisoryArea, Map<String, Object> qualification, OffsetDateTime now) {
         CommercialEnquiry enquiry = new CommercialEnquiry();
         enquiry.id = id;
         enquiry.purpose = purpose;
@@ -82,10 +89,21 @@ public class CommercialEnquiry {
         enquiry.productFamily = productFamily;
         enquiry.product = product;
         enquiry.advisoryArea = advisoryArea;
+        enquiry.qualification = qualification;
         enquiry.status = CommercialEnquiryStatus.VERIFICATION_PENDING;
         enquiry.createdAt = now;
         enquiry.updatedAt = now;
         return enquiry;
+    }
+
+    public static CommercialEnquiry submit(UUID id, CommercialEnquiryPurpose purpose, String companyName,
+            String firstName, String lastName, String businessEmail,
+            CommercialEmailClassification emailClassification, String roleOrTitle,
+            String countryOrMarket, String messageOrRequirement,
+            CommercialProductFamily productFamily, CommercialProduct product,
+            AdvisoryArea advisoryArea, OffsetDateTime now) {
+        return submit(id, purpose, companyName, firstName, lastName, businessEmail, emailClassification,
+                roleOrTitle, countryOrMarket, messageOrRequirement, productFamily, product, advisoryArea, null, now);
     }
 
     public void verify(OffsetDateTime now) {

@@ -9,7 +9,7 @@ export class MetadataService {
   private readonly title = inject(Title);
 
   update(routeTitle: string, description: string): void {
-    const title = `${routeTitle} | AutoVision by VERSPEN`;
+    const title = `${routeTitle} | SPENMER`;
     this.title.setTitle(title);
     this.meta.updateTag({ name: 'description', content: description });
     this.meta.updateTag({ name: 'robots', content: 'noindex, nofollow' });

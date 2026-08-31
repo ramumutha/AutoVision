@@ -1,6 +1,6 @@
 # Commercial Contact Foundation
 
-**Status: IMPLEMENTED (R1-COMMERCIAL-1A foundation)**
+**Status: IMPLEMENTED (R1-COMMERCIAL-1A foundation; R2 structured intake extension; R4 UX validation)**
 
 This record governs the public commercial entry point without creating a CRM or
 bypassing the authenticated platform boundary.
@@ -18,6 +18,13 @@ The website validates query values against this allow-list and defaults to
 `GENERAL_ENQUIRY` for arbitrary values. The form submits to the exact public
 platform API below, through the website Nginx proxy to the internal platform
 service.
+
+The initial contact experience is intentionally concise: purpose, contact and
+company details, product or service interest, evaluation preference where
+useful, and a short message. Dealer-pilot qualification is progressive and
+optional; DMS, volume, location, and data-readiness questions are later-stage
+qualification rather than a normal first-contact burden. The richer V42
+qualification contract remains available for compatible pilot submissions.
 
 ## Purpose Model
 
@@ -46,6 +53,14 @@ approved product/advisory enums, timestamps, and status. Its lifecycle is
 Migration `V39__create_commercial_enquiry_foundation.sql` creates the enquiry
 and verification tables. Verification records store only a SHA-256 token
 digest, expiry, one-time consumption time, and bound enquiry ID.
+
+Migration `V42__extend_commercial_enquiry_qualification.sql` adds the
+non-null `qualification` JSONB object. It stores canonicalized, purpose-specific
+collections and optional qualification values while preserving the original
+singular product and advisory columns for backward compatibility. The website
+and service trim, deduplicate, and sort submitted collections; unsupported
+product and evaluation values are rejected before persistence. The JSONB field
+is additive and does not change the public verification or operator lifecycle.
 
 The public contract is:
 
@@ -100,7 +115,7 @@ a CRM and marketing automation are out of scope.
 - Commercial audit/event integration: **MISSING**; no unrelated audit subsystem was invented for this gate.
 - Distributed rate limiting across multiple platform instances: **DEFERRED**.
 - Demo evaluator provisioning, invitation, expiry, and reset: **MISSING**.
-- Browser accessibility, responsive, and assistive-technology review: **DEFERRED**.
+- Browser responsive and semantic DOM review: **IMPLEMENTED** for the private/local R2 candidate; assistive-technology and formal contrast review: **DEFERRED**.
 
 The local/test delivery implementation keeps only the most recent generated
 verification link in bounded process memory and never logs it. Local Compose
@@ -118,6 +133,12 @@ limiting remains a deployment concern.
 The R1 duplicate policy suppresses the same normalized email, purpose, and
 Product Demo product combination for seven days with a deterministic `429 Too
 Many Requests` response. Future enquiries remain possible after that window.
+For R2/R3 structured qualification, duplicate identity also includes the
+canonical qualification object. Collection values are trimmed, validated
+against their allow-lists, deduplicated, and sorted before comparison, so
+checkbox ordering cannot bypass suppression while materially different intent
+remains distinct. Legacy rows with the V42 default empty object remain valid
+and continue to participate through their preserved singular fields.
 The in-process throttle allows ten submissions per client address per hour and
 returns `429 Too Many Requests` for the eleventh request. Processing order is
 rate-limit check, purpose validation, duplicate check, persistence, then local

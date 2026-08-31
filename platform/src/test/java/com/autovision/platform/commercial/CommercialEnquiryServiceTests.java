@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,7 +31,7 @@ class CommercialEnquiryServiceTests {
     void setUp() {
         service = new CommercialEnquiryService(enquiries, verifications, delivery,
                 Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC));
-        when(enquiries.existsByBusinessEmailAndPurposeAndProductAndCreatedAtAfter(any(), any(), any(), any())).thenReturn(false);
+        when(enquiries.existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(any(), any(), any(), any(), any())).thenReturn(false);
     }
 
     @Test
@@ -75,7 +76,7 @@ class CommercialEnquiryServiceTests {
 
         @Test
         void duplicateIsReportedAsTooManyRequests() {
-        when(enquiries.existsByBusinessEmailAndPurposeAndProductAndCreatedAtAfter(any(), any(), any(), any())).thenReturn(true);
+            when(enquiries.existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(any(), any(), any(), any(), any())).thenReturn(true);
         CommercialEnquiryRequest request = new CommercialEnquiryRequest(
             CommercialEnquiryPurpose.GENERAL_ENQUIRY, "Dealer", "Ada", "Lovelace", "ada@dealer.example",
             "Owner", "IN", "Question", null, null, null);
@@ -85,6 +86,60 @@ class CommercialEnquiryServiceTests {
 
         assertEquals(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, exception.getStatusCode());
         verify(enquiries, never()).save(any());
+        }
+
+        @Test
+        void canonicalizesCollectionOrderAndDuplicateValuesForIdentity() {
+        CommercialEnquiryRequest first = requestWithQualification(
+            java.util.List.of("PRODUCT_SOLUTION_ENGINEERING", "AUTOMOTIVE_DEALER_TECHNOLOGY", "PRODUCT_SOLUTION_ENGINEERING"),
+                java.util.List.of("INTEGRATION", "ADVISORY_ASSESSMENT"), java.util.List.of("IMPROVE_SERVICE_FOLLOW_UP", "INCREASE_SERVICE_REVENUE", "IMPROVE_SERVICE_FOLLOW_UP"));
+        CommercialEnquiryRequest second = requestWithQualification(
+            java.util.List.of("AUTOMOTIVE_DEALER_TECHNOLOGY", "PRODUCT_SOLUTION_ENGINEERING"),
+                java.util.List.of("ADVISORY_ASSESSMENT", "INTEGRATION"), java.util.List.of("INCREASE_SERVICE_REVENUE", "IMPROVE_SERVICE_FOLLOW_UP"));
+
+        service.submit(first, "canonical-first");
+        service.submit(second, "canonical-second");
+
+        ArgumentCaptor<Map<String, Object>> identity = ArgumentCaptor.forClass(Map.class);
+        verify(enquiries, org.mockito.Mockito.times(2)).existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(
+            any(), any(), any(), identity.capture(), any());
+        assertEquals(identity.getAllValues().get(0), identity.getAllValues().get(1));
+        assertEquals(java.util.List.of("AUTOMOTIVE_DEALER_TECHNOLOGY", "PRODUCT_SOLUTION_ENGINEERING"),
+            identity.getValue().get("servicePractices"));
+        assertEquals(java.util.List.of("IMPROVE_SERVICE_FOLLOW_UP", "INCREASE_SERVICE_REVENUE"), identity.getValue().get("businessObjectives"));
+        }
+
+        @Test
+        void keepsMateriallyDifferentQualificationIdentityDistinct() {
+        CommercialEnquiryRequest first = requestWithQualification(
+                java.util.List.of("PRODUCT_SOLUTION_ENGINEERING"), java.util.List.of("INTEGRATION"), java.util.List.of("INCREASE_SERVICE_REVENUE"));
+        CommercialEnquiryRequest second = requestWithQualification(
+                java.util.List.of("AUTOMOTIVE_DEALER_TECHNOLOGY"), java.util.List.of("INTEGRATION"), java.util.List.of("INCREASE_SERVICE_REVENUE"));
+
+        service.submit(first, "different-first");
+        service.submit(second, "different-second");
+
+        ArgumentCaptor<Map<String, Object>> identity = ArgumentCaptor.forClass(Map.class);
+        verify(enquiries, org.mockito.Mockito.times(2)).existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(
+            any(), any(), any(), identity.capture(), any());
+        assertFalse(identity.getAllValues().get(0).equals(identity.getAllValues().get(1)));
+        }
+
+        @Test
+        void rejectsUnsupportedCollectionValuesBeforePersistence() {
+        CommercialEnquiryRequest request = requestWithQualification(
+            java.util.List.of("UNSUPPORTED"), java.util.List.of("INTEGRATION"), java.util.List.of("A"));
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.submit(request, "invalid-collection"));
+        verify(enquiries, never()).save(any());
+        }
+
+        private CommercialEnquiryRequest requestWithQualification(java.util.List<String> practices,
+            java.util.List<String> supportTypes, java.util.List<String> objectives) {
+        return new CommercialEnquiryRequest(CommercialEnquiryPurpose.ADVISORY_IMPLEMENTATION, "Dealer", "Ada", "Lovelace",
+            "ada-qualification-" + UUID.randomUUID() + "@dealer.example", "Owner", "IN", "Question", null, null,
+            AdvisoryArea.OTHER, java.util.List.of(), practices, supportTypes, null, null, null, null, null, null,
+                objectives, null, null, null, null, null, null, null, null);
         }
 
         @Test

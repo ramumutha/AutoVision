@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { ProductDemoService } from './product-demo.service';
 import { PublicFooterComponent } from './public-footer.component';
 import { PublicHeaderComponent } from './public-header.component';
+import { DEFAULT_SITE_LOCALE } from './site-locale';
 
 @Component({
   selector: 'site-root',
@@ -24,5 +25,8 @@ import { PublicHeaderComponent } from './public-header.component';
 export class AppComponent {
   private readonly productDemo = inject(ProductDemoService);
 
-  constructor() { void this.productDemo.load(); }
+  constructor() {
+    document.documentElement.lang = DEFAULT_SITE_LOCALE;
+    void this.productDemo.load();
+  }
 }

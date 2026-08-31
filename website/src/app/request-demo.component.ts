@@ -7,7 +7,7 @@ import { MetadataService } from './metadata.service';
   imports: [RouterLink],
   template: `
     <section class="request-page" aria-labelledby="request-title">
-      <div class="intro"><p class="eyebrow">Start a conversation</p><h1 id="request-title">Request a Demo</h1><p>Tell us enough to make a useful first conversation about AutoVision and Service Profit AI.</p></div>
+      <div class="intro"><p class="eyebrow">Start a conversation</p><h1 id="request-title">Request a Demo</h1><p>Tell us enough to make a useful first conversation about AutoVision and Service Profit.</p></div>
       <div class="demo-form"><p class="notice" role="status">Product Demo requests now use the unified Contact Us workflow.</p><a class="back-link" routerLink="/contact" [queryParams]="{ purpose: 'product-demo', product: 'service-profit-ai' }">Continue to Contact Us</a></div>
     </section>
   `,

@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public interface CommercialEnquiryRepository extends JpaRepository<CommercialEnquiry, UUID> {
-    boolean existsByBusinessEmailAndPurposeAndProductAndCreatedAtAfter(
-            String businessEmail, CommercialEnquiryPurpose purpose, CommercialProduct product, OffsetDateTime createdAt);
+    boolean existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(
+            String businessEmail, CommercialEnquiryPurpose purpose, CommercialProduct product,
+            java.util.Map<String, Object> qualification, OffsetDateTime createdAt);
 }

@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record CommercialEnquiryRequest(
         @NotNull CommercialEnquiryPurpose purpose,
@@ -18,5 +20,32 @@ public record CommercialEnquiryRequest(
         @Size(max = 2000) String messageOrRequirement,
         CommercialProductFamily productFamily,
         CommercialProduct product,
-        AdvisoryArea advisoryArea
-) { }
+        AdvisoryArea advisoryArea,
+        @Size(max = 8) List<String> products,
+        @Size(max = 8) List<String> servicePractices,
+        @Size(max = 8) List<String> supportTypes,
+        String evaluationPreference,
+        String organizationType,
+        String partnershipType,
+        String projectStage,
+        String desiredTimeframe,
+        String currentTechnology,
+        @Size(max = 8) List<String> businessObjectives,
+        Integer serviceLocations,
+        String monthlyServiceOrders,
+        String historicalDataAvailability,
+        Boolean declinedRecommendationsRecorded,
+        String phone,
+        String preferredContactMethod,
+        String cityRegion,
+        String companyWebsite
+) {
+    public CommercialEnquiryRequest(CommercialEnquiryPurpose purpose, String companyName, String firstName,
+            String lastName, String businessEmail, String roleOrTitle, String countryOrMarket,
+            String messageOrRequirement, CommercialProductFamily productFamily, CommercialProduct product,
+            AdvisoryArea advisoryArea) {
+            this(purpose, companyName, firstName, lastName, businessEmail, roleOrTitle, countryOrMarket,
+                    messageOrRequirement, productFamily, product, advisoryArea, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+}

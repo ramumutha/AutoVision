@@ -18,7 +18,7 @@ export class ProductDemoService {
         const isLocalDevelopmentUrl = parsedUrl?.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsedUrl.hostname);
         const url = parsedUrl && (parsedUrl.protocol === 'https:' || isLocalDevelopmentUrl) ? parsedUrl.toString() : null;
         this.url.set(url);
-        this.entries.set([{ label: config.productDemo?.serviceProfit?.label?.trim() || 'Service Profit AI', url }]);
+        this.entries.set([{ label: config.productDemo?.serviceProfit?.label?.trim() || 'Service Profit', url }]);
       }
     } catch {
       this.url.set(null);

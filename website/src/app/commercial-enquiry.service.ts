@@ -14,6 +14,24 @@ export interface CommercialEnquiryPayload {
   productFamily?: string;
   product?: string;
   advisoryArea?: string;
+  products?: string[];
+  servicePractices?: string[];
+  supportTypes?: string[];
+  evaluationPreference?: string;
+  organizationType?: string;
+  partnershipType?: string;
+  projectStage?: string;
+  desiredTimeframe?: string;
+  currentTechnology?: string;
+  businessObjectives?: string[];
+  serviceLocations?: number;
+  monthlyServiceOrders?: string;
+  historicalDataAvailability?: string;
+  declinedRecommendationsRecorded?: boolean;
+  phone?: string;
+  preferredContactMethod?: string;
+  cityRegion?: string;
+  companyWebsite?: string;
 }
 
 export interface CommercialEnquiryResponse {

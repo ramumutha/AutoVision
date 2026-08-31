@@ -1,13 +1,60 @@
 # VSP-W2 Commercial Website UX/UI Design Foundation
 
-**Status:** PLANNED, pending product, UX, architecture, accessibility,
-security, privacy, and brand review
+**Status:** IMPLEMENTED as a private/local R2 website candidate; public launch,
+legal, brand, accessibility, security, privacy, and product approval remain
+pending
 **Work mode:** DESIGN / DISCOVERY
 **Baseline:** VSP-W1 strategy at `2599b7c` on
 `release-r1-service-profit-ai`
 **Scope:** Reviewable UX/UI foundation only. No website application,
 authentication, lead API, analytics, hosting, or public deployment is created
 by this document.
+
+## 0. R2 Implementation Boundary
+
+The private/local website candidate implements the public information
+architecture, responsive route surfaces, Product Demo handoff, and progressive
+commercial intake described here. The website remains a separate Angular
+application and does not own authentication, tenant state, protected product
+APIs, or customer data.
+
+The Contact Us flow supports `PRODUCT_DEMO`, `ADVISORY_IMPLEMENTATION`,
+`PARTNERSHIP`, and `GENERAL_ENQUIRY` with purpose-specific structured
+qualification. The platform persists that qualification additively through
+the V42 JSONB field while retaining the legacy singular fields. Structured
+collections are canonicalized before submission and persistence.
+
+R2 browser checks cover the major routes at 375, 768, 1024, and 1440 pixels,
+including mobile menu keyboard behavior and Contact Us conditional controls.
+This is internal review evidence, not public-launch approval. Assistive
+technology testing, formal contrast verification, final legal copy, approved
+brand assets, production email delivery, and public deployment remain
+`DEFERRED` or `RESEARCH REQUIRED`.
+
+The R3 internal accessibility review found one H1 per reviewed route, expected
+main and navigation landmarks, labelled controls, semantic fieldset/legend
+groups, keyboard-operable menu disclosure, visible focus styling, no mobile
+overflow, and strong computed contrast for the reviewed body, controls, and
+status surface combinations. This is a targeted browser/DOM review, not a
+formal WCAG audit or certification; assistive-technology coverage and complete
+foreground/background sampling remain deferred.
+
+## 0.1 R4 Business Structure and Journey Decisions
+
+The public website represents the whole company through two early paths:
+Products and Professional Services. AutoVision is presented as the platform;
+Service Profit is its current commercially consumable capability and remains at
+the stable `/service-profit-ai` technical route for compatibility. The company
+operating concept is `Understand -> Design -> Deliver -> Measure -> Improve`.
+It is deliberately distinct from the AutoVision product loop:
+`Observe -> Understand -> Decide -> Act -> Verify -> Improve`.
+
+The first Contact Us step is a proportionate business conversation rather than
+dealer onboarding. Product Demo, Services, Partnership, and General Enquiry
+paths ask for only the context needed to route the conversation. Deeper dealer
+qualification is optional and conditionally disclosed for pilot intent. Google
+Maps/Places, paid geocoding, public Demo Feedback, production CRM, paid
+analytics, and final brand presentation remain deferred.
 
 ## 1. Executive Design Decision
 
@@ -158,7 +205,7 @@ reviewed decision; neither is authorized by VSP-W2.
 The customer-facing hierarchy is fixed for this foundation:
 
 ```text
-VERSPEN
+SPENMER
   AutoVision
     Service Profit AI
 ```
@@ -169,19 +216,19 @@ label, or marketing term.
 
 ### Brand treatment decision
 
-**Decision:** show `VERSPEN` as the provisional master-brand name, `AutoVision`
+**Decision:** show `SPENMER` as the provisional master-brand name, `AutoVision`
 as the platform/product identity, and `Service Profit AI` as the current
-commercial solution. Use a compact relationship lockup such as `VERSPEN /
-AutoVision` in the website header, with the product name carrying the strongest
-weight on product pages.
+commercial solution. Use the typography-first `SPENMER` wordmark in the
+website header. AutoVision remains contextual under Products rather than part
+of the corporate lockup.
 
 **Rationale:** this makes ownership and product scope legible without making
 the website a corporate brochure or implying that the legal launch gate has
 passed.
 
-**Status:** PLANNED and reversible. Do not use registered-trademark notation,
-claim registration or incorporation, invent company details, or imply public
-launch approval.
+**Status:** IMPLEMENTED as a temporary corporate wordmark. Final logo design
+is DEFERRED. Do not use registered-trademark notation, claim registration or
+incorporation, invent company details, or imply public launch approval.
 
 ### Future multi-product readiness
 
@@ -500,7 +547,7 @@ usable.
 ### Header
 
 ```text
-VERSPEN / AutoVision
+SPENMER
   AutoVision
   Service Profit AI
   For Dealers
@@ -543,8 +590,8 @@ The page answers the required questions in this order:
 
 ### 0. Utility/header band
 
-**Content:** provisional `VERSPEN / AutoVision` lockup, primary navigation,
-`Product Demo`, and `Request a Demo`.
+**Content:** temporary `SPENMER` corporate wordmark, primary navigation,
+`Product Demo`, and `Request a Demo`. Final logo design is deferred.
 **Desktop:** persistent compact header.
 **Tablet:** reduced nav with disclosure.
 **Mobile:** menu button plus visible Request a Demo action; Product Demo in

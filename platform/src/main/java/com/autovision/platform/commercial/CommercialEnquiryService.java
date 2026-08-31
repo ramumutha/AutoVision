@@ -14,8 +14,12 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,6 +29,16 @@ public class CommercialEnquiryService {
     private static final int DUPLICATE_WINDOW_DAYS = 7;
     private static final int RATE_LIMIT_PER_HOUR = 10;
     private static final Set<String> FREE_MAIL_DOMAINS = Set.of("gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com");
+        private static final Set<String> PRODUCT_INTERESTS = Set.of("SERVICE_PROFIT_AI");
+        private static final Set<String> SERVICE_PRACTICES = Set.of("AUTOMOTIVE_DEALER_TECHNOLOGY", "PRODUCT_SOLUTION_ENGINEERING",
+            "QUALITY_ENGINEERING_TEST_AUTOMATION", "PRODUCT_DEFINITION_REQUIREMENTS", "AI_DIGITAL_TRANSFORMATION",
+            "FINTECH_SOLUTIONS_ADVISORY", "OTHER");
+        private static final Set<String> SUPPORT_TYPES = Set.of("ADVISORY_ASSESSMENT", "ARCHITECTURE_SOLUTION_DESIGN",
+            "IMPLEMENTATION_DEVELOPMENT", "INTEGRATION", "TESTING_QUALITY_ENGINEERING", "PRODUCT_REQUIREMENTS_DEFINITION",
+            "MODERNIZATION", "ONGOING_ENGINEERING_SUPPORT");
+        private static final Set<String> BUSINESS_OBJECTIVES = Set.of("INCREASE_SERVICE_REVENUE", "RECOVER_DECLINED_DEFERRED_WORK",
+            "IMPROVE_CUSTOMER_RETENTION", "IMPROVE_ADVISOR_PRODUCTIVITY", "IMPROVE_WORKSHOP_UTILIZATION",
+            "IMPROVE_SERVICE_FOLLOW_UP", "IMPROVE_MANAGEMENT_VISIBILITY", "OTHER");
 
     private final CommercialEnquiryRepository enquiryRepository;
     private final CommercialVerificationRepository verificationRepository;
@@ -56,14 +70,17 @@ public class CommercialEnquiryService {
         String email = normalizeEmail(request.businessEmail());
         OffsetDateTime now = OffsetDateTime.now(clock);
         CommercialProduct product = request.purpose() == CommercialEnquiryPurpose.PRODUCT_DEMO ? request.product() : null;
-        if (enquiryRepository.existsByBusinessEmailAndPurposeAndProductAndCreatedAtAfter(email, request.purpose(), product, now.minusDays(DUPLICATE_WINDOW_DAYS))) {
+        Map<String, Object> qualification = qualification(request);
+        if (enquiryRepository.existsByBusinessEmailAndPurposeAndProductAndQualificationAndCreatedAtAfter(email, request.purpose(), product,
+            qualification, now.minusDays(DUPLICATE_WINDOW_DAYS))) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "A similar enquiry was recently received");
         }
 
         CommercialEnquiry enquiry = CommercialEnquiry.submit(UUID.randomUUID(), request.purpose(), clean(request.companyName()),
                 clean(request.firstName()), clean(request.lastName()), email, classify(email), clean(request.roleOrTitle()),
                 clean(request.countryOrMarket()), clean(request.messageOrRequirement()), request.purpose() == CommercialEnquiryPurpose.PRODUCT_DEMO ? request.productFamily() : null,
-                product, request.purpose() == CommercialEnquiryPurpose.ADVISORY_IMPLEMENTATION ? request.advisoryArea() : null, now);
+                product, request.purpose() == CommercialEnquiryPurpose.ADVISORY_IMPLEMENTATION ? request.advisoryArea() : null,
+                qualification, now);
         enquiryRepository.save(enquiry);
 
         byte[] tokenBytes = new byte[TOKEN_BYTES];
@@ -100,6 +117,52 @@ public class CommercialEnquiryService {
         if (request.purpose() != CommercialEnquiryPurpose.ADVISORY_IMPLEMENTATION && request.advisoryArea() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Advisory area is only valid for Advisory & Implementation");
         }
+        if (request.purpose() == CommercialEnquiryPurpose.PRODUCT_DEMO && request.products() != null && !request.products().contains("SERVICE_PROFIT_AI")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A product interest is required");
+        }
+        if (request.evaluationPreference() != null && !Set.of("GUIDED_DEMO", "DEMO_ENVIRONMENT", "DEALER_PILOT").contains(request.evaluationPreference())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported evaluation preference");
+        }
+        validateCollection(request.products(), PRODUCT_INTERESTS, "product interest");
+        validateCollection(request.servicePractices(), SERVICE_PRACTICES, "service practice");
+        validateCollection(request.supportTypes(), SUPPORT_TYPES, "support type");
+        validateCollection(request.businessObjectives(), BUSINESS_OBJECTIVES, "business objective");
+    }
+
+    private static void validateCollection(List<String> values, Set<String> allowed, String label) {
+        if (values != null && values.stream().anyMatch(value -> value == null || !allowed.contains(value.trim()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported " + label);
+        }
+    }
+
+    private static Map<String, Object> qualification(CommercialEnquiryRequest request) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        putArray(value, "products", request.products());
+        putArray(value, "servicePractices", request.servicePractices());
+        putArray(value, "supportTypes", request.supportTypes());
+        putArray(value, "businessObjectives", request.businessObjectives());
+        put(value, "evaluationPreference", request.evaluationPreference());
+        put(value, "organizationType", request.organizationType());
+        put(value, "partnershipType", request.partnershipType());
+        put(value, "projectStage", request.projectStage());
+        put(value, "desiredTimeframe", request.desiredTimeframe());
+        put(value, "currentTechnology", request.currentTechnology());
+        put(value, "monthlyServiceOrders", request.monthlyServiceOrders());
+        put(value, "historicalDataAvailability", request.historicalDataAvailability());
+        put(value, "phone", request.phone());
+        put(value, "preferredContactMethod", request.preferredContactMethod());
+        put(value, "cityRegion", request.cityRegion());
+        put(value, "companyWebsite", request.companyWebsite());
+        if (request.serviceLocations() != null) value.put("serviceLocations", request.serviceLocations());
+        if (request.declinedRecommendationsRecorded() != null) value.put("declinedRecommendationsRecorded", request.declinedRecommendationsRecorded());
+        return value;
+    }
+
+    private static void put(Map<String, Object> target, String name, String value) { if (value != null && !value.isBlank()) target.put(name, value.trim()); }
+    private static void putArray(Map<String, Object> target, String name, List<String> values) {
+        if (values == null || values.isEmpty()) return;
+        List<String> array = values.stream().filter(value -> value != null && !value.isBlank()).map(String::trim).distinct().sorted().toList();
+        if (!array.isEmpty()) target.put(name, new ArrayList<>(array));
     }
 
     private void enforceRateLimit(String clientKey) {

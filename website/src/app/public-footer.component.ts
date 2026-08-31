@@ -8,13 +8,13 @@ import { ProductDemoService } from './product-demo.service';
   template: `
     <footer class="footer">
       <div class="footer-grid">
-        <div><p class="brand">VERSPEN</p><p class="note">AutoVision by VERSPEN</p></div>
-        <div><h2>Products</h2><a routerLink="/autovision">AutoVision</a><a routerLink="/service-profit-ai">Service Profit AI</a></div>
+        <div><p class="brand">SPENMER</p><p class="note">Technology products and professional services.</p></div>
+        <div><h2>Products</h2><a routerLink="/autovision">AutoVision</a><a routerLink="/service-profit-ai">Service Profit</a></div>
         <div><h2>Company</h2><a routerLink="/about">About</a><a routerLink="/contact">Contact Us</a></div>
-        <div><h2>Evaluate</h2><a routerLink="/contact" [queryParams]="{ purpose: 'product-demo', product: 'service-profit-ai' }">Request a Demo</a>@if (productDemo.url(); as productDemoUrl) { <a class="product-link" [href]="productDemoUrl" target="_blank" rel="noopener noreferrer">Service Profit AI</a> } @else { <span class="product-unavailable">Service Profit AI unavailable</span> }</div>
+        <div><h2>Evaluate</h2><a routerLink="/contact" [queryParams]="{ purpose: 'product-demo', product: 'service-profit-ai' }">Request a Demo</a>@if (productDemo.url(); as productDemoUrl) { <a class="product-link" [href]="productDemoUrl" target="_blank" rel="noopener noreferrer">Service Profit</a> } @else { <span class="product-unavailable">Service Profit unavailable</span> }</div>
         <div><h2>Trust &amp; Legal</h2><a routerLink="/integration-security">Integration &amp; Security</a><a routerLink="/privacy">Privacy</a><a routerLink="/terms">Terms</a></div>
       </div>
-      <p class="provisional">VERSPEN is a provisional brand name for this private/local website foundation. Public launch is not approved.</p>
+      <div class="footer-meta"><p class="provisional">SPENMER is a provisional brand name for this private/local website foundation. Public launch is not approved.</p></div>
     </footer>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +26,7 @@ import { ProductDemoService } from './product-demo.service';
     h2 { margin: 0 0 .75rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
     a { display: block; min-block-size: 2.75rem; margin-block: .55rem; color: #d9e3e5; font-size: .9rem; text-decoration: none; } a:hover { color: white; text-decoration: underline; } .product-unavailable { display: block; margin-block: .55rem; color: #9eafb3; font-size: .9rem; }
     .provisional { max-inline-size: var(--site-wide-max); margin: var(--site-space-8) auto 0; padding-block-start: var(--site-space-4); border-block-start: 1px solid #41545b; }
+    .footer-meta { max-inline-size: var(--site-wide-max); margin-inline: auto; }
     @media (max-width: 900px) { .footer-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 600px) { .footer { padding-block-start: var(--site-space-7); } .footer-grid { grid-template-columns: repeat(2, 1fr); } }
   `],
